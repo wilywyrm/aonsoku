@@ -3,12 +3,17 @@ import { get, set, del } from 'idb-keyval'
 
 export const indexedDBStorage: StateStorage = {
   getItem: async (name: string): Promise<string | null> => {
-    return (await get(name)) || null
+    console.log(`[IndexedDB] Getting: ${name}`)
+    const value = (await get(name)) || null
+    console.log(`[IndexedDB] Got ${name}:`, value ? `${value.length} chars` : 'null')
+    return value
   },
   setItem: async (name: string, value: string): Promise<void> => {
+    console.log(`[IndexedDB] Setting ${name}: ${value.length} chars`)
     await set(name, value)
   },
   removeItem: async (name: string): Promise<void> => {
+    console.log(`[IndexedDB] Removing: ${name}`)
     await del(name)
   },
 }

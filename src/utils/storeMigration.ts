@@ -13,10 +13,6 @@ export async function migrateLocalStorageToIndexedDB(
   const MIGRATION_KEY = 'storage-migration-completed'
   const stores = ['player_store', 'app_store', 'theme_store', 'lang_store']
 
-  // DEV: Clear migration flag for testing
-  // TODO: Remove this before release
-  localStorage.removeItem(MIGRATION_KEY)
-
   // Check if already migrated
   const alreadyMigrated = localStorage.getItem(MIGRATION_KEY)
   if (alreadyMigrated) {

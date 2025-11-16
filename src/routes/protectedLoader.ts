@@ -2,8 +2,12 @@ import { redirect } from 'react-router-dom'
 import { ROUTES } from '@/routes/routesList'
 import { subsonic } from '@/service/subsonic'
 import { useAppStore } from '@/store/app.store'
+import { waitForHydration } from '@/store/hydration'
 
 export async function protectedLoader() {
+  // Wait for store hydration before checking auth
+  await waitForHydration()
+  
   const { url, password, isServerConfigured } = useAppStore.getState().data
   const hasNoUrl = !url || url === ''
   const hasNoToken = !password || password === ''
@@ -18,6 +22,9 @@ export async function protectedLoader() {
 }
 
 export async function podcastsLoader() {
+  // Wait for store hydration before checking podcasts config
+  await waitForHydration()
+  
   const { active } = useAppStore.getState().podcasts
 
   if (!active) {

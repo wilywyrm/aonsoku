@@ -22,6 +22,7 @@ import {
   hasValidConfig,
 } from '@/utils/salt'
 import { indexedDBStorage } from '@/utils/storage'
+import { markHydrationComplete } from './hydration'
 
 const { SERVER_URL, HIDE_SERVER, HIDE_RADIOS_SECTION, SERVER_TYPE } = window
 
@@ -228,6 +229,12 @@ export const useAppStore = createWithEqualityFn<IAppContext>()(
         name: 'app_store',
         version: 1,
         storage: createJSONStorage(() => indexedDBStorage),
+        onRehydrateStorage: () => {
+          return () => {
+            // Mark hydration as complete after app_store hydrates
+            markHydrationComplete()
+          }
+        },
         merge: (persistedState, currentState) => {
           try {
             const persisted = persistedState as Partial<IAppContext> | undefined
