@@ -1,6 +1,11 @@
 import merge from 'lodash/merge'
 import omit from 'lodash/omit'
-import { devtools, persist, subscribeWithSelector } from 'zustand/middleware'
+import {
+  createJSONStorage,
+  devtools,
+  persist,
+  subscribeWithSelector,
+} from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
 import { shallow } from 'zustand/shallow'
 import { createWithEqualityFn } from 'zustand/traditional'
@@ -16,6 +21,7 @@ import {
   getAuthType,
   hasValidConfig,
 } from '@/utils/salt'
+import { indexedDBStorage } from '@/utils/storage'
 
 const { SERVER_URL, HIDE_SERVER, HIDE_RADIOS_SECTION, SERVER_TYPE } = window
 
@@ -221,6 +227,7 @@ export const useAppStore = createWithEqualityFn<IAppContext>()(
       {
         name: 'app_store',
         version: 1,
+        storage: createJSONStorage(() => indexedDBStorage),
         merge: (persistedState, currentState) => {
           try {
             const persisted = persistedState as Partial<IAppContext> | undefined
@@ -279,16 +286,14 @@ export const useAppStore = createWithEqualityFn<IAppContext>()(
           }
         },
         partialize: (state) => {
-          const appStore = omit(
+          return omit(
             state,
             'data.logoutDialogState',
             'data.hideServer',
             'command.open',
             'update',
             'settings',
-          )
-
-          return appStore
+          ) as IAppContext
         },
       },
     ),

@@ -1,8 +1,14 @@
 import merge from 'lodash/merge'
-import { devtools, persist, subscribeWithSelector } from 'zustand/middleware'
+import {
+  createJSONStorage,
+  devtools,
+  persist,
+  subscribeWithSelector,
+} from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
 import { createWithEqualityFn } from 'zustand/traditional'
 import { IThemeContext, Theme } from '@/types/themeContext'
+import { indexedDBStorage } from '@/utils/storage'
 
 export const useThemeStore = createWithEqualityFn<IThemeContext>()(
   subscribeWithSelector(
@@ -23,6 +29,7 @@ export const useThemeStore = createWithEqualityFn<IThemeContext>()(
       {
         name: 'theme_store',
         version: 1,
+        storage: createJSONStorage(() => indexedDBStorage),
         merge: (persistedState, currentState) => {
           return merge(currentState, persistedState)
         },

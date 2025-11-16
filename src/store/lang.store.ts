@@ -1,10 +1,16 @@
 import merge from 'lodash/merge'
-import { devtools, persist, subscribeWithSelector } from 'zustand/middleware'
+import {
+  createJSONStorage,
+  devtools,
+  persist,
+  subscribeWithSelector,
+} from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
 import { shallow } from 'zustand/shallow'
 import { createWithEqualityFn } from 'zustand/traditional'
 import { languages } from '@/i18n/languages'
 import { ILangContext } from '@/types/langContext'
+import { indexedDBStorage } from '@/utils/storage'
 
 export const useLangStore = createWithEqualityFn<ILangContext>()(
   subscribeWithSelector(
@@ -35,6 +41,7 @@ export const useLangStore = createWithEqualityFn<ILangContext>()(
       {
         name: 'lang_store',
         version: 1,
+        storage: createJSONStorage(() => indexedDBStorage),
         merge: (persistedState, currentState) => {
           return merge(currentState, persistedState)
         },

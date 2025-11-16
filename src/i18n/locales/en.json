@@ -529,6 +529,13 @@
     "failed": "There was an error downloading your file.",
     "completed": "Your file has been downloaded."
   },
+  "storage": {
+    "migration": {
+      "started": "Upgrading storage system...",
+      "success": "Storage upgrade completed successfully!",
+      "error": "Failed to upgrade storage."
+    }
+  },
   "queue": {
     "title": "Queue",
     "clear": "Clear queue",

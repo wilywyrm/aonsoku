@@ -2,7 +2,12 @@ import { produce } from 'immer'
 import clamp from 'lodash/clamp'
 import merge from 'lodash/merge'
 import omit from 'lodash/omit'
-import { devtools, persist, subscribeWithSelector } from 'zustand/middleware'
+import {
+  createJSONStorage,
+  devtools,
+  persist,
+  subscribeWithSelector,
+} from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
 import { shallow } from 'zustand/shallow'
 import { createWithEqualityFn } from 'zustand/traditional'
@@ -11,6 +16,7 @@ import { IPlayerContext, LoopState } from '@/types/playerContext'
 import { ISong } from '@/types/responses/song'
 import { areSongListsEqual } from '@/utils/compareSongLists'
 import { addNextSongList, shuffleSongList } from '@/utils/songListFunctions'
+import { indexedDBStorage } from '@/utils/storage'
 
 const blurSettings = {
   min: 20,
@@ -845,11 +851,12 @@ export const usePlayerStore = createWithEqualityFn<IPlayerContext>()(
       {
         name: 'player_store',
         version: 1,
+        storage: createJSONStorage(() => indexedDBStorage),
         merge: (persistedState, currentState) => {
           return merge(currentState, persistedState)
         },
         partialize: (state) => {
-          const appStore = omit(state, [
+          return omit(state, [
             'actions',
             'playerState.isPlaying',
             'playerState.audioPlayerRef',
@@ -857,9 +864,7 @@ export const usePlayerStore = createWithEqualityFn<IPlayerContext>()(
             'playerState.queueState',
             'playerState.lyricsState',
             'state.settings.colors.bigPlayer.blur.settings',
-          ])
-
-          return appStore
+          ]) as IPlayerContext
         },
       },
     ),
