@@ -36,6 +36,7 @@
   transform: none !important;
   font-size: 2.34375rem !important;
   line-height: 1.35em;
+}
 /* heavier stroke weight on webkit2gtk workaround */
 :lang(ja), :lang(zh), :lang(ko) {
   font-weight: lighter;
