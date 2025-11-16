@@ -13,9 +13,21 @@ export async function migrateLocalStorageToIndexedDB(
   const MIGRATION_KEY = 'storage-migration-completed'
   const stores = ['player_store', 'app_store', 'theme_store', 'lang_store']
 
+  // DEV: Clear migration flag for testing
+  // TODO: Remove this before release
+  localStorage.removeItem(MIGRATION_KEY)
+
   // Check if already migrated
   const alreadyMigrated = localStorage.getItem(MIGRATION_KEY)
   if (alreadyMigrated) {
+    return { success: true, migratedStores: [], errors: [] }
+  }
+
+  // Guard: Check if there's any data to migrate
+  const appStoreData = localStorage.getItem('app_store')
+  if (!appStoreData) {
+    // No app config to migrate, skip migration entirely
+    console.log('No localStorage data found, skipping migration')
     return { success: true, migratedStores: [], errors: [] }
   }
 
@@ -39,8 +51,8 @@ export async function migrateLocalStorageToIndexedDB(
         await set(storeName, data)
         migratedStores.push(storeName)
 
-        // Keep localStorage data as backup initially
-        // Don't remove yet in case rollback is needed
+        // DEV: Keep localStorage data for testing
+        // localStorage.removeItem(storeName)
       }
     } catch (error) {
       console.error(`Failed to migrate ${storeName}:`, error)
