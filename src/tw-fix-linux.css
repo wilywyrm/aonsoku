@@ -40,3 +40,4 @@
 /* heavier stroke weight on webkit2gtk workaround */
 :lang(ja), :lang(zh), :lang(ko) {
   font-weight: lighter;
+}
