@@ -51,13 +51,21 @@ export async function migrateLocalStorageToIndexedDB(
   if (errors.length === 0) {
     // Mark migration complete
     localStorage.setItem(MIGRATION_KEY, 'true')
+    
+    // Store flag to show success message after reload
+    sessionStorage.setItem('migration-just-completed', 'true')
 
     toast.update('storage-migration', {
       render: t('storage.migration.success'),
       type: 'success',
-      autoClose: 5000,
+      autoClose: 1000,
       isLoading: false,
     })
+
+    // Reload page after short delay so stores can hydrate from IndexedDB
+    setTimeout(() => {
+      window.location.reload()
+    }, 1000)
 
     return { success: true, migratedStores, errors }
   } else {
