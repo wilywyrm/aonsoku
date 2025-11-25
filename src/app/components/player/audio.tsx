@@ -116,9 +116,6 @@ export function AudioPlayer({
 
   // Effect 2: Handle play/pause
   useEffect(() => {
-    // On Linux, let the autoPlay attribute handle play/pause to avoid webkit2gtk contention
-    if (isLinux) return
-
     async function handlePlayPause() {
       const audio = audioRef.current
       if (!audio) return
@@ -134,7 +131,15 @@ export function AudioPlayer({
         handleSongError()
       }
     }
-    if (isSong || isPodcast) handlePlayPause()
+
+    if (isSong || isPodcast) {
+      // On Linux, defer to next tick to avoid double control contention with autoPlay
+      if (isLinux) {
+        setTimeout(() => handlePlayPause(), 0)
+      } else {
+        handlePlayPause()
+      }
+    }
   }, [audioRef, handleSongError, isPlaying, isSong, isPodcast])
 
   useEffect(() => {
