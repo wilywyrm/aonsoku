@@ -28,4 +28,3 @@ export function waitForHydration(): Promise<void> {
 
   return hydrationPromise
 }
-
