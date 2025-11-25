@@ -86,7 +86,7 @@ export function PlayerControls({
     } else {
       manageMediaSession.setHandlers()
     }
-  }, [handleSeekAction, isPodcast, isPlaying])
+  }, [handleSeekAction, isPodcast])
 
   const shuffleTooltip = isShuffleActive
     ? t('player.tooltips.shuffle.disable')

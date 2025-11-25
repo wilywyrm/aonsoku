@@ -100,6 +100,8 @@ export function AudioPlayer({
   }, [audioRef, setPlayingState, t])
 
   useEffect(() => {
+    if (isLinux) return // double playback control issue causes contention in linux
+
     async function handleSong() {
       const audio = audioRef.current
       if (!audio) return
