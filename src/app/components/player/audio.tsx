@@ -99,14 +99,32 @@ export function AudioPlayer({
     setPlayingState(false)
   }, [audioRef, setPlayingState, t])
 
+  // Effect 1: Setup AudioContext (always runs)
   useEffect(() => {
-    async function handleSong() {
+    async function setupAudioContext() {
+      const audio = audioRef.current
+      if (!audio || !isSong || !isPlaying) return
+
+      try {
+        await resumeContext()
+      } catch (error) {
+        logger.error('AudioContext resume failed', error)
+      }
+    }
+    setupAudioContext()
+  }, [audioRef, isSong, isPlaying, resumeContext])
+
+  // Effect 2: Handle play/pause
+  useEffect(() => {
+    // On Linux, let the autoPlay attribute handle play/pause to avoid webkit2gtk contention
+    if (isLinux) return
+
+    async function handlePlayPause() {
       const audio = audioRef.current
       if (!audio) return
 
       try {
         if (isPlaying) {
-          if (isSong) await resumeContext()
           await audio.play()
         } else {
           audio.pause()
@@ -116,8 +134,8 @@ export function AudioPlayer({
         handleSongError()
       }
     }
-    if (isSong || isPodcast) handleSong()
-  }, [audioRef, handleSongError, isPlaying, isSong, isPodcast, resumeContext])
+    if (isSong || isPodcast) handlePlayPause()
+  }, [audioRef, handleSongError, isPlaying, isSong, isPodcast])
 
   useEffect(() => {
     async function handleRadio() {
