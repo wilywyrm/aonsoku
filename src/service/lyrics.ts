@@ -1,3 +1,4 @@
+import { get, set } from 'idb-keyval'
 import { httpClient } from '@/api/httpClient'
 import { usePlayerStore } from '@/store/player.store'
 import { ILyric, IStructuredLyric, LyricsResponse, StructuredLyricsResponse } from '@/types/responses/song'
@@ -24,6 +25,14 @@ async function getLyrics(getLyricsData: GetLyricsData) {
   const { preferSyncedLyrics } = usePlayerStore.getState().settings.lyrics
   const { songLyricsEnabled } = getServerExtensions()
 
+  const cacheKey = getLyricsCacheKey(getLyricsData, preferSyncedLyrics)
+
+  const cachedLyrics = await get(cacheKey)
+
+  if (cachedLyrics) {
+    return cachedLyrics
+  }
+
   // First attempt to retrieve lyrics from the server. 
   // If we know it supports the OpenSubsonic songLyrics extension with timing info, use that.
   // If the server does not support the extension or the lyrics returned from the server did 
@@ -42,7 +51,12 @@ async function getLyrics(getLyricsData: GetLyricsData) {
       const syncedLyrics = response?.data.lyricsList.structuredLyrics.find((lyrics) => lyrics.synced)
 
       if (syncedLyrics) {
-        return osStructuredLyricsToILyric(syncedLyrics)
+        const lyrics = osStructuredLyricsToILyric(syncedLyrics)
+        if (lyrics.value !== '') {
+          set(cacheKey, lyrics)
+
+          return lyrics
+        }
       }
       // save the plain lyrics retrieved from the server
       osUnsyncedLyricsFound = osStructuredLyricsToILyric(response.data.lyricsList.structuredLyrics[0])
@@ -52,13 +66,21 @@ async function getLyrics(getLyricsData: GetLyricsData) {
   if (preferSyncedLyrics) {
     const lyrics = await getLyricsFromLRCLib(getLyricsData)
 
-    if (lyrics.value !== '') return lyrics
+    if (lyrics.value !== '') {
+      set(cacheKey, lyrics)
+
+      return lyrics
+    }
   }
 
   // if the server supported the songLyrics extension and lrc did not have lyrics, we don't need to query the server and lrc again. 
   // so return the plain lyrics if we found them
   if (osUnsyncedLyricsFound) {
-    return osUnsyncedLyricsFound
+    if (osUnsyncedLyricsFound.value !== '') {
+      set(cacheKey, osUnsyncedLyricsFound)
+
+      return osUnsyncedLyricsFound
+    }
   }
 
   const response = await httpClient<LyricsResponse>('/getLyrics', {
@@ -77,7 +99,17 @@ async function getLyrics(getLyricsData: GetLyricsData) {
   // Note: If `preferSyncedLyrics` is true and we reached this point, it means the LrcLib
   // does not contains lyrics for the track, so the fallback is unnecessary in that case.
   if (lyricNotFound && !preferSyncedLyrics) {
-    return getLyricsFromLRCLib(getLyricsData)
+    const lyrics = await getLyricsFromLRCLib(getLyricsData)
+
+    if (lyrics.value !== '') {
+      set(cacheKey, lyrics)
+    }
+
+    return lyrics
+  }
+
+  if (response?.data.lyrics) {
+    set(cacheKey, response.data.lyrics)
   }
 
   return response?.data.lyrics
@@ -175,6 +207,17 @@ function osStartMsToSongTimestamp(startTime: number): string {
   // YYYY-MM-DDTHH:mm:ss.sssZ -> mm:ss.ss
   // 2011-10-05T14:48:00.000Z -> 48:00.00
   return new Date(startTime).toISOString().slice(14, -2);
+}
+
+function getLyricsCacheKey(
+  getLyricsData: GetLyricsData,
+  preferSyncedLyrics: boolean,
+) {
+  const { artist, title } = getLyricsData
+
+  const type = preferSyncedLyrics ? 'synced' : 'plain'
+
+  return `lyrics:${artist}:${title}:${type}`
 }
 
 export const lyrics = {

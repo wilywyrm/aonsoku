@@ -3,12 +3,12 @@
 <br />
 <div align="center">
   <a href="https://github.com/victoralvesf/aonsoku">
-    <img src="./src-tauri/icons/128x128.png" alt="Aonsoku" width="80" height="80">
+    <img src="./resources/icons/icon.png" alt="Aonsoku" width="80" height="80">
   </a>
 
   <h3 align="center">Aonsoku</h3>
   <p align="center">
-    A modern desktop client for Navidrome/Subsonic servers built with React and Rust.
+    A modern desktop client for Navidrome/Subsonic servers built with React and Electron.
     <br />
     <br />
     <a href="https://aonsoku.vercel.app">Web App</a>
@@ -18,13 +18,13 @@
     <a href="https://github.com/victoralvesf/aonsoku/issues/new?labels=enhancement&template=feature-request---.md">Request Feature</a>
   </p>
 
-  [![React][React.js]][React-url] [![Tauri][Tauri]][Tauri-url] [![Rust][Rust]][Rust-url]
+  [![React][React.js]][React-url] [![Electron][Electron]][Electron-url]
 
   [![Download][Release-badge]][Release-url]
 </div>
 
 <!-- TABLE OF CONTENTS -->
-<details>
+<details open>
   <summary>Table of Contents</summary>
   <ol>
     <li>
@@ -42,6 +42,7 @@
         <li><a href="#recommended-ide-setup">Recommended IDE Setup</a></li>
       </ul>
     </li>
+    <li><a href="#apple-users">macOS Users: "App cannot be opened" or Crash on Launch</a></li>
     <li><a href="#roadmap">Roadmap</a></li>
     <li><a href="#contributing">Contributing</a></li>
     <li><a href="#translation">Translation</a></li>
@@ -80,7 +81,6 @@
 
 * Node.js
 * pnpm, npm or yarn
-* Rust
 * cargo
 
 ### Installation
@@ -93,10 +93,6 @@ git clone https://github.com/victoralvesf/aonsoku.git
 ```sh
 pnpm install
 ```
-3. Install tauri-cli
-```sh
-cargo install tauri-cli
-```
 
 ### Running
 
@@ -107,7 +103,7 @@ pnpm run dev
 
 * Desktop App
 ```sh
-pnpm run tauri dev
+pnpm run electron:dev
 ```
 
 * Docker
@@ -167,7 +163,33 @@ Below is a table describing the environment variables that can be used in this p
 
 ### Recommended IDE Setup
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+- [VS Code](https://code.visualstudio.com/) + [Biome.js](https://marketplace.visualstudio.com/items?itemName=biomejs.biome)
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<div id="apple-users"></div>
+
+## macOS Users: "App cannot be opened" or Crash on Launch
+
+Since this application is not signed and notarized by Apple, macOS Gatekeeper may block it from running to protect your system. You might encounter:
+1. A message saying the app **"is damaged and can't be opened."**
+2. An immediate crash or error window upon launching.
+
+To fix this, please follow these steps:
+
+1. Move **Aonsoku** to your `/Applications` folder.
+2. Open your **Terminal**.
+3. Run the following commands to repair the permission and signature (you may need to enter your system password):
+
+```bash
+# 1. Remove the quarantine attribute (Fixes "App is damaged")
+sudo xattr -cr /Applications/Aonsoku.app
+
+# 2. Re-sign the application locally (Fixes immediate crashes/library errors)
+sudo codesign --force --deep --sign - /Applications/Aonsoku.app
+```
+
+4. You can now open Aonsoku normally.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -224,9 +246,7 @@ Distributed under the MIT License. See `LICENSE.txt` for more information.
 <!-- MARKDOWN LINKS & IMAGES -->
 [React.js]: https://img.shields.io/badge/React-000000?style=for-the-badge&logo=react&logoColor=61DAFB
 [React-url]: https://reactjs.org/
-[Rust]: https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=F74C00
-[Rust-url]: https://www.rust-lang.org
-[Tauri]: https://img.shields.io/badge/Tauri-000000?style=for-the-badge&logo=tauri&logoColor=24C8DB
-[Tauri-url]: https://tauri.app
+[Electron]: https://img.shields.io/badge/Electron-000000?style=for-the-badge&logo=electron&logoColor=9FEAF9
+[Electron-url]: https://www.electronjs.org/
 [Release-badge]: https://img.shields.io/github/v/release/victoralvesf/aonsoku?display_name=release&style=for-the-badge&label=Download&labelColor=%23000&color=%2310B77F&logo=rocket&logoColor=%2310B77F&logoSize=auto
 [Release-url]: https://github.com/victoralvesf/aonsoku/releases/latest
