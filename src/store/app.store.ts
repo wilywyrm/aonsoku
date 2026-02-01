@@ -19,7 +19,13 @@ import {
   hasValidConfig,
 } from '@/utils/salt'
 
-const { SERVER_URL, HIDE_SERVER, HIDE_RADIOS_SECTION, SERVER_TYPE } = window
+const {
+  SERVER_URL,
+  HIDE_SERVER,
+  HIDE_RADIOS_SECTION,
+  SERVER_TYPE,
+  IMAGE_CACHE_ENABLED,
+} = window
 
 export const useAppStore = createWithEqualityFn<IAppContext>()(
   subscribeWithSelector(
@@ -109,10 +115,16 @@ export const useAppStore = createWithEqualityFn<IAppContext>()(
                 state.pages.artistsPageViewType = type
               })
             },
+            imagesCacheLayerEnabled: IMAGE_CACHE_ENABLED ?? false,
+            setImagesCacheLayerEnabled: (value) => {
+              set((state) => {
+                state.pages.imagesCacheLayerEnabled = value
+              })
+            },
           },
           desktop: {
             data: {
-              minimizeToTray: true,
+              minimizeToTray: false,
             },
             actions: {
               setMinimizeToTray: (value) => {
@@ -205,7 +217,8 @@ export const useAppStore = createWithEqualityFn<IAppContext>()(
                     state.data.protocolVersion = serverInfo.protocolVersion
                     state.data.serverType = serverInfo.serverType
                     state.data.isServerConfigured = true
-                    state.data.extensionsSupported = serverInfo.extensionsSupported
+                    state.data.extensionsSupported =
+                      serverInfo.extensionsSupported
                   })
                   return true
                 }
@@ -256,12 +269,18 @@ export const useAppStore = createWithEqualityFn<IAppContext>()(
             const persisted = persistedState as Partial<IAppContext> | undefined
 
             let hideRadiosSection = false
+            let enableImageCache = false
 
-            if (persisted) {
-              hideRadiosSection = persisted.pages?.hideRadiosSection ?? false
+            if (persisted && persisted.pages) {
+              hideRadiosSection = persisted.pages.hideRadiosSection ?? false
+              enableImageCache =
+                persisted.pages.imagesCacheLayerEnabled ?? false
             }
             if (HIDE_RADIOS_SECTION !== undefined) {
               hideRadiosSection = HIDE_RADIOS_SECTION
+            }
+            if (IMAGE_CACHE_ENABLED !== undefined) {
+              enableImageCache = IMAGE_CACHE_ENABLED
             }
 
             if (hasValidConfig) {
@@ -278,6 +297,7 @@ export const useAppStore = createWithEqualityFn<IAppContext>()(
                 },
                 pages: {
                   hideRadiosSection,
+                  imagesCacheLayerEnabled: enableImageCache,
                 },
               }
 
@@ -294,6 +314,7 @@ export const useAppStore = createWithEqualityFn<IAppContext>()(
               },
               pages: {
                 hideRadiosSection,
+                imagesCacheLayerEnabled: enableImageCache,
               },
             }
 
@@ -379,3 +400,8 @@ export const useAppArtistsViewType = () =>
       isGridView,
     }
   })
+export const useAppImagesCacheLayer = () =>
+  useAppStore((state) => ({
+    imagesCacheLayerEnabled: state.pages.imagesCacheLayerEnabled,
+    setImagesCacheLayerEnabled: state.pages.setImagesCacheLayerEnabled,
+  }))

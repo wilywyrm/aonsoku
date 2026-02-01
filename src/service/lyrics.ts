@@ -1,7 +1,13 @@
 import { get, set } from 'idb-keyval'
 import { httpClient } from '@/api/httpClient'
 import { usePlayerStore } from '@/store/player.store'
-import { ILyric, IStructuredLyric, LyricsResponse, StructuredLyricsResponse } from '@/types/responses/song'
+import {
+  ILyric,
+  IStructuredLine,
+  IStructuredLyric,
+  LyricsResponse,
+  StructuredLyricsResponse,
+} from '@/types/responses/song'
 import { lrclibClient } from '@/utils/appName'
 import { checkServerType, getServerExtensions } from '@/utils/servers'
 
@@ -25,7 +31,11 @@ async function getLyrics(getLyricsData: GetLyricsData) {
   const { preferSyncedLyrics } = usePlayerStore.getState().settings.lyrics
   const { songLyricsEnabled } = getServerExtensions()
 
-  const cacheKey = getLyricsCacheKey(getLyricsData, preferSyncedLyrics)
+  const cacheKey = getLyricsCacheKey(
+    getLyricsData,
+    preferSyncedLyrics,
+    songLyricsEnabled,
+  )
 
   const cachedLyrics = await get(cacheKey)
 
@@ -33,36 +43,44 @@ async function getLyrics(getLyricsData: GetLyricsData) {
     return cachedLyrics
   }
 
-  // First attempt to retrieve lyrics from the server. 
+  // First attempt to retrieve lyrics from the server.
   // If we know it supports the OpenSubsonic songLyrics extension with timing info, use that.
-  // If the server does not support the extension or the lyrics returned from the server did 
+  // If the server does not support the extension or the lyrics returned from the server did
   // not include timing information, fetch them from the LrcLib
 
-  let osUnsyncedLyricsFound: ILyric | undefined;
+  let osUnsyncedLyricsFound: ILyric | undefined
+
   if (songLyricsEnabled) {
-    const response = await httpClient<StructuredLyricsResponse>('/getLyricsBySongId', {
-      method: 'GET',
-      query: {
-        id: getLyricsData.id,
+    const response = await httpClient<StructuredLyricsResponse>(
+      '/getLyricsBySongId',
+      {
+        method: 'GET',
+        query: {
+          id: getLyricsData.id,
+        },
       },
-    })
+    )
 
-    if (response?.data.lyricsList.structuredLyrics && response.data.lyricsList.structuredLyrics.length > 0) {
-      const syncedLyrics = response?.data.lyricsList.structuredLyrics.find((lyrics) => lyrics.synced)
+    if (response && preferSyncedLyrics) {
+      const { structuredLyrics } = response.data.lyricsList
 
-      if (syncedLyrics) {
-        const lyrics = osStructuredLyricsToILyric(syncedLyrics)
-        if (lyrics.value !== '') {
-          set(cacheKey, lyrics)
+      if (structuredLyrics && structuredLyrics.length > 0) {
+        const syncedLyrics = structuredLyrics.find((lyrics) => lyrics.synced)
 
-          return lyrics
+        if (syncedLyrics) {
+          const serverSyncedLyrics = osStructuredLyricsToILyric(syncedLyrics)
+
+          set(cacheKey, serverSyncedLyrics)
+
+          return serverSyncedLyrics
         }
       }
+
       // save the plain lyrics retrieved from the server
-      osUnsyncedLyricsFound = osStructuredLyricsToILyric(response.data.lyricsList.structuredLyrics[0])
+      osUnsyncedLyricsFound = osStructuredLyricsToILyric(structuredLyrics[0])
     }
   }
-  
+
   if (preferSyncedLyrics) {
     const lyrics = await getLyricsFromLRCLib(getLyricsData)
 
@@ -73,14 +91,12 @@ async function getLyrics(getLyricsData: GetLyricsData) {
     }
   }
 
-  // if the server supported the songLyrics extension and lrc did not have lyrics, we don't need to query the server and lrc again. 
+  // if the server supported the songLyrics extension and lrc did not have lyrics, we don't need to query the server and lrc again.
   // so return the plain lyrics if we found them
   if (osUnsyncedLyricsFound) {
-    if (osUnsyncedLyricsFound.value !== '') {
-      set(cacheKey, osUnsyncedLyricsFound)
+    set(cacheKey, osUnsyncedLyricsFound)
 
-      return osUnsyncedLyricsFound
-    }
+    return osUnsyncedLyricsFound
   }
 
   const response = await httpClient<LyricsResponse>('/getLyrics', {
@@ -116,7 +132,7 @@ async function getLyrics(getLyricsData: GetLyricsData) {
 }
 
 async function getLyricsFromLRCLib(getLyricsData: GetLyricsData) {
-  const { lrcLibEnabled } = usePlayerStore.getState().settings.privacy
+  const { lrclib } = usePlayerStore.getState().settings.privacy
   const { isLms } = checkServerType()
 
   const { title, album, duration } = getLyricsData
@@ -128,7 +144,7 @@ async function getLyricsFromLRCLib(getLyricsData: GetLyricsData) {
     ? getLyricsData.artist.split(',')[0]
     : getLyricsData.artist
 
-  if (!lrcLibEnabled) {
+  if (!lrclib.enabled || window.DISABLE_LRCLIB) {
     return {
       artist,
       title,
@@ -146,7 +162,13 @@ async function getLyricsFromLRCLib(getLyricsData: GetLyricsData) {
     if (duration) params.append('duration', duration.toString())
     if (album) params.append('album_name', album)
 
-    const url = new URL('https://lrclib.net/api/get')
+    let defaultLrcLibUrl = 'https://lrclib.net/api/get'
+
+    if (lrclib.customUrlEnabled && lrclib.customUrl !== '') {
+      defaultLrcLibUrl = `${lrclib.customUrl}/api/get`
+    }
+
+    const url = new URL(defaultLrcLibUrl)
     url.search = params.toString()
 
     const request = await fetch(url.toString(), {
@@ -188,20 +210,6 @@ function formatLyrics(lyrics: string) {
   return lyrics.trim().replaceAll('\r\n', '\n')
 }
 
-function osStructuredLyricsToILyric(lyrics: IStructuredLyric): ILyric {
-  return {
-    artist: lyrics.displayArtist,
-    title: lyrics.displayTitle,
-    lang: lyrics.lang,
-    value: formatLyrics(lyrics.line.map(l => {
-      if (l.start != undefined) { // l.start may have actual value 0 (falsy)
-        return `[${osStartMsToSongTimestamp(l.start)}] ${l.value}`
-      }
-      return l.value
-    }).join("\n")),
-  } 
-}
-
 function osStartMsToSongTimestamp(startTime: number): string {
   // Date() isoString is formatted as:
   // YYYY-MM-DDTHH:mm:ss.sssZ -> mm:ss.ss
@@ -212,12 +220,32 @@ function osStartMsToSongTimestamp(startTime: number): string {
 function getLyricsCacheKey(
   getLyricsData: GetLyricsData,
   preferSyncedLyrics: boolean,
+  songLyricsEnabled?: boolean,
 ) {
   const { artist, title } = getLyricsData
 
   const type = preferSyncedLyrics ? 'synced' : 'plain'
+  const serverExtension = songLyricsEnabled ? 'internal' : 'external'
 
-  return `lyrics:${artist}:${title}:${type}`
+  const keys = ['lyrics', artist, title, type, serverExtension]
+
+  return keys.join(':')
+}
+
+function osStructuredLyricsToILyric(lyrics: IStructuredLyric): ILyric {
+  return {
+    artist: lyrics.displayArtist,
+    title: lyrics.displayTitle,
+    lang: lyrics.lang,
+    value: formatLyrics(lyrics.line.map(osLineToILyricLine).join('\n')),
+  }
+}
+
+function osLineToILyricLine(line: IStructuredLine): string {
+  if (line.start !== undefined) {
+    return `[${osStartMsToSongTimestamp(line.start)}] ${line.value}`
+  }
+  return line.value
 }
 
 export const lyrics = {

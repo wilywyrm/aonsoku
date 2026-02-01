@@ -19,6 +19,7 @@ import {
 } from '@/store/player.store'
 import { logger } from '@/utils/logger'
 import { calculateReplayGain, ReplayGainParams } from '@/utils/replayGain'
+import { isLinux } from '@/utils/desktop'
 
 type AudioPlayerProps = ComponentPropsWithoutRef<'audio'> & {
   audioRef: RefObject<HTMLAudioElement>

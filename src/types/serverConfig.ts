@@ -11,7 +11,7 @@ export interface IServerConfig {
   password: string
   protocolVersion?: string
   serverType?: string
-  extensionsSupported?: {[key: string]: number[]}
+  extensionsSupported?: Record<string, number[]>
 }
 
 export type PageViewType = 'grid' | 'table'
@@ -23,6 +23,8 @@ interface IAppPages {
   setHideRadiosSection: (value: boolean) => void
   artistsPageViewType: PageViewType
   setArtistsPageViewType: (type: PageViewType) => void
+  imagesCacheLayerEnabled: boolean
+  setImagesCacheLayerEnabled: (value: boolean) => void
 }
 
 export interface IAppData extends IServerConfig {
