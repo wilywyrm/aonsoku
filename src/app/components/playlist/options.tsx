@@ -3,9 +3,13 @@ import { DownloadOptionHandler } from '@/app/components/options/download-handler
 import { DropdownMenuSeparator } from '@/app/components/ui/dropdown-menu'
 import { useOptions } from '@/app/hooks/use-options'
 import { subsonic } from '@/service/subsonic'
+import { useIsPlaylistPlaying, usePlayerActions } from '@/store/player.store'
 import { usePlaylists, useRemovePlaylist } from '@/store/playlists.store'
+import { PlaybackSource } from '@/types/playerContext'
 import { Playlist, PlaylistWithEntries } from '@/types/responses/playlist'
 import { ISong } from '@/types/responses/song'
+
+type GetSongsToQueueCallback = (songs: ISong[], source?: PlaybackSource) => void
 
 interface PlaylistOptionsProps {
   playlist: PlaylistWithEntries | Playlist
@@ -31,6 +35,10 @@ export function PlaylistOptions({
   const { setPlaylistDialogState, setData } = usePlaylists()
   const { play, playNext, playLast, startDownload } = useOptions()
   const { setPlaylistId, setConfirmDialogState } = useRemovePlaylist()
+  const { isPlaylistActive, isPlaylistPlaying } = useIsPlaylistPlaying(
+    playlist.id,
+  )
+  const { togglePlayPause } = usePlayerActions()
 
   function handleEdit() {
     setData({
@@ -42,18 +50,32 @@ export function PlaylistOptions({
     setPlaylistDialogState(true)
   }
 
-  async function getSongsToQueue(callback: (songs: ISong[]) => void) {
+  async function getSongsToQueue(
+    callback: GetSongsToQueueCallback,
+    source?: PlaybackSource,
+  ) {
     const playlistWithEntries = await subsonic.playlists.getOne(playlist.id)
     if (!playlistWithEntries) return
 
-    callback(playlistWithEntries.entry)
+    callback(playlistWithEntries.entry, source)
+  }
+
+  const playbackSource: PlaybackSource = {
+    id: playlist.id,
+    name: playlist.name,
+    type: 'playlist',
   }
 
   async function handlePlay() {
+    if (isPlaylistActive) {
+      if (!isPlaylistPlaying) togglePlayPause()
+      return
+    }
+
     if ('entry' in playlist) {
-      play(playlist.entry)
+      play(playlist.entry, playbackSource)
     } else {
-      await getSongsToQueue(play)
+      await getSongsToQueue(play, playbackSource)
     }
   }
 

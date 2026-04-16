@@ -23,7 +23,8 @@
     "search": "Поиск…",
     "home": "Главная",
     "emptyPlaylist": "Пока не создано ни одного плейлиста",
-    "podcasts": "Подкасты"
+    "podcasts": "Подкасты",
+    "genres": "Жанры"
   },
   "generic": {
     "loading": "Загрузка…",
@@ -141,7 +142,10 @@
     "headline": "Альбом",
     "buttons": {
       "like": "Лайкнуть {{name}}",
-      "dislike": "Убрать лайк с {{name}}"
+      "dislike": "Убрать лайк с {{name}}",
+      "play": "Воспроизвести {{name}}",
+      "pause": "Пауза {{name}}",
+      "shuffle": "Воспроизвести {{name}} в случайном порядке"
     },
     "info": {
       "about": "О {{name}}",
@@ -241,6 +245,7 @@
     },
     "buttons": {
       "play": "Прослушать {{name}}",
+      "pause": "Пауза {{name}}",
       "shuffle": "Прослушать {{name}} в случайном порядке",
       "options": "Больше для {{name}}"
     },
@@ -690,10 +695,7 @@
     "content": {
       "sidebar": {
         "group": "Боковая панель",
-        "description": "Управлять видимостью и организацией секций, отображаемых в боковой панели.",
-        "radios": {
-          "section": "Скрыть меню радио"
-        }
+        "description": "Показать или скрыть разделы на боковой панели."
       },
       "podcast": {
         "enabled": {
@@ -740,6 +742,19 @@
         },
         "group": "Статус в Discord"
       }
+    }
+  },
+  "genre": {
+    "headline": "Жанр"
+  },
+  "genres": {
+    "albumCount_one": "{{count}} альбом",
+    "albumCount_few": "{{count}} альбома",
+    "albumCount_many": "{{count}} альбомов",
+    "albumCount_other": "{{count}} альбомов",
+    "buttons": {
+      "shuffleTracks": "Перемешать треки",
+      "shuffleAlbums": "Перемешать альбомы"
     }
   }
 }

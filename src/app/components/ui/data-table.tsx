@@ -12,15 +12,18 @@ import {
   Table,
   useReactTable,
 } from '@tanstack/react-table'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import clsx from 'clsx'
-import { Disc2Icon, XIcon } from 'lucide-react'
+import { XIcon } from 'lucide-react'
 import {
   Fragment,
   MouseEvent,
   memo,
   TouchEvent,
   useCallback,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
 import { isMacOs } from 'react-device-detect'
@@ -39,7 +42,8 @@ import { Playlist } from '@/types/responses/playlist'
 import { ISong } from '@/types/responses/song'
 import { MouseButton } from '@/utils/browser'
 import { computeMultiSelectedRows } from '@/utils/dataTable'
-import { TableRow } from './data-table-row'
+import { AlbumDiscNumber } from '../album/disc-number'
+import { TABLE_ROW_SIZES, TableRow } from './data-table-row'
 
 const MemoTableRow = memo(TableRow) as typeof TableRow
 
@@ -70,7 +74,9 @@ interface DataTableProps<TData, TValue> {
   showHeader?: boolean
   showDiscNumber?: boolean
   variant?: 'classic' | 'modern'
-  dataType?: 'song' | 'artist' | 'playlist' | 'radio'
+  dataType?: 'song' | 'artist' | 'playlist' | 'radio' | 'genre'
+  onRowClick?: (row: Row<TData>) => void
+  enableVirtualization?: boolean
 }
 
 let isTap = false
@@ -91,6 +97,8 @@ export function DataTable<TData, TValue>({
   showDiscNumber = false,
   variant = 'classic',
   dataType = 'song',
+  onRowClick,
+  enableVirtualization = false,
 }: DataTableProps<TData, TValue>) {
   const { t } = useTranslation()
   const newColumns = columns.filter((column) => {
@@ -205,6 +213,36 @@ export function DataTable<TData, TValue>({
   const isSingleDisk = discIndexes.seen.size <= 1
   const discNumberIndexes = discIndexes.uniqueIndices
 
+  const tableContainerRef = useRef<HTMLDivElement>(null)
+  const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null)
+
+  useEffect(() => {
+    if (enableVirtualization && tableContainerRef.current) {
+      const parent = tableContainerRef.current.closest(
+        '[data-radix-scroll-area-viewport]',
+      ) as HTMLElement | null
+      setScrollElement(parent)
+    }
+  }, [enableVirtualization])
+
+  const virtualizer = useVirtualizer({
+    count: enableVirtualization ? rows.length : 0,
+    getScrollElement: () => scrollElement,
+    estimateSize: (index) => {
+      if (
+        showDiscNumber &&
+        !isSingleDisk &&
+        discNumberIndexes.includes(index)
+      ) {
+        return TABLE_ROW_SIZES.WITH_DISK
+      }
+      return TABLE_ROW_SIZES.DEFAULT
+    },
+    overscan: 10,
+  })
+
+  const virtualRows = virtualizer.getVirtualItems()
+
   const getContextMenuOptions = useCallback(
     (row: Row<TData>) => {
       if (!showContextMenu) return undefined
@@ -293,13 +331,17 @@ export function DataTable<TData, TValue>({
   const handleClicks = useCallback(
     (e: MouseEvent<HTMLDivElement>, row: Row<TData>) => {
       if (e.nativeEvent.button === MouseButton.Left) {
-        handleLeftClick(e, row)
+        if (onRowClick) {
+          onRowClick(row)
+        } else {
+          handleLeftClick(e, row)
+        }
       }
       if (e.nativeEvent.button === MouseButton.Right) {
         handleRightClick(row)
       }
     },
-    [handleLeftClick, handleRightClick],
+    [handleLeftClick, handleRightClick, onRowClick],
   )
 
   const handleRowDbClick = useCallback(
@@ -337,6 +379,16 @@ export function DataTable<TData, TValue>({
   function handleTouchCancel() {
     clearTimeout(tapTimeout)
     isTap = false
+  }
+
+  function handleDiscNumber(index: number) {
+    return showDiscNumber && !isSingleDisk && discNumberIndexes.includes(index)
+  }
+
+  function handleDiscNumberValue(row: Row<TData>) {
+    if (!handleDiscNumber(row.index)) return undefined
+
+    return (row.original as DiscNumber).discNumber
   }
 
   return (
@@ -419,49 +471,103 @@ export function DataTable<TData, TValue>({
               ))}
             </div>
           )}
-          <div className="[&_div:last-child]:border-0">
+          <div className="[&_div:last-child]:border-0" ref={tableContainerRef}>
             <div className="w-full h-full overflow-hidden">
               {rows?.length ? (
-                rows.map((row, index) => (
-                  <Fragment key={row.id}>
-                    {showDiscNumber &&
-                      !isSingleDisk &&
-                      discNumberIndexes.includes(index) && (
+                enableVirtualization && scrollElement ? (
+                  <div
+                    style={{
+                      height: `${virtualizer.getTotalSize()}px`,
+                      width: '100%',
+                      position: 'relative',
+                    }}
+                  >
+                    {virtualRows.map((virtualRow) => {
+                      const row = rows[virtualRow.index]
+                      const index = virtualRow.index
+                      const discNumber = handleDiscNumberValue(row)
+
+                      return (
                         <div
-                          className={clsx(
-                            'w-full h-14 flex flex-row items-center transition-colors text-muted-foreground',
-                            isClassic && 'border-b',
-                          )}
-                          role="row"
+                          key={row.id}
+                          ref={virtualizer.measureElement}
+                          data-index={virtualRow.index}
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            transform: `translateY(${virtualRow.start}px)`,
+                          }}
                         >
-                          <div className="w-12 flex items-center justify-center">
-                            <Disc2Icon strokeWidth={1.75} />
-                          </div>
-                          <span className="font-medium ml-[7px]">
-                            {t('album.table.discNumber', {
-                              number: (row.original as DiscNumber).discNumber,
-                            })}
-                          </span>
+                          <Fragment>
+                            {discNumber && (
+                              <AlbumDiscNumber
+                                className={clsx(isClassic && 'border-b')}
+                              >
+                                {t('album.table.discNumber', {
+                                  number: discNumber,
+                                })}
+                              </AlbumDiscNumber>
+                            )}
+                            <MemoTableRow
+                              index={index}
+                              row={row}
+                              contextMenuOptions={getContextMenuOptions(row)}
+                              isPrevRowSelected={isPrevRowSelected}
+                              isNextRowSelected={isNextRowSelected}
+                              variant={variant}
+                              dataType={dataType}
+                              clickable={!!onRowClick}
+                              onClick={(e) => handleClicks(e, row)}
+                              onDoubleClick={(e) => handleRowDbClick(e, row)}
+                              onTouchStart={handleTouchStart}
+                              onTouchMove={handleTouchMove}
+                              onTouchEnd={(e) => handleRowTap(e, row)}
+                              onTouchCancel={handleTouchCancel}
+                              onContextMenu={(e) => handleClicks(e, row)}
+                            />
+                          </Fragment>
                         </div>
-                      )}
-                    <MemoTableRow
-                      index={index}
-                      row={row}
-                      contextMenuOptions={getContextMenuOptions(row)}
-                      isPrevRowSelected={isPrevRowSelected}
-                      isNextRowSelected={isNextRowSelected}
-                      variant={variant}
-                      dataType={dataType}
-                      onClick={(e) => handleClicks(e, row)}
-                      onDoubleClick={(e) => handleRowDbClick(e, row)}
-                      onTouchStart={handleTouchStart}
-                      onTouchMove={handleTouchMove}
-                      onTouchEnd={(e) => handleRowTap(e, row)}
-                      onTouchCancel={handleTouchCancel}
-                      onContextMenu={(e) => handleClicks(e, row)}
-                    />
-                  </Fragment>
-                ))
+                      )
+                    })}
+                  </div>
+                ) : (
+                  rows.map((row, index) => {
+                    const discNumber = handleDiscNumberValue(row)
+
+                    return (
+                      <Fragment key={row.id}>
+                        {discNumber && (
+                          <AlbumDiscNumber
+                            className={clsx(isClassic && 'border-b')}
+                          >
+                            {t('album.table.discNumber', {
+                              number: discNumber,
+                            })}
+                          </AlbumDiscNumber>
+                        )}
+                        <MemoTableRow
+                          index={index}
+                          row={row}
+                          contextMenuOptions={getContextMenuOptions(row)}
+                          isPrevRowSelected={isPrevRowSelected}
+                          isNextRowSelected={isNextRowSelected}
+                          variant={variant}
+                          dataType={dataType}
+                          clickable={!!onRowClick}
+                          onClick={(e) => handleClicks(e, row)}
+                          onDoubleClick={(e) => handleRowDbClick(e, row)}
+                          onTouchStart={handleTouchStart}
+                          onTouchMove={handleTouchMove}
+                          onTouchEnd={(e) => handleRowTap(e, row)}
+                          onTouchCancel={handleTouchCancel}
+                          onContextMenu={(e) => handleClicks(e, row)}
+                        />
+                      </Fragment>
+                    )
+                  })
+                )
               ) : (
                 <div role="row">
                   <div

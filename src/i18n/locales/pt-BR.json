@@ -17,7 +17,8 @@
     "playlists": "Playlists",
     "radios": "Rádios",
     "podcasts": "Podcasts",
-    "emptyPlaylist": "Nenhuma playlist criada ainda"
+    "emptyPlaylist": "Nenhuma playlist criada ainda",
+    "genres": "Gêneros"
   },
   "menu": {
     "language": "Linguagem",
@@ -66,7 +67,6 @@
   },
   "playlist": {
     "headline": "Playlist",
-    "songCount_zero": "{{count}} músicas",
     "songCount_one": "{{count}} música",
     "songCount_many": "{{count}} músicas",
     "songCount_other": "{{count}} músicas",
@@ -74,6 +74,7 @@
     "refresh": "Atualizar playlists",
     "buttons": {
       "play": "Tocar {{name}}",
+      "pause": "Pausar {{name}}",
       "shuffle": "Tocar {{name}} no modo aleatório",
       "options": "Mais opções para {{name}}"
     },
@@ -143,6 +144,9 @@
   "album": {
     "headline": "Álbum",
     "buttons": {
+      "play": "Tocar {{name}}",
+      "pause": "Pausar {{name}}",
+      "shuffle": "Tocar {{name}} no modo aleatório",
       "like": "Curtir {{name}}",
       "dislike": "Remover curtida de {{name}}"
     },
@@ -203,7 +207,6 @@
       "options": "Mais opções para {{artist}}"
     },
     "info": {
-      "albumsCount_zero": "{{count}} álbuns",
       "albumsCount_one": "{{count}} álbum",
       "albumsCount_many": "{{count}} álbuns",
       "albumsCount_other": "{{count}} álbuns"
@@ -268,7 +271,6 @@
       }
     },
     "header": {
-      "episodeCount_zero": "{{count}} episódios",
       "episodeCount_one": "{{count}} episódio",
       "episodeCount_many": "{{count}} episódios",
       "episodeCount_other": "{{count}} episódios",
@@ -522,11 +524,9 @@
     "seconds": "{{seconds}}s"
   },
   "server": {
-    "songCount_zero": "{{count}} músicas",
     "songCount_one": "{{count}} música",
     "songCount_many": "{{count}} músicas",
     "songCount_other": "{{count}} músicas",
-    "folderCount_zero": "{{count}} diretórios",
     "folderCount_one": "{{count}} diretório",
     "folderCount_many": "{{count}} diretórios",
     "folderCount_other": "{{count}} diretórios",
@@ -591,7 +591,8 @@
     "dialog": {
       "title": "Nova Versão Disponível!",
       "remindLater": "Lembrar-me Mais Tarde",
-      "install": "Instalar e Reiniciar"
+      "install": "Instalar e Reiniciar",
+      "macOS": "Baixar no GitHub"
     },
     "toasts": {
       "started": "O processo de atualização foi iniciado.",
@@ -688,16 +689,43 @@
             "label": "URL",
             "example": "Exemplo: https://my-lrclib.com"
           }
+        },
+        "animatedCover": {
+          "enabled": {
+            "label": "Habilitar Capas Animadas",
+            "info": "Quando habilitado, as capas animadas serão carregadas de um serviço externo quando disponível."
+          },
+          "customUrl": {
+            "toggle": "Use uma URL personalizada",
+            "info": "Use uma URL personalizada para a API de capas animadas no lugar da padrão.",
+            "label": "URL",
+            "example": "Padrão: https://artwork.m8tec.top"
+          },
+          "screens": {
+            "album": {
+              "label": "Página do Álbum",
+              "info": "Habilita as capas animadas no cabeçalho da página do álbum."
+            },
+            "fullscreen": {
+              "label": "Player Grande",
+              "info": "Habilita as capas animadas para a música atual no Player Grande."
+            },
+            "playerBar": {
+              "label": "Player Principal",
+              "info": "Habilita as capas animadas para a música atual no player principal."
+            },
+            "drawer": {
+              "label": "Fila de Reprodução e Letras",
+              "info": "Habilita as capas animadas para a música atual na gaveta da Fila de Reprodução e Letras."
+            }
+          }
         }
       }
     },
     "content": {
       "sidebar": {
         "group": "Menu lateral",
-        "description": "Gerencie a visibilidade e a organização das seções exibidas no menu lateral.",
-        "radios": {
-          "section": "Esconder seção de rádios"
-        }
+        "description": "Mostrar ou ocultar seções na barra lateral."
       },
       "podcast": {
         "group": "Podcasts",
@@ -759,6 +787,18 @@
       "MM": "%d meses",
       "y": "1 ano",
       "yy": "%d anos"
+    }
+  },
+  "genre": {
+    "headline": "Gênero"
+  },
+  "genres": {
+    "albumCount_one": "{{count}} álbum",
+    "albumCount_many": "{{count}} álbuns",
+    "albumCount_other": "{{count}} álbuns",
+    "buttons": {
+      "shuffleTracks": "Faixas aleatórias",
+      "shuffleAlbums": "Álbuns aleatórios"
     }
   }
 }

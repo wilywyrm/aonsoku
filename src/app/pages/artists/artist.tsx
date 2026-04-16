@@ -4,6 +4,7 @@ import ImageHeader from '@/app/components/album/image-header'
 import ArtistTopSongs from '@/app/components/artist/artist-top-songs'
 import { ArtistInfo } from '@/app/components/artist/info'
 import RelatedArtistsList from '@/app/components/artist/related-artists'
+import { ArtistStickyHeader } from '@/app/components/artist/sticky-header'
 import { AlbumFallback } from '@/app/components/fallbacks/album-fallbacks'
 import { PreviewListFallback } from '@/app/components/fallbacks/home-fallbacks'
 import { TopSongsTableFallback } from '@/app/components/fallbacks/table-fallbacks'
@@ -81,7 +82,9 @@ export default function Artist() {
   const recentAlbums = artist.album ? sortRecentAlbums(artist.album) : []
 
   return (
-    <div className="w-full">
+    <div className="w-full relative">
+      <ArtistStickyHeader artist={artist} />
+
       <ImageHeader
         type={t('artist.headline')}
         title={artist.name}

@@ -1,7 +1,7 @@
-import randomCSSHexColor from '@chriscodesthings/random-css-hex-color'
 import clsx from 'clsx'
 import { useState } from 'react'
 import { LazyLoadImage } from 'react-lazy-load-image-component'
+import { AnimatedCoverVideo } from '@/app/components/album/animated-cover-video'
 import {
   AlbumArtistInfo,
   AlbumMultipleArtistsInfo,
@@ -11,10 +11,10 @@ import { AlbumHeaderFallback } from '@/app/components/fallbacks/album-fallbacks'
 import { BadgesData, HeaderInfoGenerator } from '@/app/components/header-info'
 import { ImageLoader } from '@/app/components/image-loader'
 import { CustomLightBox } from '@/app/components/lightbox'
+import { useAlbumColor } from '@/app/hooks/use-album-color'
 import { cn } from '@/lib/utils'
 import { CoverArt } from '@/types/coverArtType'
 import { IFeaturedArtist } from '@/types/responses/artist'
-import { getAverageColor } from '@/utils/getAverageColor'
 import { getTextSizeClass } from '@/utils/getTextSizeClass'
 
 interface ImageHeaderProps {
@@ -27,6 +27,8 @@ interface ImageHeaderProps {
   coverArtType: CoverArt
   coverArtSize: string
   coverArtAlt: string
+  animatedArtworkArtist?: string
+  animatedArtworkAlbum?: string
   badges: BadgesData
   isPlaylist?: boolean
 }
@@ -41,39 +43,14 @@ export default function ImageHeader({
   coverArtType,
   coverArtSize,
   coverArtAlt,
+  animatedArtworkArtist,
+  animatedArtworkAlbum,
   badges,
   isPlaylist = false,
 }: ImageHeaderProps) {
   const [open, setOpen] = useState(false)
-  const [bgColor, setBgColor] = useState('')
-
-  function getImage() {
-    return document.getElementById('cover-art-image') as HTMLImageElement
-  }
-
-  async function handleLoadImage() {
-    const img = getImage()
-    if (!img) return
-
-    let color = randomCSSHexColor(true)
-
-    try {
-      color = (await getAverageColor(img)).hex
-    } catch (_) {
-      console.warn(
-        'handleLoadImage: unable to get image color. Using a random color.',
-      )
-    }
-
-    setBgColor(color)
-  }
-
-  function handleError() {
-    const img = getImage()
-    if (!img) return
-
-    img.crossOrigin = null
-  }
+  const { bgColor, handleLoadImage, handleError } =
+    useAlbumColor('cover-art-image')
 
   const hasMultipleArtists = artists ? artists.length > 1 : false
 
@@ -81,6 +58,7 @@ export default function ImageHeader({
     <ImageLoader id={coverArtId} type={coverArtType} size={coverArtSize}>
       {(src, isLoading) => (
         <div
+          id="image-header-container"
           className="flex relative w-full h-[calc(3rem+200px)] 2xl:h-[calc(3rem+250px)]"
           key={`header-${coverArtId}`}
         >
@@ -101,7 +79,7 @@ export default function ImageHeader({
                 'w-[200px] h-[200px] min-w-[200px] min-h-[200px]',
                 '2xl:w-[250px] 2xl:h-[250px] 2xl:min-w-[250px] 2xl:min-h-[250px]',
                 'bg-skeleton aspect-square bg-cover bg-center rounded',
-                'shadow-header-image overflow-hidden',
+                'shadow-header-image overflow-hidden relative',
                 'hover:scale-[1.02] ease-linear duration-100',
               )}
             >
@@ -118,6 +96,12 @@ export default function ImageHeader({
                 onLoad={handleLoadImage}
                 onError={handleError}
                 onClick={() => setOpen(true)}
+              />
+
+              <AnimatedCoverVideo
+                artist={animatedArtworkArtist}
+                album={animatedArtworkAlbum}
+                screen="album"
               />
             </div>
 

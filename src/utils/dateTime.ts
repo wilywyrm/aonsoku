@@ -22,6 +22,7 @@ import 'dayjs/locale/ru'
 import 'dayjs/locale/sv'
 import 'dayjs/locale/tr'
 import 'dayjs/locale/uk'
+import 'dayjs/locale/zh-hk'
 import 'dayjs/locale/zh-cn'
 
 import i18n from '@/i18n'

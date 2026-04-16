@@ -35,11 +35,13 @@
     "radios": "라디오",
     "podcasts": "팟캐스트",
     "emptyPlaylist": "생성된 재생목록 없음",
-    "favorites": "즐겨찾기"
+    "favorites": "즐겨찾기",
+    "genres": "장르"
   },
   "playlist": {
     "buttons": {
       "play": "{{name}} 재생",
+      "pause": "{{name}} 일시 정지",
       "shuffle": "무작위 모드로 {{name}} 재생",
       "options": "{{name}} 옵션 더 보기"
     },
@@ -358,11 +360,8 @@
     },
     "content": {
       "sidebar": {
-        "description": "사이드바에 표시된 구역의 가시성과 구성을 설정합니다.",
-        "radios": {
-          "section": "라디오 구역 가리기"
-        },
-        "group": "사이드바"
+        "group": "사이드바",
+        "description": "사이드바에서 섹션을 표시하거나 숨깁니다."
       },
       "podcast": {
         "group": "팟캐스트",
@@ -473,7 +472,10 @@
     "headline": "앨범",
     "buttons": {
       "like": "{{name}} 좋아요",
-      "dislike": "{{name}} 좋아요 취소"
+      "dislike": "{{name}} 좋아요 취소",
+      "play": "{{name}} 재생",
+      "pause": "{{name}} 일시 정지",
+      "shuffle": "{{name}} 셔플 재생"
     },
     "more": {
       "listTitle": "이 아티스트의 다른 곡",
@@ -720,6 +722,17 @@
     "server": {
       "error": "서버와의 통신에 실패했습니다!",
       "success": "서버가 저장되었습니다!"
+    }
+  },
+  "genre": {
+    "headline": "장르"
+  },
+  "genres": {
+    "albumCount_one": "앨범 {{count}}개",
+    "albumCount_other": "앨범 {{count}}개",
+    "buttons": {
+      "shuffleTracks": "트랙 셔플",
+      "shuffleAlbums": "앨범 셔플"
     }
   }
 }

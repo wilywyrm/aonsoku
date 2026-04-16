@@ -65,7 +65,13 @@ export default function SongList() {
   const songCount = (hasSomeFilter ? songlist.length : songCountData) ?? 0
 
   function handlePlaySong(index: number) {
-    if (songlist) setSongList(songlist, index)
+    if (!songlist) return
+
+    setSongList(songlist, index, false, {
+      type: 'songs',
+      id: 'songs',
+      name: t('sidebar.songs'),
+    })
   }
 
   const columnsToShow: ColumnFilter[] = [

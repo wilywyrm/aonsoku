@@ -16,7 +16,8 @@
     "playlists": "Çalma Listeleri",
     "radios": "Radyo İstasyonları",
     "podcasts": "Podcastler",
-    "emptyPlaylist": "Henüz çalma listesi oluşturulmadı"
+    "emptyPlaylist": "Henüz çalma listesi oluşturulmadı",
+    "genres": "Türler"
   },
   "menu": {
     "language": "Dil",
@@ -71,6 +72,7 @@
     "refresh": "Listeleri yenile",
     "buttons": {
       "play": "{{name}} çal",
+      "pause": "{{name}} duraklat",
       "shuffle": "{{name}} listesini karıştır",
       "options": "{{name}} için diğer seçenekler"
     },
@@ -138,7 +140,10 @@
     "headline": "Albüm",
     "buttons": {
       "like": "{{name}} beğen",
-      "dislike": "{{name}} beğenmekten vazgeç"
+      "dislike": "{{name}} beğenmekten vazgeç",
+      "play": "{{name}} çal",
+      "pause": "{{name}} duraklat",
+      "shuffle": "{{name}} karışık çal"
     },
     "info": {
       "about": "{{name}} hakkında",
@@ -669,10 +674,7 @@
     "content": {
       "sidebar": {
         "group": "Kenar Çubuğu",
-        "description": "Kenar çubuğunda görüntülenen bölümlerin görünürlüğünü ve organizasyonunu yönetin.",
-        "radios": {
-          "section": "Radyolar bölümünü gizle"
-        }
+        "description": "Kenar çubuğunda bölümleri göster veya gizle."
       },
       "podcast": {
         "group": "Podcast'ler",
@@ -726,6 +728,17 @@
       "MM": "%d ay",
       "y": "1 yıl",
       "yy": "%d yıl"
+    }
+  },
+  "genre": {
+    "headline": "Tür"
+  },
+  "genres": {
+    "albumCount_one": "{{count}} albüm",
+    "albumCount_other": "{{count}} albüm",
+    "buttons": {
+      "shuffleTracks": "Parçaları karıştır",
+      "shuffleAlbums": "Albümleri karıştır"
     }
   }
 }

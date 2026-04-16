@@ -4,7 +4,11 @@ import { Actions } from '@/app/components/actions'
 import { useSongList } from '@/app/hooks/use-song-list'
 import { subsonic } from '@/service/subsonic'
 import { useAppPages } from '@/store/app.store'
-import { usePlayerActions } from '@/store/player.store'
+import {
+  useIsArtistPlaying,
+  usePlayerActions,
+  usePlayerStore,
+} from '@/store/player.store'
 import { IArtist } from '@/types/responses/artist'
 import { queryKeys } from '@/utils/queryKeys'
 import { ArtistOptions } from './options'
@@ -21,10 +25,13 @@ export function ArtistButtons({
   isArtistEmpty,
 }: ArtistButtonsProps) {
   const { t } = useTranslation()
-  const { setSongList } = usePlayerActions()
+  const { setSongList, togglePlayPause, toggleShuffle } = usePlayerActions()
   const { showInfoPanel, toggleShowInfoPanel } = useAppPages()
   const { getArtistAllSongs } = useSongList()
-
+  const { isArtistActive, isArtistPlaying } = useIsArtistPlaying(artist.id)
+  const isShuffleActive = usePlayerStore(
+    (state) => state.playerState.isShuffleActive,
+  )
   const isArtistStarred = artist.starred !== undefined
 
   const queryClient = useQueryClient()
@@ -46,26 +53,44 @@ export function ArtistButtons({
     })
   }
 
-  async function handlePlayArtistRadio(shuffle = false) {
+  async function playArtistRadio(shuffle = false) {
     const songList = await getArtistAllSongs(artist?.name || '')
 
     if (songList) {
-      setSongList(songList, 0, shuffle)
+      setSongList(songList, 0, shuffle, {
+        id: artist.id,
+        name: artist.name,
+        type: 'artist',
+      })
+    }
+  }
+
+  function handlePlayButton() {
+    if (isArtistActive) {
+      togglePlayPause()
+    } else {
+      playArtistRadio()
+    }
+  }
+
+  function handleShuffleButton() {
+    if (isArtistActive) {
+      toggleShuffle()
+    } else {
+      playArtistRadio(true)
     }
   }
 
   const buttonsTooltips = {
-    play: t('playlist.buttons.play', { name: artist.name }),
+    play: isArtistPlaying
+      ? t('playlist.buttons.pause', { name: artist.name })
+      : t('playlist.buttons.play', { name: artist.name }),
     shuffle: t('playlist.buttons.shuffle', { name: artist.name }),
     options: t('playlist.buttons.options', { name: artist.name }),
-    like: () => {
-      return isArtistStarred
-        ? t('album.buttons.dislike', { name: artist.name })
-        : t('album.buttons.like', { name: artist.name })
-    },
-    info: () => {
-      return showInfoPanel ? t('generic.hideDetails') : t('generic.showDetails')
-    },
+    like: isArtistStarred
+      ? t('album.buttons.dislike', { name: artist.name })
+      : t('album.buttons.like', { name: artist.name }),
+    info: showInfoPanel ? t('generic.hideDetails') : t('generic.showDetails'),
   }
 
   if (isArtistEmpty) {
@@ -77,28 +102,26 @@ export function ArtistButtons({
       <Actions.Button
         tooltip={buttonsTooltips.play}
         buttonStyle="primary"
-        onClick={() => handlePlayArtistRadio()}
+        onClick={handlePlayButton}
       >
-        <Actions.PlayIcon />
+        {isArtistPlaying ? <Actions.PauseIcon /> : <Actions.PlayIcon />}
       </Actions.Button>
 
       <Actions.Button
         tooltip={buttonsTooltips.shuffle}
-        onClick={() => handlePlayArtistRadio(true)}
+        onClick={handleShuffleButton}
+        isActive={isArtistActive && isShuffleActive}
       >
         <Actions.ShuffleIcon />
       </Actions.Button>
 
-      <Actions.Button
-        tooltip={buttonsTooltips.like()}
-        onClick={handleLikeButton}
-      >
+      <Actions.Button tooltip={buttonsTooltips.like} onClick={handleLikeButton}>
         <Actions.LikeIcon isStarred={isArtistStarred} />
       </Actions.Button>
 
       {showInfoButton && (
         <Actions.Button
-          tooltip={buttonsTooltips.info()}
+          tooltip={buttonsTooltips.info}
           onClick={toggleShowInfoPanel}
         >
           <Actions.InfoIcon />

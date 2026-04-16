@@ -2,7 +2,10 @@ import { RefObject, useEffect, useRef, useState } from 'react'
 
 export function useDetectSticky(
   ref?: RefObject<HTMLDivElement>,
-  observerSettings = { threshold: [1] },
+  observerSettings: IntersectionObserverInit = {
+    threshold: [1],
+    rootMargin: '-1px 0px 0px 0px',
+  },
 ) {
   const [isSticky, setIsSticky] = useState(false)
   const newRef = useRef<HTMLDivElement>(null)
@@ -14,16 +17,18 @@ export function useDetectSticky(
 
     const cachedRef = ref.current
 
+    if (!cachedRef) return
+
     const observer = new IntersectionObserver(
       ([e]) => setIsSticky(e.intersectionRatio < 1),
       observerSettings,
     )
 
-    observer.observe(cachedRef!)
+    observer.observe(cachedRef)
 
     // unmount
     return () => {
-      observer.unobserve(cachedRef!)
+      observer.unobserve(cachedRef)
     }
   }, [observerSettings, ref])
 

@@ -1,23 +1,50 @@
-import { useEffect, useState } from 'react'
+import { AnimationEvent, useEffect, useReducer } from 'react'
 import { useFullscreenPlayerSettings } from '@/store/player.store'
 import { enterFullscreen, exitFullscreen } from '@/utils/browser'
 import { isDesktop } from '@/utils/desktop'
 import { setDesktopTitleBarColors } from '@/utils/theme'
 
-interface AppWindowType {
+interface WindowState {
   isFullscreen: boolean
   isMaximized: boolean
+}
+
+type WindowAction =
+  | { type: 'SET_FULLSCREEN'; payload: boolean }
+  | { type: 'SET_MAXIMIZED'; payload: boolean }
+  | { type: 'SET_BOTH'; payload: WindowState }
+
+const windowReducer = (
+  state: WindowState,
+  action: WindowAction,
+): WindowState => {
+  switch (action.type) {
+    case 'SET_FULLSCREEN':
+      return { ...state, isFullscreen: action.payload }
+    case 'SET_MAXIMIZED':
+      return { ...state, isMaximized: action.payload }
+    case 'SET_BOTH':
+      return { ...state, ...action.payload }
+    default:
+      return state
+  }
+}
+
+interface AppWindowType extends WindowState {
   enterFullscreenWindow: () => Promise<void>
   exitFullscreenWindow: () => Promise<void>
   maximizeWindow: () => void
   minimizeWindow: () => void
   closeWindow: () => void
   handleFullscreen: (playerStatus: boolean) => Promise<void>
+  handleDrawerAnimationEnd: (event: AnimationEvent<HTMLDivElement>) => void
 }
 
 export function useAppWindow(): AppWindowType {
-  const [isFullscreen, setIsFullscreen] = useState(false)
-  const [isMaximized, setIsMaximized] = useState(false)
+  const [{ isFullscreen, isMaximized }, dispatch] = useReducer(windowReducer, {
+    isFullscreen: false,
+    isMaximized: false,
+  })
   const { autoFullscreenEnabled } = useFullscreenPlayerSettings()
 
   useEffect(() => {
@@ -28,20 +55,26 @@ export function useAppWindow(): AppWindowType {
         window.api.isFullScreen(),
         window.api.isMaximized(),
       ])
-      setIsFullscreen(fullscreenStatus)
-      setIsMaximized(maximizedStatus)
+
+      dispatch({
+        type: 'SET_BOTH',
+        payload: {
+          isFullscreen: fullscreenStatus,
+          isMaximized: maximizedStatus,
+        },
+      })
     }
 
     fetchWindowStatus()
 
     function handleFullScreenStatus(status: boolean) {
-      setIsFullscreen(status)
+      dispatch({ type: 'SET_FULLSCREEN', payload: status })
     }
 
     window.api.fullscreenStatusListener(handleFullScreenStatus)
 
     function handleMaximizedStatus(status: boolean) {
-      setIsMaximized(status)
+      dispatch({ type: 'SET_MAXIMIZED', payload: status })
     }
 
     window.api.maximizedStatusListener(handleMaximizedStatus)
@@ -59,7 +92,7 @@ export function useAppWindow(): AppWindowType {
 
     if (!fullscreen) {
       window.api.enterFullScreen()
-      setIsFullscreen(true)
+      dispatch({ type: 'SET_FULLSCREEN', payload: true })
     }
   }
 
@@ -70,7 +103,7 @@ export function useAppWindow(): AppWindowType {
 
     if (fullscreen) {
       window.api.exitFullScreen()
-      setIsFullscreen(false)
+      dispatch({ type: 'SET_FULLSCREEN', payload: false })
     }
   }
 
@@ -109,6 +142,15 @@ export function useAppWindow(): AppWindowType {
     playerStatus ? enterFullscreen() : exitFullscreen()
   }
 
+  const handleDrawerAnimationEnd = (event: AnimationEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return
+
+    const state = event.currentTarget.getAttribute('data-state')
+    const isOpen = state === 'open'
+
+    handleFullscreen(isOpen)
+  }
+
   return {
     isFullscreen,
     isMaximized,
@@ -118,5 +160,6 @@ export function useAppWindow(): AppWindowType {
     minimizeWindow,
     closeWindow,
     handleFullscreen,
+    handleDrawerAnimationEnd,
   }
 }

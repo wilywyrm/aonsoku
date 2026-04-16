@@ -5,6 +5,7 @@ import {
   OverlayColors,
   PlayerStatePayload,
 } from '../../preload/types'
+import { isQuitting } from '../index'
 import { tray, updateTray } from '../tray'
 import { colorsState } from './colors'
 import {
@@ -61,6 +62,11 @@ export function setupEvents(window: BrowserWindow | null) {
   })
 
   window.on('close', (event) => {
+    if (isQuitting) {
+      if (tray && !tray.isDestroyed()) tray.destroy()
+      return
+    }
+
     if (is.dev || !getAppSetting('minimizeToTray')) {
       if (tray && !tray.isDestroyed()) tray.destroy()
       return
@@ -75,10 +81,27 @@ export function setupEvents(window: BrowserWindow | null) {
   })
 }
 
+function resetIpcEvents() {
+  const eventsToReset = [
+    IpcChannels.ToggleFullscreen,
+    IpcChannels.ToggleMaximize,
+    IpcChannels.ToggleMinimize,
+    IpcChannels.CloseWindow,
+    IpcChannels.ThemeChanged,
+    IpcChannels.UpdateNativeTheme,
+    IpcChannels.UpdatePlayerState,
+    IpcChannels.SetDiscordRpcActivity,
+    IpcChannels.ClearDiscordRpcActivity,
+    IpcChannels.SaveAppSettings,
+  ]
+
+  eventsToReset.forEach((event) => ipcMain.removeAllListeners(event))
+}
+
 export function setupIpcEvents(window: BrowserWindow | null) {
   if (!window) return
 
-  ipcMain.removeAllListeners()
+  resetIpcEvents()
 
   ipcMain.on(IpcChannels.ToggleFullscreen, (_, isFullscreen: boolean) => {
     window.setFullScreen(isFullscreen)

@@ -6,6 +6,10 @@ import {
   AlbumsFallback,
 } from '@/app/components/fallbacks/album-fallbacks'
 import { ArtistsFallback } from '@/app/components/fallbacks/artists.tsx'
+import {
+  GenreFallback,
+  GenresFallback,
+} from '@/app/components/fallbacks/genre-fallbacks'
 import { HomeFallback } from '@/app/components/fallbacks/home-fallbacks'
 import { PlaylistFallback } from '@/app/components/fallbacks/playlist-fallbacks'
 import {
@@ -35,6 +39,9 @@ const Playlist = lazy(() => import('@/app/pages/playlists/playlist'))
 const Radios = lazy(() => import('@/app/pages/radios/radios-list'))
 const SongList = lazy(() => import('@/app/pages/songs/songlist'))
 const Home = lazy(() => import('@/app/pages/home'))
+const GenresList = lazy(() => import('@/app/pages/genres/list'))
+const GenrePage = lazy(() => import('@/app/pages/genres/genre'))
+
 const PodcastsList = lazy(() => import('@/app/pages/podcasts/list'))
 const Podcast = lazy(() => import('@/app/pages/podcasts/podcast'))
 const Episode = lazy(() => import('@/app/pages/podcasts/episode'))
@@ -116,6 +123,26 @@ export const router = createHashRouter([
         element: (
           <Suspense fallback={<SongListFallback />}>
             <Radios />
+          </Suspense>
+        ),
+      },
+      {
+        id: 'genres',
+        path: ROUTES.LIBRARY.GENRES,
+        errorElement: <ErrorPage />,
+        element: (
+          <Suspense fallback={<GenresFallback />}>
+            <GenresList />
+          </Suspense>
+        ),
+      },
+      {
+        id: 'genre',
+        path: ROUTES.GENRE.PATH,
+        errorElement: <ErrorPage />,
+        element: (
+          <Suspense fallback={<GenreFallback />}>
+            <GenrePage />
           </Suspense>
         ),
       },

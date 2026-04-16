@@ -11,7 +11,8 @@
     "favorites": "Favoriten",
     "playlists": "Wiedergabelisten",
     "emptyPlaylist": "Noch keine Wiedergabelisten erstellt",
-    "podcasts": "Podcasts"
+    "podcasts": "Podcasts",
+    "genres": "Genres"
   },
   "theme": {
     "nuclear-dark": "Nuclear Dark",
@@ -92,6 +93,7 @@
     "refresh": "Wiedergabelisten aktualisieren",
     "buttons": {
       "play": "{{name}} abspielen",
+      "pause": "{{name}} pausieren",
       "shuffle": "{{name}} im Zufallsmodus abspielen",
       "options": "Weitere Optionen für {{name}}"
     },
@@ -106,7 +108,10 @@
     "headline": "Album",
     "buttons": {
       "like": "{{name}} gefällt mir",
-      "dislike": "Gefällt mir von {{name}} entfernen"
+      "dislike": "Gefällt mir von {{name}} entfernen",
+      "play": "{{name}} wiedergeben",
+      "pause": "{{name}} pausieren",
+      "shuffle": "{{name}} zufällig wiedergeben"
     },
     "info": {
       "about": "Über {{name}}",
@@ -495,6 +500,9 @@
     },
     "navigation": {
       "label": "Navigation"
+    },
+    "sidebar": {
+      "toggle": "Seitenleiste umschalten"
     }
   },
   "songInfo": {
@@ -599,17 +607,47 @@
         "description": "Legt fest welche Dienste Aonsoku verwenden kann",
         "lrclib": {
           "info": "LRCLIB wird für Liedtexte verwendet.",
-          "label": "LRCLIB"
+          "label": "LRCLIB",
+          "customUrl": {
+            "toggle": "Benutzerdefinierte URL verwenden"
+          }
+        },
+        "animatedCover": {
+          "enabled": {
+            "label": "Animierte Cover aktivieren",
+            "info": "Wenn aktiviert, werden animierte Cover von einem externen Dienst geladen, falls verfügbar."
+          },
+          "customUrl": {
+            "toggle": "Benutzerdefinierte URL verwenden",
+            "info": "Verwende eine benutzerdefinierte URL für die API animierter Cover statt der Standard-URL.",
+            "label": "URL",
+            "example": "Standard: https://artwork.m8tec.top"
+          },
+          "screens": {
+            "album": {
+              "label": "Albumansicht",
+              "info": "Animierte Cover in der Album-Header-Ansicht aktivieren."
+            },
+            "fullscreen": {
+              "label": "Vollbild-Player",
+              "info": "Animierte Cover im Vollbild-Player aktivieren."
+            },
+            "playerBar": {
+              "label": "Untere Player-Leiste",
+              "info": "Animierte Cover für das aktuelle Song-Cover in der unteren Player-Leiste aktivieren."
+            },
+            "drawer": {
+              "label": "Queue/Lyrics Drawer",
+              "info": "Animierte Cover für das aktuelle Song-Cover im Queue/Lyrics-Drawer aktivieren."
+            }
+          }
         }
       }
     },
     "content": {
       "sidebar": {
         "group": "Seitenleiste",
-        "radios": {
-          "section": "Radio-Abschnitt ausblenden"
-        },
-        "description": "Sichtbarkeit und Anordnung der Abschnitte in der Seitenleiste verwalten."
+        "description": "Abschnitte in der Seitenleiste ein- oder ausblenden."
       },
       "podcast": {
         "description": "Aktivieren Sie die Integration mit dem Aonsoku Podcasts-Dienst.",
@@ -726,6 +764,17 @@
     "emptyPage": {
       "description": "Es sieht so aus, als noch keine Podcasts hinzugefügt wurden. Füge oberhalb einen hinzu!",
       "message": "Kein Podcast hinzugefügt"
+    }
+  },
+  "genre": {
+    "headline": "Genre"
+  },
+  "genres": {
+    "albumCount_one": "{{count}} Album",
+    "albumCount_other": "{{count}} Alben",
+    "buttons": {
+      "shuffleTracks": "Titel zufällig",
+      "shuffleAlbums": "Alben zufällig"
     }
   }
 }

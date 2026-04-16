@@ -1,4 +1,4 @@
-import { Play } from 'lucide-react'
+import { Pause, Play } from 'lucide-react'
 import Image from '@/app/components/image'
 import { ImageLoader } from '@/app/components/image-loader'
 import { Button } from '@/app/components/ui/button'
@@ -10,6 +10,7 @@ interface ResultItemProps {
   title: string
   artist: string
   onClick: () => void
+  isPlaying?: boolean
 }
 
 export function ResultItem({
@@ -18,6 +19,7 @@ export function ResultItem({
   title,
   artist,
   onClick,
+  isPlaying = false,
 }: ResultItemProps) {
   return (
     <div className="flex w-full justify-between items-center">
@@ -51,7 +53,11 @@ export function ResultItem({
             onClick()
           }}
         >
-          <Play className="w-4 h-4 fill-foreground" />
+          {isPlaying ? (
+            <Pause className="w-4 h-4 fill-foreground" />
+          ) : (
+            <Play className="w-4 h-4 fill-foreground" />
+          )}
         </Button>
       </div>
     </div>

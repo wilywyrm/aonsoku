@@ -20,6 +20,24 @@ export interface ISongList {
   podcastListProgresses: number[]
 }
 
+export type PlaybackSourceType =
+  | 'playlist'
+  | 'album'
+  | 'artist'
+  | 'favourite'
+  | 'songs'
+
+export type PlaybackSource = {
+  type: PlaybackSourceType
+  id: string
+  name: string
+}
+
+export interface IPlaybackContext {
+  source: PlaybackSource | null
+  isSourceModified: boolean
+}
+
 export interface IPlayerState {
   isPlaying: boolean
   loopState: LoopState
@@ -33,12 +51,19 @@ export interface IPlayerState {
   mainDrawerState: boolean
   queueState: boolean
   lyricsState: boolean
+  hasSyncedTheCurrentTrack: boolean
+  hasScrobbledTheCurrentTrack: boolean
   hasPrev: boolean
   hasNext: boolean
+  playbackContext: IPlaybackContext
 }
 
 export interface IPlayerProgress {
   progress: number
+}
+
+export interface IListenTime {
+  accumulated: number
 }
 
 export interface IVolumeSettings {
@@ -128,9 +153,20 @@ export interface IPlayerSettings {
   colors: IColorsSettings
 }
 
+export interface IPlayerFullscreen {
+  isFullscreen: boolean
+  setIsFullscreen: (value: boolean) => void
+  reset: () => void
+}
+
 export interface IPlayerActions {
   playSong: (song: ISong) => void
-  setSongList: (songlist: ISong[], index: number, shuffle?: boolean) => void
+  setSongList: (
+    songlist: ISong[],
+    index: number,
+    shuffle?: boolean,
+    playbackSource?: PlaybackSource | null,
+  ) => void
   setCurrentSong: () => void
   checkIsSongStarred: () => void
   starSongInQueue: (id: string) => void
@@ -163,6 +199,10 @@ export interface IPlayerActions {
   toggleLyricsAction: () => void
   toggleQueueAndLyrics: () => void
   closeDrawer: () => void
+  setHasSyncedTheCurrentTrack: (value: boolean) => void
+  setHasScrobbledTheCurrentTrack: (value: boolean) => void
+  incrementAccumulatedTime: (delta: number) => void
+  resetAccumulatedTime: () => void
   playFirstSongInQueue: () => void
   handleSongEnded: () => void
   getCurrentProgress: () => number
@@ -188,7 +228,9 @@ export interface IPlayerActions {
 export interface IPlayerContext {
   songlist: ISongList
   playerState: IPlayerState
+  fullscreen: IPlayerFullscreen
   playerProgress: IPlayerProgress
+  listenTime: IListenTime
   settings: IPlayerSettings
   actions: IPlayerActions
 }

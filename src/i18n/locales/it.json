@@ -12,6 +12,7 @@
     "albums": "Album",
     "songs": "Brani",
     "podcasts": "Podcast",
+    "genres": "Generi",
     "emptyPlaylist": "Nessuna playlist creata",
     "miniSearch": "Cerca",
     "library": "Libreria",
@@ -79,7 +80,8 @@
     "buttons": {
       "shuffle": "Riproduzione casuale di {{name}}",
       "options": "Più opzioni per {{name}}",
-      "play": "Riproduci {{name}}"
+      "play": "Riproduci {{name}}",
+      "pause": "Pausa {{name}}"
     },
     "noSongList": "Questa playlist non contiene brani!"
   },
@@ -123,7 +125,10 @@
     },
     "buttons": {
       "like": "Metti nei preferiti {{name}}",
-      "dislike": "Rimuovi {{name}} dai preferiti"
+      "dislike": "Rimuovi {{name}} dai preferiti",
+      "play": "Riproduci {{name}}",
+      "pause": "Pausa {{name}}",
+      "shuffle": "Riproduci {{name}} in modalità casuale"
     },
     "more": {
       "listTitle": "Altro da questo artista",
@@ -190,6 +195,17 @@
     "beta": "Beta",
     "showDetails": "Mostra dettagli",
     "seeMore": "Per saperne di più"
+  },
+  "genre": {
+    "headline": "Genere"
+  },
+  "genres": {
+    "albumCount_one": "{{count}} album",
+    "albumCount_other": "{{count}} album",
+    "buttons": {
+      "shuffleTracks": "Tracce casuali",
+      "shuffleAlbums": "Album casuali"
+    }
   },
   "favorites": {
     "noSongList": "Non hai ancora aggiunto brani ai preferiti!"
@@ -676,17 +692,20 @@
         "description": "Gestisci i servizi esterni a cui Aonsoku può accedere.",
         "lrclib": {
           "info": "LRCLIB viene utilizzato per trovare i testi delle canzoni.",
-          "label": "LRCLIB"
+          "label": "LRCLIB",
+          "customUrl": {
+            "toggle": "Usa un URL personalizzato",
+            "info": "Usa un URL personalizzato per LRCLIB invece di quello predefinito.",
+            "label": "URL",
+            "example": "Esempio: https://my-lrclib.com"
+          }
         }
       }
     },
     "content": {
       "sidebar": {
-        "description": "Gestisci la visibilità e l'organizzazione delle sezioni visualizzate nella barra laterale.",
-        "radios": {
-          "section": "Nascondi selezione radio"
-        },
-        "group": "Barra laterale"
+        "group": "Barra laterale",
+        "description": "Mostra o nascondi le sezioni nella barra laterale."
       },
       "podcast": {
         "description": "Abilita integrazione con il servizio podcast Aonsoku.",
@@ -703,6 +722,14 @@
           "user": "Nome Utente"
         },
         "group": "Podcast"
+      },
+      "images": {
+        "group": "Immagini",
+        "description": "Personalizza le impostazioni delle immagini.",
+        "cacheLayer": {
+          "info": "Quando abilitata, le immagini verranno memorizzate localmente per migliorare le prestazioni.",
+          "label": "Attiva Cache immagine"
+        }
       }
     },
     "accounts": {

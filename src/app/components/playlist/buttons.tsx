@@ -1,6 +1,11 @@
 import { useTranslation } from 'react-i18next'
 import { Actions } from '@/app/components/actions'
-import { usePlayerActions } from '@/store/player.store'
+import {
+  useIsPlaylistPlaying,
+  usePlayerActions,
+  usePlayerStore,
+} from '@/store/player.store'
+import { PlaybackSource } from '@/types/playerContext'
 import { PlaylistWithEntries } from '@/types/responses/playlist'
 import { PlaylistOptions } from './options'
 
@@ -10,12 +15,42 @@ interface PlaylistButtonsProps {
 
 export function PlaylistButtons({ playlist }: PlaylistButtonsProps) {
   const { t } = useTranslation()
-  const { setSongList } = usePlayerActions()
+  const { setSongList, togglePlayPause, toggleShuffle } = usePlayerActions()
+  const { isPlaylistActive, isPlaylistPlaying } = useIsPlaylistPlaying(
+    playlist.id,
+  )
+  const isShuffleActive = usePlayerStore(
+    (state) => state.playerState.isShuffleActive,
+  )
 
   const buttonsTooltips = {
-    play: t('playlist.buttons.play', { name: playlist.name }),
+    play: isPlaylistPlaying
+      ? t('playlist.buttons.pause', { name: playlist.name })
+      : t('playlist.buttons.play', { name: playlist.name }),
     shuffle: t('playlist.buttons.shuffle', { name: playlist.name }),
     options: t('playlist.buttons.options', { name: playlist.name }),
+  }
+
+  const playbackSource: PlaybackSource = {
+    id: playlist.id,
+    name: playlist.name,
+    type: 'playlist',
+  }
+
+  function handlePlayButton() {
+    if (isPlaylistActive) {
+      togglePlayPause()
+    } else {
+      setSongList(playlist.entry, 0, false, playbackSource)
+    }
+  }
+
+  function handleShuffleButton() {
+    if (isPlaylistActive) {
+      toggleShuffle()
+    } else {
+      setSongList(playlist.entry, 0, true, playbackSource)
+    }
   }
 
   return (
@@ -23,16 +58,17 @@ export function PlaylistButtons({ playlist }: PlaylistButtonsProps) {
       <Actions.Button
         tooltip={buttonsTooltips.play}
         buttonStyle="primary"
-        onClick={() => setSongList(playlist.entry, 0)}
+        onClick={handlePlayButton}
         disabled={!playlist.entry}
       >
-        <Actions.PlayIcon />
+        {isPlaylistPlaying ? <Actions.PauseIcon /> : <Actions.PlayIcon />}
       </Actions.Button>
 
       <Actions.Button
         tooltip={buttonsTooltips.shuffle}
-        onClick={() => setSongList(playlist.entry, 0, true)}
+        onClick={handleShuffleButton}
         disabled={!playlist.entry}
+        isActive={isPlaylistActive && isShuffleActive}
       >
         <Actions.ShuffleIcon />
       </Actions.Button>

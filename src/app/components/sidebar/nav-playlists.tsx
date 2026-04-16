@@ -27,7 +27,7 @@ export function NavPlaylists() {
     <>
       <div
         className={clsx(
-          'flex items-center justify-between px-4 mt-4 overflow-x-clip',
+          'flex items-center justify-between px-4 overflow-x-clip',
           'transition-opacity group-data-[collapsible=icon]:opacity-0',
           'group-data-[collapsible=icon]:pointer-events-none',
         )}

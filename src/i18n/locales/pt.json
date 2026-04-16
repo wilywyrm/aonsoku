@@ -119,7 +119,8 @@
       "toasts": {
         "success": "Podcast criado com sucesso! Ele estará disponível para ouvir em alguns minutos!",
         "error": "Falha ao criar o podcast!"
-      }
+      },
+      "all": "Navegar"
     },
     "emptyPage": {
       "message": "Nenhum podcast adicionado",
@@ -264,7 +265,9 @@
       "appearance": "Aparência",
       "language": "Linguagem & Região",
       "audio": "Reprodutor & Áudio",
-      "content": "Conteúdo"
+      "content": "Conteúdo",
+      "accounts": "Contas",
+      "desktop": "Aplicação para o computador"
     },
     "appearance": {
       "colors": {
@@ -324,17 +327,19 @@
         "description": "Gira os serviços externos que o Aonsoku pode aceder.",
         "lrclib": {
           "info": "O LRCLIB é usado para encontrar letras de músicas.",
-          "label": "LRCLIB"
+          "label": "LRCLIB",
+          "customUrl": {
+            "toggle": "Use uma URL personalizada",
+            "label": "URL",
+            "example": "Exemplo: https://minha-biblrc.pt"
+          }
         }
       }
     },
     "content": {
       "sidebar": {
         "group": "Menu lateral",
-        "description": "Gira a visibilidade e a organização das secções exibidas no menu lateral.",
-        "radios": {
-          "section": "Esconder secção de rádios"
-        }
+        "description": "Mostrar ou ocultar secções na barra lateral."
       },
       "podcast": {
         "group": "Podcasts",
@@ -351,6 +356,32 @@
           "user": "Nome de Utilizador",
           "url": "URL do Servidor"
         }
+      },
+      "images": {
+        "group": "Imagens",
+        "description": "Personalize as configurações de imagens.",
+        "cacheLayer": {
+          "info": "Quando ativado, as imagens serão armazenadas localmente para melhorar o desempenho.",
+          "label": "Ativar cache de imagens"
+        }
+      }
+    },
+    "accounts": {
+      "discord": {
+        "description": "Partilhe a música que está a ouvir com os seus amigos no Discord.",
+        "enabled": {
+          "label": "Ativar integração"
+        }
+      }
+    },
+    "desktop": {
+      "general": {
+        "group": "Geral",
+        "description": "Personalize as preferências da aplicação para o computador.",
+        "tray": {
+          "label": "Minimizar para a bandeja",
+          "info": "Quando ativado, a app será minimizada para a bandeja do sistema em vez de fechar ao clicar no botão de fechar."
+        }
       }
     }
   },
@@ -363,6 +394,7 @@
     "refresh": "Atualizar playlists",
     "buttons": {
       "play": "Tocar {{name}}",
+      "pause": "Pausar {{name}}",
       "shuffle": "Tocar {{name}} no modo aleatório",
       "options": "Mais opções para {{name}}"
     },
@@ -433,7 +465,10 @@
     "headline": "Álbum",
     "buttons": {
       "like": "Curtir {{name}}",
-      "dislike": "Remover curtida de {{name}}"
+      "dislike": "Remover curtida de {{name}}",
+      "play": "Reproduzir {{name}}",
+      "pause": "Pausar {{name}}",
+      "shuffle": "Reproduzir {{name}} em modo aleatório"
     },
     "info": {
       "about": "Sobre {{name}}",
@@ -499,7 +534,8 @@
     "playlists": "Playlists",
     "radios": "Rádios",
     "podcasts": "Podcasts",
-    "emptyPlaylist": "Nenhuma playlist criada ainda"
+    "emptyPlaylist": "Nenhuma playlist criada ainda",
+    "genres": "Géneros"
   },
   "menu": {
     "language": "Linguagem",
@@ -678,7 +714,8 @@
     "dialog": {
       "title": "Nova Versão Disponível!",
       "remindLater": "Lembrar-me mais tarde",
-      "install": "Instalar e Reiniciar"
+      "install": "Instalar e Reiniciar",
+      "macOS": "Descarregar do GitHub"
     },
     "toasts": {
       "started": "O processo de atualização foi iniciado.",
@@ -715,6 +752,17 @@
       "MM": "%d meses",
       "y": "1 ano",
       "yy": "%d anos"
+    }
+  },
+  "genre": {
+    "headline": "Género"
+  },
+  "genres": {
+    "albumCount_one": "{{count}} álbum",
+    "albumCount_other": "{{count}} álbuns",
+    "buttons": {
+      "shuffleTracks": "Faixas aleatórias",
+      "shuffleAlbums": "Álbuns aleatórios"
     }
   }
 }

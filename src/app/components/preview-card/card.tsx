@@ -1,5 +1,5 @@
-import { Play } from 'lucide-react'
-import { ComponentPropsWithoutRef } from 'react'
+import { Pause, Play } from 'lucide-react'
+import React, { ComponentPropsWithoutRef } from 'react'
 import { LazyLoadImage } from 'react-lazy-load-image-component'
 import { Link } from 'react-router-dom'
 import { Button } from '@/app/components/ui/button'
@@ -56,11 +56,12 @@ function Image({ src, alt }: ImageProps) {
   )
 }
 
-interface PlayButtonProps {
+type CardButtonProps = ComponentPropsWithoutRef<'button'> & {
   onClick: () => void
+  dataTestId: string
 }
 
-function PlayButton({ onClick }: PlayButtonProps) {
+function CardButton({ onClick, dataTestId, children }: CardButtonProps) {
   return (
     <div className="w-full h-full flex items-center justify-center rounded bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-300 absolute inset-0 z-10">
       <Button
@@ -71,11 +72,31 @@ function PlayButton({ onClick }: PlayButtonProps) {
           e.preventDefault()
           onClick()
         }}
-        data-testid="card-play-button"
+        data-testid={dataTestId}
       >
-        <Play className="fill-foreground" />
+        {children}
       </Button>
     </div>
+  )
+}
+
+interface PlayPauseButtonProps {
+  onClick: () => void
+}
+
+function PlayButton({ onClick }: PlayPauseButtonProps) {
+  return (
+    <CardButton dataTestId="card-play-button" onClick={onClick}>
+      <Play className="fill-foreground" />
+    </CardButton>
+  )
+}
+
+function PauseButton({ onClick }: PlayPauseButtonProps) {
+  return (
+    <CardButton dataTestId="card-pause-button" onClick={onClick}>
+      <Pause className="fill-foreground" />
+    </CardButton>
   )
 }
 
@@ -87,15 +108,19 @@ function InfoWrapper({ children }: InfoWrapperProps) {
 
 interface TitleProps {
   link: string
+  className?: string
   children: string
 }
 
-function Title({ link, children }: TitleProps) {
+function Title({ link, children, className }: TitleProps) {
   return (
-    <div className="w-full truncate" data-testid="card-title">
+    <div className="w-full truncate mt-0.5" data-testid="card-title">
       <Link
         to={link}
-        className="max-w-full truncate hover:underline leading-7 text-sm font-semibold"
+        className={cn(
+          'max-w-full truncate hover:underline leading-7 text-sm font-semibold',
+          className,
+        )}
         data-testid="card-title-link"
       >
         {children}
@@ -122,7 +147,7 @@ function Subtitle({
       <div className="w-full">
         <p
           className={cn(
-            'leading-5 truncate text-xs text-muted-foreground -mt-1',
+            'leading-5 truncate text-xs text-muted-foreground -mt-0.5',
             className,
           )}
           data-testid="card-subtitle"
@@ -134,7 +159,7 @@ function Subtitle({
   }
 
   return (
-    <div className="flex w-full truncate -mt-1" data-testid="card-subtitle">
+    <div className="flex w-full truncate -mt-0.5" data-testid="card-subtitle">
       <Link
         to={link}
         data-testid="card-subtitle-link"
@@ -157,4 +182,5 @@ export const PreviewCard = {
   InfoWrapper,
   Title,
   Subtitle,
+  PauseButton,
 }

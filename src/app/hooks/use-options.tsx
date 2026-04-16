@@ -5,6 +5,7 @@ import { subsonic } from '@/service/subsonic'
 import { usePlayerActions } from '@/store/player.store'
 import { usePlaylistRemoveSong } from '@/store/playlists.store'
 import { useSongInfo } from '@/store/ui.store'
+import { PlaybackSource } from '@/types/playerContext'
 import { UpdateParams } from '@/types/responses/playlist'
 import { ISong } from '@/types/responses/song'
 import { isDesktop } from '@/utils/desktop'
@@ -25,8 +26,8 @@ export function useOptions() {
 
   const queryClient = useQueryClient()
 
-  function play(list: ISong[]) {
-    setSongList(list, 0)
+  function play(list: ISong[], source?: PlaybackSource) {
+    setSongList(list, 0, false, source)
   }
 
   function playNext(list: ISong[]) {

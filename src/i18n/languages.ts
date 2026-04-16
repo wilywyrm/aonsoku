@@ -15,6 +15,7 @@ import ru from './locales/ru.json'
 import sv from './locales/sv.json'
 import tr from './locales/tr.json'
 import uk from './locales/uk.json'
+import yueHant from './locales/yue-Hant.json'
 import zhHans from './locales/zh-Hans.json'
 
 export const resources = {
@@ -35,6 +36,7 @@ export const resources = {
   sv: { translation: sv },
   tr: { translation: tr },
   uk: { translation: uk },
+  'yue-Hant': { translation: yueHant },
   'zh-Hans': { translation: zhHans },
 }
 
@@ -140,6 +142,12 @@ export const languages = [
     langCode: 'uk',
     flag: 'UA',
     dayjsLocale: 'uk',
+  },
+  {
+    nativeName: '粵語 (繁體中文)',
+    langCode: 'yue-Hant',
+    flag: 'HK',
+    dayjsLocale: 'zh-hk',
   },
   {
     nativeName: '简体中文',

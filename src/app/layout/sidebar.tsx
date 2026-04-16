@@ -7,6 +7,7 @@ import {
   Music2Icon,
   PodcastIcon,
   RadioIcon,
+  TagsIcon,
 } from 'lucide-react'
 import { ElementType, memo } from 'react'
 import { ROUTES } from '@/routes/routesList'
@@ -19,6 +20,7 @@ const Home = memo(HomeIcon)
 const Library = memo(LibraryIcon)
 const Podcast = memo(PodcastIcon)
 const Heart = memo(HeartIcon)
+const Tags = memo(TagsIcon)
 
 export interface ISidebarItem {
   id: string
@@ -32,6 +34,7 @@ export enum SidebarItems {
   Artists = 'artists',
   Songs = 'songs',
   Albums = 'albums',
+  Genres = 'genres',
   Favorites = 'favorites',
   Playlists = 'playlists',
   Podcasts = 'podcasts',
@@ -67,6 +70,12 @@ export const libraryItems = [
     title: 'sidebar.albums',
     route: ROUTES.LIBRARY.ALBUMS,
     icon: Library,
+  },
+  {
+    id: SidebarItems.Genres,
+    title: 'sidebar.genres',
+    route: ROUTES.LIBRARY.GENRES,
+    icon: Tags,
   },
   {
     id: SidebarItems.Favorites,

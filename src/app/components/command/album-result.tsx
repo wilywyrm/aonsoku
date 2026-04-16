@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { CommandGroup, CommandItem } from '@/app/components/ui/command'
 import { useSongList } from '@/app/hooks/use-song-list'
 import { ROUTES } from '@/routes/routesList'
-import { usePlayerActions } from '@/store/player.store'
+import { useIsAlbumPlaying, usePlayerActions } from '@/store/player.store'
 import { Albums } from '@/types/responses/album'
 import {
   CustomGroup,
@@ -25,13 +25,6 @@ export function CommandAlbumResult({
 }: AlbumResultProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { getAlbumSongs } = useSongList()
-  const { setSongList } = usePlayerActions()
-
-  async function handlePlayAlbum(albumId: string) {
-    const albumSongs = await getAlbumSongs(albumId)
-    if (albumSongs) setSongList(albumSongs, 0)
-  }
 
   return (
     <CustomGroup>
@@ -48,24 +41,59 @@ export function CommandAlbumResult({
       <CommandGroup>
         {albums.length > 0 &&
           albums.map((album) => (
-            <CommandItem
+            <AlbumResultItem
               key={`album-${album.id}`}
-              value={`album-${album.id}`}
-              className="border mb-1"
-              onSelect={() => {
-                runCommand(() => navigate(ROUTES.ALBUM.PAGE(album.id)))
-              }}
-            >
-              <ResultItem
-                coverArt={album.coverArt}
-                coverArtType="album"
-                title={album.name}
-                artist={album.artist}
-                onClick={() => handlePlayAlbum(album.id)}
-              />
-            </CommandItem>
+              album={album}
+              runCommand={runCommand}
+            />
           ))}
       </CommandGroup>
     </CustomGroup>
+  )
+}
+
+type AlbumResultItemProps = CommandItemProps & {
+  album: Albums
+}
+
+function AlbumResultItem({ album, runCommand }: AlbumResultItemProps) {
+  const navigate = useNavigate()
+  const { getAlbumSongs } = useSongList()
+  const { setSongList, togglePlayPause } = usePlayerActions()
+  const { isAlbumActive, isAlbumPlaying } = useIsAlbumPlaying(album.id)
+
+  async function handlePlayAlbum() {
+    if (isAlbumActive) {
+      togglePlayPause()
+      return
+    }
+
+    const albumSongs = await getAlbumSongs(album.id)
+    if (!albumSongs) return
+
+    setSongList(albumSongs, 0, false, {
+      id: album.id,
+      name: album.name,
+      type: 'album',
+    })
+  }
+
+  return (
+    <CommandItem
+      value={`album-${album.id}`}
+      className="border mb-1"
+      onSelect={() => {
+        runCommand(() => navigate(ROUTES.ALBUM.PAGE(album.id)))
+      }}
+    >
+      <ResultItem
+        coverArt={album.coverArt}
+        coverArtType="album"
+        title={album.name}
+        artist={album.artist}
+        onClick={handlePlayAlbum}
+        isPlaying={isAlbumPlaying}
+      />
+    </CommandItem>
   )
 }

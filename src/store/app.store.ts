@@ -22,10 +22,18 @@ import {
 const {
   SERVER_URL,
   HIDE_SERVER,
+  HIDE_ARTISTS_SECTION,
+  HIDE_SONGS_SECTION,
+  HIDE_ALBUMS_SECTION,
+  HIDE_GENRES_SECTION,
+  HIDE_FAVORITES_SECTION,
+  HIDE_PLAYLISTS_SECTION,
   HIDE_RADIOS_SECTION,
   SERVER_TYPE,
   IMAGE_CACHE_ENABLED,
 } = window
+
+const defaultArtworkServiceUrl = 'https://artwork.m8tec.top'
 
 export const useAppStore = createWithEqualityFn<IAppContext>()(
   subscribeWithSelector(
@@ -94,6 +102,52 @@ export const useAppStore = createWithEqualityFn<IAppContext>()(
               })
             },
           },
+          artwork: {
+            enabled: false,
+            setEnabled: (value) => {
+              set((state) => {
+                state.artwork.enabled = value
+              })
+            },
+            customUrlEnabled: false,
+            setCustomUrlEnabled: (value) => {
+              set((state) => {
+                state.artwork.customUrlEnabled = value
+              })
+            },
+            baseUrl: defaultArtworkServiceUrl,
+            setBaseUrl: (value) => {
+              set((state) => {
+                state.artwork.baseUrl = value
+              })
+            },
+            screens: {
+              album: true,
+              setAlbum: (value) => {
+                set((state) => {
+                  state.artwork.screens.album = value
+                })
+              },
+              fullscreen: true,
+              setFullscreen: (value) => {
+                set((state) => {
+                  state.artwork.screens.fullscreen = value
+                })
+              },
+              playerBar: true,
+              setPlayerBar: (value) => {
+                set((state) => {
+                  state.artwork.screens.playerBar = value
+                })
+              },
+              drawer: true,
+              setDrawer: (value) => {
+                set((state) => {
+                  state.artwork.screens.drawer = value
+                })
+              },
+            },
+          },
           pages: {
             showInfoPanel: true,
             toggleShowInfoPanel: () => {
@@ -101,6 +155,42 @@ export const useAppStore = createWithEqualityFn<IAppContext>()(
 
               set((state) => {
                 state.pages.showInfoPanel = !showInfoPanel
+              })
+            },
+            hideArtistsSection: HIDE_ARTISTS_SECTION ?? false,
+            setHideArtistsSection: (value) => {
+              set((state) => {
+                state.pages.hideArtistsSection = value
+              })
+            },
+            hideSongsSection: HIDE_SONGS_SECTION ?? false,
+            setHideSongsSection: (value) => {
+              set((state) => {
+                state.pages.hideSongsSection = value
+              })
+            },
+            hideAlbumsSection: HIDE_ALBUMS_SECTION ?? false,
+            setHideAlbumsSection: (value) => {
+              set((state) => {
+                state.pages.hideAlbumsSection = value
+              })
+            },
+            hideGenresSection: HIDE_GENRES_SECTION ?? false,
+            setHideGenresSection: (value) => {
+              set((state) => {
+                state.pages.hideGenresSection = value
+              })
+            },
+            hideFavoritesSection: HIDE_FAVORITES_SECTION ?? false,
+            setHideFavoritesSection: (value) => {
+              set((state) => {
+                state.pages.hideFavoritesSection = value
+              })
+            },
+            hidePlaylistsSection: HIDE_PLAYLISTS_SECTION ?? false,
+            setHidePlaylistsSection: (value) => {
+              set((state) => {
+                state.pages.hidePlaylistsSection = value
               })
             },
             hideRadiosSection: HIDE_RADIOS_SECTION ?? false,
@@ -120,6 +210,29 @@ export const useAppStore = createWithEqualityFn<IAppContext>()(
               set((state) => {
                 state.pages.imagesCacheLayerEnabled = value
               })
+            },
+            isAllSectionsHidden: () => {
+              const {
+                hideArtistsSection,
+                hideSongsSection,
+                hideAlbumsSection,
+                hideGenresSection,
+                hideFavoritesSection,
+                hidePlaylistsSection,
+                hideRadiosSection,
+              } = get().pages
+              const { active: isPodcastsActive } = get().podcasts
+
+              return (
+                hideArtistsSection &&
+                hideSongsSection &&
+                hideAlbumsSection &&
+                hideGenresSection &&
+                hideFavoritesSection &&
+                hidePlaylistsSection &&
+                hideRadiosSection &&
+                !isPodcastsActive
+              )
             },
           },
           desktop: {
@@ -241,6 +354,13 @@ export const useAppStore = createWithEqualityFn<IAppContext>()(
                 state.data.songCount = null
                 state.data.extensionsSupported = {}
                 state.pages.showInfoPanel = true
+                state.pages.hideArtistsSection = HIDE_ARTISTS_SECTION ?? false
+                state.pages.hideSongsSection = HIDE_SONGS_SECTION ?? false
+                state.pages.hideAlbumsSection = HIDE_ALBUMS_SECTION ?? false
+                state.pages.hideFavoritesSection =
+                  HIDE_FAVORITES_SECTION ?? false
+                state.pages.hidePlaylistsSection =
+                  HIDE_PLAYLISTS_SECTION ?? false
                 state.pages.hideRadiosSection = HIDE_RADIOS_SECTION ?? false
                 state.pages.artistsPageViewType = 'table'
                 state.podcasts.active = false
@@ -268,13 +388,40 @@ export const useAppStore = createWithEqualityFn<IAppContext>()(
           try {
             const persisted = persistedState as Partial<IAppContext> | undefined
 
+            let hideArtistsSection = false
+            let hideSongsSection = false
+            let hideAlbumsSection = false
+            let hideFavoritesSection = false
+            let hidePlaylistsSection = false
             let hideRadiosSection = false
             let enableImageCache = false
 
             if (persisted && persisted.pages) {
+              hideArtistsSection = persisted.pages.hideArtistsSection ?? false
+              hideSongsSection = persisted.pages.hideSongsSection ?? false
+              hideAlbumsSection = persisted.pages.hideAlbumsSection ?? false
+              hideFavoritesSection =
+                persisted.pages.hideFavoritesSection ?? false
+              hidePlaylistsSection =
+                persisted.pages.hidePlaylistsSection ?? false
               hideRadiosSection = persisted.pages.hideRadiosSection ?? false
               enableImageCache =
                 persisted.pages.imagesCacheLayerEnabled ?? false
+            }
+            if (HIDE_ARTISTS_SECTION !== undefined) {
+              hideArtistsSection = HIDE_ARTISTS_SECTION
+            }
+            if (HIDE_SONGS_SECTION !== undefined) {
+              hideSongsSection = HIDE_SONGS_SECTION
+            }
+            if (HIDE_ALBUMS_SECTION !== undefined) {
+              hideAlbumsSection = HIDE_ALBUMS_SECTION
+            }
+            if (HIDE_PLAYLISTS_SECTION !== undefined) {
+              hidePlaylistsSection = HIDE_PLAYLISTS_SECTION
+            }
+            if (HIDE_FAVORITES_SECTION !== undefined) {
+              hideFavoritesSection = HIDE_FAVORITES_SECTION
             }
             if (HIDE_RADIOS_SECTION !== undefined) {
               hideRadiosSection = HIDE_RADIOS_SECTION
@@ -296,6 +443,7 @@ export const useAppStore = createWithEqualityFn<IAppContext>()(
                   lockUser: true,
                 },
                 pages: {
+                  hidePlaylistsSection,
                   hideRadiosSection,
                   imagesCacheLayerEnabled: enableImageCache,
                 },
@@ -313,6 +461,11 @@ export const useAppStore = createWithEqualityFn<IAppContext>()(
                 lockUser: false,
               },
               pages: {
+                hideArtistsSection,
+                hideSongsSection,
+                hideAlbumsSection,
+                hideFavoritesSection,
+                hidePlaylistsSection,
                 hideRadiosSection,
                 imagesCacheLayerEnabled: enableImageCache,
               },
@@ -373,6 +526,7 @@ useAppStore.subscribe(
 export const useAppData = () => useAppStore((state) => state.data)
 export const useAppAccounts = () => useAppStore((state) => state.accounts)
 export const useAppPodcasts = () => useAppStore((state) => state.podcasts)
+export const useAppAnimatedCovers = () => useAppStore((state) => state.artwork)
 export const useAppPodcastCollapsibleState = () =>
   useAppStore((state) => ({
     collapsibleState: state.podcasts.collapsibleState,

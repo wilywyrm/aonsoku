@@ -77,7 +77,10 @@
     "headline": "Album",
     "buttons": {
       "like": "Polub {{name}}",
-      "dislike": "Usuń {{name}} z ulubionych"
+      "dislike": "Usuń {{name}} z ulubionych",
+      "play": "Odtwórz {{name}}",
+      "pause": "Wstrzymaj {{name}}",
+      "shuffle": "Odtwórz {{name}} w trybie losowym"
     },
     "table": {
       "discNumber": "Płyta {{number}}"
@@ -207,7 +210,8 @@
     "artists": "Wykonawcy",
     "playlists": "Playlisty",
     "emptyPlaylist": "Nie utworzono jeszcze playlist",
-    "favorites": "Ulubione"
+    "favorites": "Ulubione",
+    "genres": "Gatunki"
   },
   "playlist": {
     "headline": "Playlista",
@@ -218,6 +222,7 @@
     "refresh": "Odśwież playlisty",
     "buttons": {
       "play": "Odtwórz {{name}}",
+      "pause": "Wstrzymaj {{name}}",
       "shuffle": "Odtwórz {{name}} w trybie losowym",
       "options": "Więcej opcji dla {{name}}"
     },
@@ -582,7 +587,8 @@
     "dialog": {
       "title": "Nowa Wersja jest Dostępna!",
       "remindLater": "Przypomnij Mi Później",
-      "install": "Zainstaluj i Uruchom Ponownie"
+      "install": "Zainstaluj i Uruchom Ponownie",
+      "macOS": "Pobierz na GitHubie"
     },
     "toasts": {
       "started": "Proces aktualizacji został rozpoczęty.",
@@ -645,11 +651,8 @@
     },
     "content": {
       "sidebar": {
-        "description": "Zarządzaj widocznością i zorganizowaniem sekcji wyświetlanych na bocznym pasku.",
-        "radios": {
-          "section": "Ukryj sekcję radia"
-        },
-        "group": "Pasek boczny"
+        "group": "Pasek boczny",
+        "description": "Pokaż lub ukryj sekcje na pasku bocznym."
       },
       "podcast": {
         "service": {
@@ -711,7 +714,37 @@
             "example": "Przykład: https://my-lrclib.com"
           }
         },
-        "description": "Zarządzaj usługami zewnętrznymi do których Aonsoku może uzyskać dostęp."
+        "description": "Zarządzaj usługami zewnętrznymi do których Aonsoku może uzyskać dostęp.",
+        "animatedCover": {
+          "enabled": {
+            "label": "Włącz animowane okładki",
+            "info": "Gdy włączone, animowane okładki będą ładowane z zewnętrznych usług, jeśli są dostępne."
+          },
+          "customUrl": {
+            "toggle": "Używaj niestandardowego URL",
+            "info": "Używaj niestandardowego URL dla API animowanych zasobów zamiast domyślnego.",
+            "label": "URL",
+            "example": "Domyślne: https://artwork.m8tec.top"
+          },
+          "screens": {
+            "album": {
+              "label": "Strona albumu",
+              "info": "Włącz animowane okładki w nagłówku strony albumu."
+            },
+            "fullscreen": {
+              "label": "Duży odtwarzacz",
+              "info": "Włącz animowaną okładkę dla aktualnej piosenki w dużym odtwarzaczu."
+            },
+            "playerBar": {
+              "label": "Dolny pasek odtwarzacza",
+              "info": "Włącz animowane okładki dla aktualnej piosenki w pasku odtwarzacza."
+            },
+            "drawer": {
+              "label": "Kolejka I Tekst",
+              "info": "Włącz animowane okładki dla aktualnej piosenki w szufladzie kolejki i tekstu."
+            }
+          }
+        }
       }
     },
     "label": "Ustawienia",
@@ -755,5 +788,18 @@
   "warnings": {
     "songError": "Nie można odtworzyć piosenki, sprawdź Serwer!",
     "reload": "Piosenka jest odtwarzana!\nCzy na pewno chcesz odświeżyć stronę?"
+  },
+  "genre": {
+    "headline": "Gatunek"
+  },
+  "genres": {
+    "albumCount_one": "{{count}} album",
+    "albumCount_few": "{{count}} albumy",
+    "albumCount_many": "{{count}} albumów",
+    "albumCount_other": "{{count}} albumów",
+    "buttons": {
+      "shuffleTracks": "Losowe utwory",
+      "shuffleAlbums": "Losowe albumy"
+    }
   }
 }

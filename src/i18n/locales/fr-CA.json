@@ -63,7 +63,10 @@
     "headline": "Album",
     "buttons": {
       "like": "Ajouter {{name}} aux favoris",
-      "dislike": "Enlever {{name}} des favoris"
+      "dislike": "Enlever {{name}} des favoris",
+      "play": "Faire jouer {{name}}",
+      "pause": "Mettre {{name}} en pause",
+      "shuffle": "Faire jouer {{name}} en mode aléatoire"
     }
   },
   "favorites": {
@@ -342,10 +345,7 @@
       },
       "sidebar": {
         "group": "Barre latérale",
-        "description": "Gérer la visibilité et l'organisation des sections affichées dans la barre latérale.",
-        "radios": {
-          "section": "Masquer la section des radios"
-        }
+        "description": "Afficher ou masquer des sections dans la barre latérale."
       }
     },
     "label": "Paramètres",
@@ -444,7 +444,8 @@
     "search": "Recherche…",
     "miniSearch": "Recherche",
     "library": "Bibliothèque",
-    "artists": "Artistes"
+    "artists": "Artistes",
+    "genres": "Genres"
   },
   "menu": {
     "language": "Langue",
@@ -532,6 +533,7 @@
     "headline": "Liste de lecture",
     "buttons": {
       "play": "Lire {{name}}",
+      "pause": "Mettre {{name}} en pause",
       "shuffle": "Lire {{name}} en mode aléatoire",
       "options": "Plus d'options pour {{name}}"
     },
@@ -740,5 +742,16 @@
     "clear": "Vider la file d'attente",
     "close": "Fermer la file d'attente",
     "open": "Ouvrir la file d'attente"
+  },
+  "genre": {
+    "headline": "Genre"
+  },
+  "genres": {
+    "albumCount_one": "{{count}} album",
+    "albumCount_other": "{{count}} albums",
+    "buttons": {
+      "shuffleTracks": "Pistes aléatoires",
+      "shuffleAlbums": "Albums aléatoires"
+    }
   }
 }

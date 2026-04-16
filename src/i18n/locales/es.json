@@ -17,7 +17,8 @@
     "playlists": "Listas de reproducción",
     "radios": "Radios",
     "emptyPlaylist": "Aún no se han creado listas de reproducción",
-    "podcasts": "Podcasts"
+    "podcasts": "Podcasts",
+    "genres": "Géneros"
   },
   "menu": {
     "language": "Idioma",
@@ -74,6 +75,7 @@
     "refresh": "Actualizar listas de reproducción",
     "buttons": {
       "play": "Reproducir {{name}}",
+      "pause": "Pausar {{name}}",
       "shuffle": "Reproducir {{name}} en modo aleatorio",
       "options": "Más opciones para {{name}}"
     },
@@ -145,7 +147,10 @@
     "headline": "Álbum",
     "buttons": {
       "like": "Me gusta {{name}}",
-      "dislike": "Eliminar me gusta de {{name}}"
+      "dislike": "Eliminar me gusta de {{name}}",
+      "play": "Reproducir {{name}}",
+      "pause": "Pausar {{name}}",
+      "shuffle": "Reproducir {{name}} en modo aleatorio"
     },
     "info": {
       "about": "Sobre {{name}}",
@@ -700,11 +705,8 @@
         "group": "Podcasts"
       },
       "sidebar": {
-        "radios": {
-          "section": "Esconder la sección de radios"
-        },
-        "description": "Organiza la visibilidad y organización de las secciones mostradas en la barra lateral.",
-        "group": "Barra lateral"
+        "group": "Barra lateral",
+        "description": "Mostrar u ocultar secciones en la barra lateral."
       }
     },
     "privacy": {
@@ -718,5 +720,16 @@
       }
     },
     "label": "Configuración"
+  },
+  "genre": {
+    "headline": "Género"
+  },
+  "genres": {
+    "albumCount_one": "{{count}} álbum",
+    "albumCount_other": "{{count}} álbumes",
+    "buttons": {
+      "shuffleTracks": "Canciones aleatorias",
+      "shuffleAlbums": "Álbumes aleatorios"
+    }
   }
 }

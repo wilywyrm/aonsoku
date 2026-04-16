@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { ImageLoader } from '@/app/components/image-loader'
-import { PreviewCard } from '@/app/components/preview-card/card'
+import { AlbumGridCard } from '@/app/components/albums/album-grid-card'
 import {
   Carousel,
   type CarouselApi,
@@ -10,9 +9,6 @@ import {
   CarouselItem,
 } from '@/app/components/ui/carousel'
 import { CarouselButton } from '@/app/components/ui/carousel-button'
-import { ROUTES } from '@/routes/routesList'
-import { subsonic } from '@/service/subsonic'
-import { usePlayerActions } from '@/store/player.store'
 import { Albums } from '@/types/responses/album'
 
 interface PreviewListProps {
@@ -33,21 +29,12 @@ export default function PreviewList({
   const [api, setApi] = useState<CarouselApi>()
   const [canScrollPrev, setCanScrollPrev] = useState<boolean>()
   const [canScrollNext, setCanScrollNext] = useState<boolean>()
-  const { setSongList } = usePlayerActions()
   const { t } = useTranslation()
 
   moreTitle = moreTitle || t('generic.seeMore')
 
   if (list.length > 16) {
     list = list.slice(0, 16)
-  }
-
-  async function handlePlayAlbum(album: Albums) {
-    const response = await subsonic.albums.getOne(album.id)
-
-    if (response) {
-      setSongList(response.song, 0)
-    }
   }
 
   useEffect(() => {
@@ -114,29 +101,7 @@ export default function PreviewList({
                 className="basis-1/6 2xl:basis-1/8"
                 data-testid={`preview-list-carousel-item-${index}`}
               >
-                <PreviewCard.Root>
-                  <PreviewCard.ImageWrapper link={ROUTES.ALBUM.PAGE(album.id)}>
-                    <ImageLoader id={album.coverArt} type="album">
-                      {(src) => (
-                        <PreviewCard.Image src={src} alt={album.name} />
-                      )}
-                    </ImageLoader>
-                    <PreviewCard.PlayButton
-                      onClick={() => handlePlayAlbum(album)}
-                    />
-                  </PreviewCard.ImageWrapper>
-                  <PreviewCard.InfoWrapper>
-                    <PreviewCard.Title link={ROUTES.ALBUM.PAGE(album.id)}>
-                      {album.name}
-                    </PreviewCard.Title>
-                    <PreviewCard.Subtitle
-                      enableLink={album.artistId !== undefined}
-                      link={ROUTES.ARTIST.PAGE(album.artistId ?? '')}
-                    >
-                      {album.artist}
-                    </PreviewCard.Subtitle>
-                  </PreviewCard.InfoWrapper>
-                </PreviewCard.Root>
+                <AlbumGridCard album={album} />
               </CarouselItem>
             ))}
           </CarouselContent>

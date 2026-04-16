@@ -17,7 +17,8 @@
     "podcasts": "Podcasty",
     "miniSearch": "Hledat",
     "radios": "Rádiové stanice",
-    "artists": "Umělci"
+    "artists": "Umělci",
+    "genres": "Žánry"
   },
   "menu": {
     "language": "Jazyk",
@@ -72,6 +73,7 @@
     "refresh": "Obnovit playlisty",
     "buttons": {
       "play": "Přehrát {{name}}",
+      "pause": "Pozastavit {{name}}",
       "shuffle": "Přehrát {{name}} v náhodném pořadí",
       "options": "Více možností pro {{name}}"
     },
@@ -386,7 +388,10 @@
     "headline": "Album",
     "buttons": {
       "like": "Olajkovat {{name}}",
-      "dislike": "Odebrat lajk z {{name}}"
+      "dislike": "Odebrat lajk z {{name}}",
+      "play": "Přehrát {{name}}",
+      "pause": "Pozastavit {{name}}",
+      "shuffle": "Přehrát {{name}} v náhodném pořadí"
     },
     "info": {
       "about": "O {{name}}",
@@ -478,6 +483,19 @@
     },
     "emptyPage": {
       "message": "Nebyly přidány žádné podcasty"
+    }
+  },
+  "genre": {
+    "headline": "Žánr"
+  },
+  "genres": {
+    "albumCount_one": "{{count}} album",
+    "albumCount_few": "{{count}} alba",
+    "albumCount_many": "{{count}} alb",
+    "albumCount_other": "{{count}} alba",
+    "buttons": {
+      "shuffleTracks": "Náhodné skladby",
+      "shuffleAlbums": "Náhodná alba"
     }
   }
 }

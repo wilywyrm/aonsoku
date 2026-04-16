@@ -3,6 +3,7 @@
     "duration": "environ {{duration}}",
     "buttons": {
       "play": "Lire {{name}}",
+      "pause": "Mettre {{name}} en pause",
       "options": "Plus d'options pour {{name}}",
       "shuffle": "Lire {{name}} en mode aléatoire"
     },
@@ -61,7 +62,7 @@
     "songCount_other": "{{count}} titres",
     "headline": "Liste de lecture",
     "refresh": "Actualiser les listes de lecture",
-    "noSongList": "Cette liste de lecture n'a pas de chansons !"
+    "noSongList": "Cette liste de lecture n'a pas de piste !"
   },
   "table": {
     "columns": {
@@ -71,7 +72,7 @@
       "name": "Nom",
       "genres": "Genres",
       "albumCount": "Nombre d'albums",
-      "songCount": "Nombre de chansons",
+      "songCount": "Nombre de pistes",
       "track": "Piste",
       "favorite": "En favori",
       "comment": "Commentaire",
@@ -136,7 +137,8 @@
     "library": "Bibliothèque",
     "artists": "Artistes",
     "emptyPlaylist": "Aucune liste de lecture créée",
-    "podcasts": "Podcasts"
+    "podcasts": "Podcasts",
+    "genres": "Genres"
   },
   "menu": {
     "serverLogout": "Se déconnecter",
@@ -235,7 +237,10 @@
     "headline": "Album",
     "buttons": {
       "like": "Ajouter {{name}} aux favoris",
-      "dislike": "Enlever {{name}} des favoris"
+      "dislike": "Enlever {{name}} des favoris",
+      "play": "Lire {{name}}",
+      "pause": "Mettre {{name}} en pause",
+      "shuffle": "Lire {{name}} en mode aléatoire"
     },
     "table": {
       "discNumber": "Disque {{number}}"
@@ -257,7 +262,7 @@
     }
   },
   "favorites": {
-    "noSongList": "Vous n'avez pas encore ajouté de chansons aux favoris !"
+    "noSongList": "Vous n'avez pas encore ajouté de piste aux favoris !"
   },
   "artist": {
     "recentAlbums": "Albums récents",
@@ -428,11 +433,16 @@
         }
       },
       "sidebar": {
-        "radios": {
-          "section": "Masquer la section des radios"
-        },
         "group": "Barre latérale",
-        "description": "Gérer la visibilité et l'organisation des sections affichées dans la barre latérale."
+        "description": "Afficher ou masquer des sections dans la barre latérale."
+      },
+      "images": {
+        "group": "Images",
+        "description": "Personnaliser les paramètres des images.",
+        "cacheLayer": {
+          "info": "Lorsque cette option est activée, les images seront mises en cache localement afin d'améliorer les performances.",
+          "label": "Activer le cache d'images"
+        }
       }
     },
     "label": "Paramètres",
@@ -466,7 +476,7 @@
         "group": "Couleurs dynamiques",
         "description": "Sélectionnez si l'application doit utiliser la couleur dominante de la pochette de l'album en cours de lecture comme arrière-plan.",
         "queue": {
-          "label": "File d'attente et paroles",
+          "label": "File d'attente et Paroles",
           "intensity": "Niveau d'intensité des couleurs"
         },
         "bigPlayer": {
@@ -480,9 +490,45 @@
         "group": "Services externes",
         "lrclib": {
           "label": "LRCLIB",
-          "info": "LRCLIB est utilisé pour trouver les paroles."
+          "info": "LRCLIB est utilisé pour trouver les paroles.",
+          "customUrl": {
+            "toggle": "Utiliser une URL personnalisée",
+            "info": "Utilisez une URL personnalisée pour LRCLIB au lieu de celle par défaut.",
+            "label": "URL",
+            "example": "Exemple : https://my-lrclib.com"
+          }
         },
-        "description": "Gérer les services externes auxquels Aonsoku peut accéder."
+        "description": "Gérer les services externes auxquels Aonsoku peut accéder.",
+        "animatedCover": {
+          "enabled": {
+            "label": "Activer les pochettes d'album animées",
+            "info": "Lorsque cette option est activée, les pochettes d'album animées seront chargées depuis un service externe lorsqu'elles seront disponibles."
+          },
+          "customUrl": {
+            "toggle": "Utiliser une URL personnalisée",
+            "info": "Utilisez une URL personnalisée pour l'API d'illustrations animées au lieu de l'URL par défaut.",
+            "label": "URL",
+            "example": "Par défaut : https://artwork.m8tec.top"
+          },
+          "screens": {
+            "album": {
+              "label": "Page d'album",
+              "info": "Activer les pochettes d'album animées dans l'en-tête de l'album."
+            },
+            "fullscreen": {
+              "label": "Grand lecteur",
+              "info": "Activer les pochettes d'album animées pour la piste en cours dans le Grand Lecteur."
+            },
+            "playerBar": {
+              "label": "Barre du lecteur inférieure",
+              "info": "Activer les animations pour la pochette du morceau en cours dans la barre de lecture."
+            },
+            "drawer": {
+              "label": "File d'attente et Paroles",
+              "info": "Activer les pochettes d'album animées pour la piste en cours dans le panneau File d'attente et Paroles."
+            }
+          }
+        }
       }
     },
     "desktop": {
@@ -500,7 +546,7 @@
         "enabled": {
           "label": "Activer l'intégration"
         },
-        "description": "Partagez la chanson que vous écoutez avec vos amis sur Discord.",
+        "description": "Partagez la piste que vous écoutez avec vos amis sur Discord.",
         "group": "Présence enrichie Discord"
       }
     }
@@ -742,12 +788,25 @@
     "dialog": {
       "title": "Nouvelle version disponible !",
       "remindLater": "Me rappeler plus tard",
-      "install": "Installer et redémarrer"
+      "install": "Installer et redémarrer",
+      "macOS": "Télécharger sur GitHub"
     },
     "toasts": {
       "success": "La mise à jour a été installée ! L'application va redémarrer.",
       "started": "La mise à jour a commencé.",
       "error": "L'installation de la mise à jour a échoué. Veuillez la télécharger directement depuis GitHub."
+    }
+  },
+  "genre": {
+    "headline": "Genre"
+  },
+  "genres": {
+    "albumCount_one": "{{count}} album",
+    "albumCount_many": "{{count}} albums",
+    "albumCount_other": "{{count}} albums",
+    "buttons": {
+      "shuffleTracks": "Pistes aléatoires",
+      "shuffleAlbums": "Albums aléatoires"
     }
   }
 }

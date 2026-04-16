@@ -4,6 +4,7 @@ import { AlbumComment } from '@/app/components/album/comment'
 import ImageHeader from '@/app/components/album/image-header'
 import { AlbumInfo } from '@/app/components/album/info'
 import { RecordLabelsInfo } from '@/app/components/album/record-labels'
+import { AlbumStickyHeader } from '@/app/components/album/sticky-header'
 import { AlbumFallback } from '@/app/components/fallbacks/album-fallbacks'
 import { PreviewListFallback } from '@/app/components/fallbacks/home-fallbacks'
 import { BadgesData } from '@/app/components/header-info'
@@ -115,7 +116,9 @@ export default function Album() {
   const albumComment = album.song.length > 0 ? album.song[0].comment : null
 
   return (
-    <div className="w-full">
+    <div className="w-full relative">
+      <AlbumStickyHeader album={album} />
+
       <ImageHeader
         type={t('album.headline')}
         title={album.name}
@@ -126,6 +129,8 @@ export default function Album() {
         coverArtType="album"
         coverArtSize="700"
         coverArtAlt={album.name}
+        animatedArtworkArtist={album.artist}
+        animatedArtworkAlbum={album.name}
         badges={badges}
       />
 
@@ -135,10 +140,17 @@ export default function Album() {
         <DataTable
           columns={columns}
           data={album.song}
-          handlePlaySong={(row) => setSongList(album.song, row.index)}
+          handlePlaySong={(row) =>
+            setSongList(album.song, row.index, false, {
+              id: album.id,
+              name: album.name,
+              type: 'album',
+            })
+          }
           columnFilter={columnsToShow}
           showDiscNumber={true}
           variant="modern"
+          enableVirtualization={true}
         />
 
         {albumComment && <AlbumComment comment={albumComment} />}

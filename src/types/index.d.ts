@@ -7,6 +7,12 @@ declare global {
     APP_USER: string | undefined
     APP_PASSWORD: string | undefined
     APP_AUTH_TYPE: string | undefined
+    HIDE_ARTISTS_SECTION: boolean | undefined
+    HIDE_SONGS_SECTION: boolean | undefined
+    HIDE_ALBUMS_SECTION: boolean | undefined
+    HIDE_GENRES_SECTION: boolean | undefined
+    HIDE_FAVORITES_SECTION: boolean | undefined
+    HIDE_PLAYLISTS_SECTION: boolean | undefined
     HIDE_RADIOS_SECTION: boolean | undefined
     SERVER_TYPE: string | undefined
     APP_THEME: string | undefined

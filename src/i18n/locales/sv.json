@@ -10,7 +10,8 @@
     "playlists": "Spellista",
     "songs": "Sånger",
     "emptyPlaylist": "Inga spellistor skapat ännu",
-    "library": "Bibliotek"
+    "library": "Bibliotek",
+    "genres": "Genrer"
   },
   "home": {
     "recentlyAdded": "Nyligen tillagd",
@@ -107,6 +108,7 @@
     "buttons": {
       "shuffle": "Spela {{name}} i shuffle-läge",
       "play": "Spela {{name}}",
+      "pause": "Pausa {{name}}",
       "options": "Mer inställningar för {{name}}"
     },
     "duration": "Ungefär {{duration}}",
@@ -129,7 +131,10 @@
   "album": {
     "buttons": {
       "like": "Gilla {{name}}",
-      "dislike": "Ta bort like från {{name}}"
+      "dislike": "Ta bort like från {{name}}",
+      "play": "Spela {{name}}",
+      "pause": "Pausa {{name}}",
+      "shuffle": "Spela {{name}} i blandat läge"
     },
     "info": {
       "lastfm": "Öppna i Last.fm",
@@ -523,10 +528,7 @@
     "content": {
       "sidebar": {
         "group": "Sidofält",
-        "description": "Hantera synligheten och organisationen av de sektioner som visas i sidofältet.",
-        "radios": {
-          "section": "Dölj radiosektionen"
-        }
+        "description": "Visa eller dölj sektioner i sidofältet."
       }
     }
   },
@@ -545,6 +547,17 @@
       "MM": "%d månader",
       "y": "1 år",
       "yy": "%d år"
+    }
+  },
+  "genre": {
+    "headline": "Genre"
+  },
+  "genres": {
+    "albumCount_one": "{{count}} album",
+    "albumCount_other": "{{count}} album",
+    "buttons": {
+      "shuffleTracks": "Blanda spår",
+      "shuffleAlbums": "Blanda album"
     }
   }
 }

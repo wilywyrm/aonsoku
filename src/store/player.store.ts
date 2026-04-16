@@ -6,8 +6,14 @@ import { devtools, persist, subscribeWithSelector } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
 import { shallow } from 'zustand/shallow'
 import { createWithEqualityFn } from 'zustand/traditional'
+import { scrobble } from '@/service/scrobble'
 import { subsonic } from '@/service/subsonic'
-import { IPlayerContext, ISongList, LoopState } from '@/types/playerContext'
+import {
+  IPlayerContext,
+  ISongList,
+  LoopState,
+  PlaybackSourceType,
+} from '@/types/playerContext'
 import { ISong } from '@/types/responses/song'
 import { areSongListsEqual } from '@/utils/compareSongLists'
 import { isDesktop } from '@/utils/desktop'
@@ -53,12 +59,34 @@ export const usePlayerStore = createWithEqualityFn<IPlayerContext>()(
             mainDrawerState: false,
             queueState: false,
             lyricsState: false,
+            hasSyncedTheCurrentTrack: false,
+            hasScrobbledTheCurrentTrack: false,
             currentPlaybackRate: 1,
             hasPrev: false,
             hasNext: false,
+            playbackContext: {
+              isSourceModified: false,
+              source: null,
+            },
+          },
+          fullscreen: {
+            isFullscreen: false,
+            setIsFullscreen: (value) => {
+              set((state) => {
+                state.fullscreen.isFullscreen = value
+              })
+            },
+            reset: () => {
+              set((state) => {
+                state.fullscreen.isFullscreen = false
+              })
+            },
           },
           playerProgress: {
             progress: 0,
+          },
+          listenTime: {
+            accumulated: 0,
           },
           settings: {
             privacy: {
@@ -157,11 +185,24 @@ export const usePlayerStore = createWithEqualityFn<IPlayerContext>()(
             },
           },
           actions: {
-            setSongList: (songlist, index, shuffle = false) => {
+            setSongList: (
+              songlist,
+              index,
+              shuffle = false,
+              playbackSource = null,
+            ) => {
               const { currentList, currentSongIndex } = get().songlist
 
               const listsAreEqual = areSongListsEqual(currentList, songlist)
               const songHasChanged = currentSongIndex !== index
+
+              get().actions.resetAccumulatedTime()
+              get().actions.setHasSyncedTheCurrentTrack(false)
+              get().actions.setHasScrobbledTheCurrentTrack(false)
+
+              set((state) => {
+                state.playerState.playbackContext.source = playbackSource
+              })
 
               if (!listsAreEqual || (listsAreEqual && songHasChanged)) {
                 get().actions.resetProgress()
@@ -222,6 +263,9 @@ export const usePlayerStore = createWithEqualityFn<IPlayerContext>()(
                 })
               } else {
                 get().actions.resetProgress()
+                get().actions.resetAccumulatedTime()
+                get().actions.setHasSyncedTheCurrentTrack(false)
+                get().actions.setHasScrobbledTheCurrentTrack(false)
                 set((state) => {
                   state.playerState.mediaType = 'song'
                   state.songlist.currentList = [song]
@@ -230,6 +274,7 @@ export const usePlayerStore = createWithEqualityFn<IPlayerContext>()(
                   state.playerState.isPlaying = true
                   state.songlist.radioList = []
                   state.songlist.podcastList = []
+                  state.playerState.playbackContext.source = null
                 })
               }
             },
@@ -264,6 +309,7 @@ export const usePlayerStore = createWithEqualityFn<IPlayerContext>()(
               set((state) => {
                 state.songlist.currentList = newCurrentList
                 state.songlist.originalList = newOriginalList
+                state.playerState.playbackContext.source = null
               })
 
               const { isPlaying } = get().playerState
@@ -286,6 +332,7 @@ export const usePlayerStore = createWithEqualityFn<IPlayerContext>()(
               set((state) => {
                 state.songlist.currentList = newCurrentList
                 state.songlist.originalList = newOriginalList
+                state.playerState.playbackContext.source = null
               })
 
               const { isPlaying } = get().playerState
@@ -473,8 +520,18 @@ export const usePlayerStore = createWithEqualityFn<IPlayerContext>()(
             },
             playNextSong: () => {
               const { loopState } = get().playerState
-              const { hasNextSong, resetProgress, playFirstSongInQueue } =
-                get().actions
+              const {
+                hasNextSong,
+                resetProgress,
+                playFirstSongInQueue,
+                setHasSyncedTheCurrentTrack,
+                setHasScrobbledTheCurrentTrack,
+                resetAccumulatedTime,
+              } = get().actions
+
+              resetAccumulatedTime()
+              setHasSyncedTheCurrentTrack(false)
+              setHasScrobbledTheCurrentTrack(false)
 
               if (hasNextSong()) {
                 resetProgress()
@@ -487,8 +544,20 @@ export const usePlayerStore = createWithEqualityFn<IPlayerContext>()(
               }
             },
             playPrevSong: () => {
-              if (get().actions.hasPrevSong()) {
-                get().actions.resetProgress()
+              const {
+                resetProgress,
+                resetAccumulatedTime,
+                setHasSyncedTheCurrentTrack,
+                setHasScrobbledTheCurrentTrack,
+              } = get().actions
+              const hasPrevSong = get().actions.hasPrevSong()
+
+              if (hasPrevSong) {
+                resetProgress()
+                resetAccumulatedTime()
+                setHasSyncedTheCurrentTrack(false)
+                setHasScrobbledTheCurrentTrack(false)
+
                 set((state) => {
                   state.songlist.currentSongIndex -= 1
                 })
@@ -512,9 +581,13 @@ export const usePlayerStore = createWithEqualityFn<IPlayerContext>()(
                 state.playerState.mainDrawerState = false
                 state.playerState.queueState = false
                 state.playerState.lyricsState = false
+                state.playerState.hasSyncedTheCurrentTrack = false
+                state.playerState.hasScrobbledTheCurrentTrack = false
                 state.playerState.currentDuration = 0
                 state.playerState.audioPlayerRef = null
                 state.settings.colors.currentSongColor = null
+                state.listenTime.accumulated = 0
+                state.playerState.playbackContext.source = null
               })
             },
             resetProgress: () => {
@@ -783,6 +856,26 @@ export const usePlayerStore = createWithEqualityFn<IPlayerContext>()(
                 state.playerState.lyricsState = false
               })
             },
+            setHasSyncedTheCurrentTrack: (value) => {
+              set((state) => {
+                state.playerState.hasSyncedTheCurrentTrack = value
+              })
+            },
+            setHasScrobbledTheCurrentTrack: (value) => {
+              set((state) => {
+                state.playerState.hasScrobbledTheCurrentTrack = value
+              })
+            },
+            incrementAccumulatedTime: (delta) => {
+              set((state) => {
+                state.listenTime.accumulated += delta
+              })
+            },
+            resetAccumulatedTime: () => {
+              set((state) => {
+                state.listenTime.accumulated = 0
+              })
+            },
             playFirstSongInQueue: () => {
               set((state) => {
                 state.songlist.currentSongIndex = 0
@@ -924,7 +1017,13 @@ usePlayerStore.subscribe(
     const { currentList } = playerStore.songlist
     const { progress } = playerStore.playerProgress
 
-    if (currentList.length === 0 && progress > 0) {
+    const isSonglistEmpty = currentList.length === 0
+
+    if (isSonglistEmpty) {
+      playerStore.fullscreen.reset()
+    }
+
+    if (isSonglistEmpty && progress > 0) {
       playerStore.actions.resetProgress()
     }
   },
@@ -961,6 +1060,46 @@ usePlayerStore.subscribe(
     equalityFn: shallow,
   },
 )
+
+usePlayerStore.subscribe((state, prevState) => {
+  const currentSong = state.songlist.currentSong ?? null
+
+  if (!currentSong) return
+
+  const progress = state.playerProgress.progress
+  const prevProgress = prevState.playerProgress.progress
+  const duration = currentSong.duration
+  const isPlaying = state.playerState.isPlaying
+
+  const hasSynced = state.playerState.hasSyncedTheCurrentTrack
+
+  if (progress >= 1 && prevProgress < 1 && !hasSynced) {
+    usePlayerStore.getState().actions.setHasSyncedTheCurrentTrack(true)
+
+    scrobble.send(currentSong.id, false)
+  }
+
+  const timeDelta = progress - prevProgress
+
+  if (isPlaying && timeDelta > 0 && timeDelta <= 2) {
+    usePlayerStore.getState().actions.incrementAccumulatedTime(timeDelta)
+  }
+
+  const accumulatedTime = usePlayerStore.getState().listenTime.accumulated
+
+  const halfDuration = duration / 2
+  const fourMinutesInSeconds = 60 * 4
+  const targetTime = Math.min(halfDuration, fourMinutesInSeconds)
+
+  const hasScrobbled =
+    usePlayerStore.getState().playerState.hasScrobbledTheCurrentTrack
+
+  if (duration > 0 && accumulatedTime >= targetTime && !hasScrobbled) {
+    usePlayerStore.getState().actions.setHasScrobbledTheCurrentTrack(true)
+
+    scrobble.send(currentSong.id, true)
+  }
+})
 
 function desktopStateListener() {
   if (!isDesktop()) return
@@ -1170,3 +1309,68 @@ export const useSongColor = () =>
 
 export const usePlayerCurrentList = () =>
   usePlayerStore((state) => state.songlist.currentList)
+
+export const usePlayerFullscreen = () =>
+  usePlayerStore((state) => state.fullscreen)
+
+export const usePlayerContext = () =>
+  usePlayerStore((state) => state.playerState.playbackContext)
+
+const useContextVerification = (id: string, type: PlaybackSourceType) => {
+  const { source } = usePlayerStore(
+    (state) => state.playerState.playbackContext,
+  )
+  const isPlayerPlaying = usePlayerStore((state) => state.playerState.isPlaying)
+
+  if (!source) return { isActive: false, isPlaying: false }
+
+  const isActive = source.type === type && source.id === id
+  const isPlaying = isActive && isPlayerPlaying
+
+  return { isActive, isPlaying }
+}
+
+export const useIsPlaylistPlaying = (playlistId: string) => {
+  const { isActive, isPlaying } = useContextVerification(playlistId, 'playlist')
+
+  return {
+    isPlaylistActive: isActive,
+    isPlaylistPlaying: isPlaying,
+  }
+}
+
+export const useIsAlbumPlaying = (albumId: string) => {
+  const { isActive, isPlaying } = useContextVerification(albumId, 'album')
+
+  return {
+    isAlbumActive: isActive,
+    isAlbumPlaying: isPlaying,
+  }
+}
+
+export const useIsArtistPlaying = (artistId: string) => {
+  const { isActive, isPlaying } = useContextVerification(artistId, 'artist')
+
+  return {
+    isArtistActive: isActive,
+    isArtistPlaying: isPlaying,
+  }
+}
+
+export const useIsSingleSongPlaying = (songId: string) => {
+  const playingSongId = usePlayerStore((state) => state.songlist.currentSong.id)
+  const { source } = usePlayerStore(
+    (store) => store.playerState.playbackContext,
+  )
+  const isPlayerPlaying = usePlayerStore((state) => state.playerState.isPlaying)
+
+  if (source) return { isSongPlaying: false }
+
+  const isSongActive = playingSongId === songId
+  const isSongPlaying = isSongActive && isPlayerPlaying
+
+  return {
+    isSongActive,
+    isSongPlaying,
+  }
+}

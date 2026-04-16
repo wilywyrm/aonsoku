@@ -1,4 +1,4 @@
-export type GridViewWrapperType = 'artists' | 'albums'
+export type GridViewWrapperType = 'artists' | 'albums' | 'genre'
 
 type SavedGridItem = Record<string, number>
 

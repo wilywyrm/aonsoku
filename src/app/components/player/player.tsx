@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef } from 'react'
 import { getSongStreamUrl } from '@/api/httpClient'
 import { getProxyURL } from '@/api/podcastClient'
 import { MiniPlayerButton } from '@/app/components/mini-player/button'
@@ -45,7 +45,6 @@ const MemoPlayerExpandButton = memo(PlayerExpandButton)
 const MemoPodcastPlaybackRate = memo(PodcastPlaybackRate)
 const MemoLyricsButton = memo(PlayerLyricsButton)
 const MemoMiniPlayerButton = memo(MiniPlayerButton)
-const MemoAudioPlayer = memo(AudioPlayer)
 
 export function Player() {
   const audioRef = useRef<HTMLAudioElement>(null)
@@ -162,7 +161,7 @@ export function Player() {
       })
   }, [isPodcast, podcast])
 
-  function getTrackReplayGain(): ReplayGainParams {
+  const trackReplayGain = useMemo<ReplayGainParams>(() => {
     const preAmp = replayGainPreAmp
     const defaultGain = replayGainDefaultGain
 
@@ -171,13 +170,22 @@ export function Player() {
     }
 
     if (replayGainType === 'album') {
-      const { albumGain = defaultGain, albumPeak = 1 } = song.replayGain
+      let { albumGain = defaultGain, albumPeak = 1 } = song.replayGain
+
+      if (albumGain === 0) {
+        albumGain = defaultGain
+      }
+
       return { gain: albumGain, peak: albumPeak, preAmp }
     }
 
-    const { trackGain = defaultGain, trackPeak = 1 } = song.replayGain
+    let { trackGain = defaultGain, trackPeak = 1 } = song.replayGain
+
+    if (trackGain === 0) {
+      trackGain = defaultGain
+    }
     return { gain: trackGain, peak: trackPeak, preAmp }
-  }
+  }, [song, replayGainDefaultGain, replayGainPreAmp, replayGainType])
 
   return (
     <footer className="border-t h-[--player-height] w-full flex items-center fixed bottom-0 left-0 right-0 z-40 bg-background">
@@ -228,8 +236,8 @@ export function Player() {
       </div>
 
       {isSong && song && (
-        <MemoAudioPlayer
-          replayGain={getTrackReplayGain()}
+        <AudioPlayer
+          replayGain={trackReplayGain}
           src={getSongStreamUrl(song.id)}
           autoPlay={isPlaying}
           audioRef={audioRef}
@@ -245,7 +253,7 @@ export function Player() {
       )}
 
       {isRadio && radio && (
-        <MemoAudioPlayer
+        <AudioPlayer
           src={radio.streamUrl}
           autoPlay={isPlaying}
           audioRef={radioRef}
@@ -257,7 +265,7 @@ export function Player() {
       )}
 
       {isPodcast && podcast && (
-        <MemoAudioPlayer
+        <AudioPlayer
           src={getProxyURL(podcast.audio_url)}
           autoPlay={isPlaying}
           audioRef={podcastRef}

@@ -7,6 +7,7 @@ import { BadgesData } from '@/app/components/header-info'
 import ListWrapper from '@/app/components/list-wrapper'
 import { PlaylistButtons } from '@/app/components/playlist/buttons'
 import { RemoveSongFromPlaylistDialog } from '@/app/components/playlist/remove-song-dialog'
+import { PlaylistStickyHeader } from '@/app/components/playlist/sticky-header'
 import { DataTable } from '@/app/components/ui/data-table'
 import ErrorPage from '@/app/pages/error-page'
 import { songsColumns } from '@/app/tables/songs-columns'
@@ -66,7 +67,9 @@ export default function Playlist() {
   const coverArt = playlist.songCount > 0 ? playlist.coverArt : undefined
 
   return (
-    <div className="w-full" key={playlist.id}>
+    <div className="w-full relative" key={playlist.id}>
+      <PlaylistStickyHeader playlist={playlist} />
+
       <ImageHeader
         type={t('playlist.headline')}
         title={playlist.name}
@@ -85,10 +88,17 @@ export default function Playlist() {
         <DataTable
           columns={columns}
           data={playlist.entry ?? []}
-          handlePlaySong={(row) => setSongList(playlist.entry, row.index)}
+          handlePlaySong={(row) => {
+            setSongList(playlist.entry, row.index, false, {
+              id: playlist.id,
+              name: playlist.name,
+              type: 'playlist',
+            })
+          }}
           columnFilter={columnsToShow}
           noRowsMessage={t('playlist.noSongList')}
           variant="modern"
+          enableVirtualization={true}
         />
 
         <RemoveSongFromPlaylistDialog />

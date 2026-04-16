@@ -12,15 +12,34 @@ import { SidebarPodcastItem } from './podcast-item'
 
 export function NavLibrary() {
   const { t } = useTranslation()
+  const hideArtistsSection = useAppStore().pages.hideArtistsSection
+  const hideSongsSection = useAppStore().pages.hideSongsSection
+  const hideAlbumsSection = useAppStore().pages.hideAlbumsSection
+  const hideGenresSection = useAppStore().pages.hideGenresSection
+  const hideFavoritesSection = useAppStore().pages.hideFavoritesSection
+  const hidePlaylistsSection = useAppStore().pages.hidePlaylistsSection
   const hideRadiosSection = useAppStore().pages.hideRadiosSection
   const isPodcastsActive = useAppStore().podcasts.active
+
+  const isAllSectionsHidden = useAppStore().pages.isAllSectionsHidden()
+
+  if (isAllSectionsHidden) return null
 
   return (
     <MainSidebarGroup className="px-4 py-0">
       <MainSidebarGroupLabel>{t('sidebar.library')}</MainSidebarGroupLabel>
       <MainSidebarMenu>
         {libraryItems.map((item) => {
-          // Setting to show/hide Radios/Podcasts section
+          // Settings to show/hide library sections
+          if (hideArtistsSection && item.id === SidebarItems.Artists)
+            return null
+          if (hideSongsSection && item.id === SidebarItems.Songs) return null
+          if (hideAlbumsSection && item.id === SidebarItems.Albums) return null
+          if (hideGenresSection && item.id === SidebarItems.Genres) return null
+          if (hideFavoritesSection && item.id === SidebarItems.Favorites)
+            return null
+          if (hidePlaylistsSection && item.id === SidebarItems.Playlists)
+            return null
           if (hideRadiosSection && item.id === SidebarItems.Radios) return null
           if (!isPodcastsActive && item.id === SidebarItems.Podcasts)
             return null

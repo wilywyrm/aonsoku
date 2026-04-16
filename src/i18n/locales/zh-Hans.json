@@ -17,7 +17,8 @@
     "favorites": "收藏夹",
     "search": "搜索…",
     "miniSearch": "搜索",
-    "podcasts": "播客"
+    "podcasts": "播客",
+    "genres": "流派"
   },
   "menu": {
     "about": "关于",
@@ -70,6 +71,7 @@
     "refresh": "刷新播放列表",
     "buttons": {
       "play": "播放 {{name}}",
+      "pause": "暂停 {{name}}",
       "shuffle": "随机播放 {{name}}",
       "options": "{{name}} 的更多选项"
     },
@@ -135,7 +137,10 @@
     "headline": "专辑",
     "buttons": {
       "like": "喜欢 {{name}}",
-      "dislike": "取消对 {{name}} 的喜欢"
+      "dislike": "取消对 {{name}} 的喜欢",
+      "play": "播放 {{name}}",
+      "pause": "暂停 {{name}}",
+      "shuffle": "随机播放 {{name}}"
     },
     "info": {
       "lastfm": "在 Last.fm 中打开",
@@ -475,7 +480,8 @@
     "dialog": {
       "title": "发现了一个新版本！",
       "remindLater": "稍候提醒我",
-      "install": "安装并重启"
+      "install": "安装并重启",
+      "macOS": "从 GitHub 下载"
     }
   },
   "about": {
@@ -589,10 +595,7 @@
     "content": {
       "sidebar": {
         "group": "侧边栏",
-        "description": "管理侧边栏中显示的区域的可见性和组织方式。",
-        "radios": {
-          "section": "隐藏电台区域"
-        }
+        "description": "在侧边栏中显示或隐藏各个部分。"
       },
       "podcast": {
         "description": "开启与 Aonsoku Podcasts 服务的集成。",
@@ -609,6 +612,14 @@
         "service": {
           "url": "播客服务 URL"
         }
+      },
+      "images": {
+        "group": "图片",
+        "description": "自定义图片设置。",
+        "cacheLayer": {
+          "info": "开启后，图片将缓存在本地以提升性能。",
+          "label": "开启图片缓存"
+        }
       }
     },
     "label": "设置",
@@ -617,9 +628,45 @@
         "group": "外部服务",
         "lrclib": {
           "label": "LRCLIB",
-          "info": "LRCLIB 用于查找歌词。"
+          "info": "LRCLIB 用于查找歌词。",
+          "customUrl": {
+            "toggle": "使用自定义 URL",
+            "info": "使用自定义 URL 替代默认的 LRCLIB 地址。",
+            "label": "URL",
+            "example": "示例：https://my-lrclib.com"
+          }
         },
-        "description": "管理 Aonsoku 可以访问的外部服务。"
+        "description": "管理 Aonsoku 可以访问的外部服务。",
+        "animatedCover": {
+          "enabled": {
+            "label": "启用动画封面",
+            "info": "当启用时，如果可用，动画封面将从外部服务加载。"
+          },
+          "customUrl": {
+            "toggle": "使用自定义 URL",
+            "info": "使用自定义 URL 代替默认的动画艺术品 API。",
+            "label": "URL",
+            "example": "默认：https://artwork.m8tec.top"
+          },
+          "screens": {
+            "album": {
+              "label": "专辑页面",
+              "info": "在专辑标题视图中启用动画封面。"
+            },
+            "fullscreen": {
+              "label": "大播放器",
+              "info": "在大播放器中为当前歌曲启用动画封面。"
+            },
+            "playerBar": {
+              "label": "底部播放器栏",
+              "info": "在播放器栏中为当前歌曲启用动画封面。"
+            },
+            "drawer": {
+              "label": "队列和歌词",
+              "info": "在队列和歌词抽屉中为当前歌曲启用动画封面。"
+            }
+          }
+        }
       }
     },
     "accounts": {
@@ -720,6 +767,16 @@
         "description": "请尝试添加更多播客。",
         "goToPodcasts": "前往播客"
       }
+    }
+  },
+  "genre": {
+    "headline": "流派"
+  },
+  "genres": {
+    "albumCount_other": "{{count}} 张专辑",
+    "buttons": {
+      "shuffleTracks": "随机曲目",
+      "shuffleAlbums": "随机专辑"
     }
   }
 }

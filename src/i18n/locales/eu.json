@@ -17,7 +17,8 @@
     "playlists": "Zerrendak",
     "radios": "Irratiak",
     "podcasts": "Podcast-ak",
-    "emptyPlaylist": "Ez da oraindik zerrendarik sortu"
+    "emptyPlaylist": "Ez da oraindik zerrendarik sortu",
+    "genres": "Generoak"
   },
   "menu": {
     "language": "Hizkuntza",
@@ -58,5 +59,16 @@
     "songCount_other": "{{count}} abesti",
     "duration": "{{duration}} inguru",
     "refresh": "Zerrenda berritu"
+  },
+  "genre": {
+    "headline": "Generoa"
+  },
+  "genres": {
+    "albumCount_one": "{{count}} album",
+    "albumCount_other": "{{count}} album",
+    "buttons": {
+      "shuffleTracks": "Abestiak ausaz",
+      "shuffleAlbums": "Albumak ausaz"
+    }
   }
 }

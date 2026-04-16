@@ -23,16 +23,24 @@ export function SongQualityBadge({
 }: SongQualityBadgeProps) {
   const { t } = useTranslation()
 
+  if (!song?.suffix) {
+    return null
+  }
+
   const quality = song.suffix.toUpperCase()
   const bitrate = formatBitrate(song.bitRate)
   const samplingRate = formatSamplingRate(song.samplingRate)
   const size = formatBytes(song.size ?? 0)
 
   const lines = [
-    { label: t('table.columns.quality'), value: quality },
-    { label: t('table.columns.bitrate'), value: bitrate },
-    { label: t('table.columns.samplingRate'), value: samplingRate },
-    { label: t('table.columns.size'), value: size },
+    { id: 'quality', label: t('table.columns.quality'), value: quality },
+    { id: 'bitrate', label: t('table.columns.bitrate'), value: bitrate },
+    {
+      id: 'samplingRate',
+      label: t('table.columns.samplingRate'),
+      value: samplingRate,
+    },
+    { id: 'size', label: t('table.columns.size'), value: size },
   ]
 
   return (
@@ -43,8 +51,8 @@ export function SongQualityBadge({
         </TooltipTrigger>
         <TooltipPortal>
           <TooltipContent className="flex flex-col items-center p-0 divide-y">
-            {lines.map((line, index) => (
-              <ContentLine key={index} label={line.label}>
+            {lines.map((line) => (
+              <ContentLine key={line.id} label={line.label}>
                 {line.value}
               </ContentLine>
             ))}

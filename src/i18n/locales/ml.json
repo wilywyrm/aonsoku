@@ -7,6 +7,18 @@
     "miniSearch": "തിരയുക",
     "songs": "ഗാനങ്ങൾ",
     "albums": "ആൽബങ്ങൾ",
-    "playlists": "പ്ലേലിസ്റ്റുകൾ"
+    "playlists": "പ്ലേലിസ്റ്റുകൾ",
+    "genres": "ഴോൺറുകൾ"
+  },
+  "genre": {
+    "headline": "ഴോൺർ"
+  },
+  "genres": {
+    "albumCount_one": "{{count}} ആൽബം",
+    "albumCount_other": "{{count}} ആൽബങ്ങൾ",
+    "buttons": {
+      "shuffleTracks": "ട്രാക്കുകൾ ഷഫിൾ",
+      "shuffleAlbums": "ആൽബങ്ങൾ ഷഫിൾ"
+    }
   }
 }

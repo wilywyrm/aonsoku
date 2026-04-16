@@ -1,29 +1,48 @@
 import clsx from 'clsx'
-import { Play } from 'lucide-react'
+import { Pause, Play } from 'lucide-react'
 import { isFirefox } from 'react-device-detect'
 import { LazyLoadImage } from 'react-lazy-load-image-component'
 import { Link } from 'react-router-dom'
+import { BlurredCanvas } from '@/app/components/blurred-canvas'
+import { EqualizerBars } from '@/app/components/icons/equalizer-bars'
 import { ImageLoader } from '@/app/components/image-loader'
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
 import { ROUTES } from '@/routes/routesList'
 import { subsonic } from '@/service/subsonic'
-import { usePlayerActions } from '@/store/player.store'
+import { useIsAlbumPlaying, usePlayerActions } from '@/store/player.store'
 import { ISong } from '@/types/responses/song'
 import { convertSecondsToTime } from '@/utils/convertSecondsToTime'
 
 export function HeaderItem({ song }: { song: ISong }) {
-  const { setSongList } = usePlayerActions()
+  const { setSongList, togglePlayPause } = usePlayerActions()
+  const { isAlbumActive, isAlbumPlaying } = useIsAlbumPlaying(song.albumId)
 
-  async function handlePlaySongAlbum(song: ISong) {
+  async function handlePlaySongAlbum() {
     const album = await subsonic.albums.getOne(song.albumId)
 
-    if (album) {
-      const songIndex = album.song.findIndex((item) => item.id === song.id)
+    if (!album) return
 
-      setSongList(album.song, songIndex)
+    const songIndex = album.song.findIndex((item) => item.id === song.id)
+
+    setSongList(album.song, songIndex, false, {
+      id: album.id,
+      name: album.name,
+      type: 'album',
+    })
+  }
+
+  function handlePlayButton() {
+    if (isAlbumActive) {
+      togglePlayPause()
+    } else {
+      handlePlaySongAlbum()
     }
   }
+
+  const dataTestId = isAlbumPlaying
+    ? 'header-pause-button'
+    : 'header-play-button'
 
   return (
     <div
@@ -35,21 +54,11 @@ export function HeaderItem({ song }: { song: ISong }) {
       <ImageLoader id={song.coverArt} type="song" size={400}>
         {(src) => (
           <>
-            <div
-              data-testid="header-bg"
-              className="absolute -inset-10 bg-cover bg-center z-0 bg-skeleton"
-              style={{
-                backgroundImage: `url(${src})`,
-                filter: isFirefox ? 'blur(24px)' : undefined,
-              }}
-            />
-            <div
-              className={clsx(
-                'w-full h-full bg-gradient-to-b from-background/40 to-background/80 absolute z-10',
-                !isFirefox && 'backdrop-blur-xl',
-              )}
-            >
-              <div className="flex h-full p-4 2xl:p-6 gap-4">
+            <div data-testid="header-bg" className="absolute inset-0 z-0">
+              <BlurredCanvas src={src} blur={16} className="scale-110" />
+            </div>
+            <div className="w-full h-full absolute z-10 bg-gradient-to-b from-transparent to-background-foreground">
+              <div className="flex h-full px-8 py-6 gap-4">
                 <div
                   className="h-full aspect-square relative group bg-skeleton rounded-lg"
                   data-testid="header-image-container"
@@ -67,22 +76,37 @@ export function HeaderItem({ song }: { song: ISong }) {
                     <Button
                       className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full w-14 h-14"
                       variant="outline"
-                      onClick={() => handlePlaySongAlbum(song)}
-                      data-testid="header-play-button"
+                      onClick={handlePlayButton}
+                      data-testid={dataTestId}
                     >
-                      <Play className="fill-foreground" />
+                      {isAlbumPlaying ? (
+                        <Pause className="fill-foreground" />
+                      ) : (
+                        <Play className="fill-foreground" />
+                      )}
                     </Button>
                   </div>
                 </div>
                 <div className="flex flex-1 h-full flex-col justify-end">
-                  <Link to={ROUTES.ALBUM.PAGE(song.albumId)} className="w-fit">
-                    <h1
-                      data-testid="header-title"
-                      className="w-full scroll-m-20 text-3xl 2xl:text-4xl font-bold tracking-tight mb-0 2xl:mb-1 hover:underline"
+                  <div className="flex items-center gap-2">
+                    {isAlbumPlaying && (
+                      <EqualizerBars
+                        size={24}
+                        className="text-foreground mb-1"
+                      />
+                    )}
+                    <Link
+                      to={ROUTES.ALBUM.PAGE(song.albumId)}
+                      className="w-fit"
                     >
-                      {song.title}
-                    </h1>
-                  </Link>
+                      <h1
+                        data-testid="header-title"
+                        className="w-full scroll-m-20 text-3xl 2xl:text-4xl font-bold tracking-tight mb-0 2xl:mb-1 hover:underline"
+                      >
+                        {song.title}
+                      </h1>
+                    </Link>
+                  </div>
                   {!song.artistId ? (
                     <h4
                       data-testid="header-artist"
