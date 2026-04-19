@@ -37,24 +37,6 @@ export interface IStructuredLine {
   value: string
 }
 
-export interface ILyricsList {
-  structuredLyrics: IStructuredLyric[]
-}
-
-export interface IStructuredLyric {
-  displayArtist: string
-  displayTitle: string
-  lang?: string
-  offset?: number
-  synced: boolean
-  line: IStructuredLine[]
-}
-
-export interface IStructuredLine {
-  start?: number
-  value: string
-}
-
 export interface IContributor {
   role: string
   artist: IFeaturedArtist

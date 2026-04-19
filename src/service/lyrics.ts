@@ -1,4 +1,5 @@
 import { get, set } from 'idb-keyval'
+import { iso6392BTo1, iso6392TTo1 } from 'iso-639-2'
 import { httpClient } from '@/api/httpClient'
 import { usePlayerStore } from '@/store/player.store'
 import {
@@ -10,6 +11,22 @@ import {
 } from '@/types/responses/song'
 import { lrclibClient } from '@/utils/appName'
 import { checkServerType, getServerExtensions } from '@/utils/servers'
+
+// normalizes the ISO 639 code returned by the server to the BCP 47 language tag recognized by the html lang selector
+function normalizeLangCode(lang: string | undefined): string | undefined {
+  if (!lang) return lang
+
+  const parts = lang.split('-')
+  const primary = parts[0].toLowerCase()
+
+  const mapped = iso6392BTo1[primary] ?? iso6392TTo1[primary]
+  if (mapped) {
+    parts[0] = mapped
+    return parts.join('-')
+  }
+
+  return lang
+}
 
 interface GetLyricsData {
   id: string
@@ -202,7 +219,7 @@ async function getLyricsFromLRCLib(getLyricsData: GetLyricsData) {
     artist,
     title,
     value: '',
-    lang: "xxx",
+    lang: 'xxx',
   }
 }
 
@@ -236,7 +253,7 @@ function osStructuredLyricsToILyric(lyrics: IStructuredLyric): ILyric {
   return {
     artist: lyrics.displayArtist,
     title: lyrics.displayTitle,
-    lang: lyrics.lang,
+    lang: normalizeLangCode(lyrics.lang),
     value: formatLyrics(lyrics.line.map(osLineToILyricLine).join('\n')),
   }
 }
