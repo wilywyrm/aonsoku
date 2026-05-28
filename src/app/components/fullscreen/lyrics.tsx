@@ -12,6 +12,8 @@ import { subsonic } from '@/service/subsonic'
 import { useLang } from '@/store/lang.store'
 import { usePlayerRef, usePlayerSonglist } from '@/store/player.store'
 import { ILyric } from '@/types/responses/song'
+import { getServerExtensions } from '@/utils/servers'
+import { WordLevelLyricsContainer } from './word-level-lyrics'
 
 // disambiguates chinese language code to the user's locale if set
 export function resolveLyricsLang(
@@ -30,6 +32,7 @@ interface LyricProps {
 export function LyricsTab() {
   const { currentSong } = usePlayerSonglist()
   const { t } = useTranslation()
+  const { songLyricsV2Enabled } = getServerExtensions()
 
   const { id, artist, title, duration } = currentSong
 
@@ -50,10 +53,37 @@ export function LyricsTab() {
   if (isLoading) {
     return <CenteredMessage>{loadingLyrics}</CenteredMessage>
   } else if (lyrics && lyrics.value) {
+    // Word mode: v2 server + cueLine data present (structuredLyric only returned when preferSyncedLyrics=true per D1)
+    const hasWordData =
+      songLyricsV2Enabled &&
+      !!lyrics.structuredLyric?.cueLine?.some((cl) => cl.cue.length > 0)
+    if (hasWordData && lyrics.structuredLyric) {
+      return (
+        <div
+          data-testid="lyrics-mode"
+          data-mode="word"
+          className="w-full h-full"
+        >
+          <WordLevelLyricsContainer structuredLyric={lyrics.structuredLyric} />
+        </div>
+      )
+    }
     return areLyricsSynced(lyrics) ? (
-      <SyncedLyrics lyrics={lyrics} />
+      <div
+        data-testid="lyrics-mode"
+        data-mode="line"
+        className="w-full h-full"
+      >
+        <SyncedLyrics lyrics={lyrics} />
+      </div>
     ) : (
-      <UnsyncedLyrics lyrics={lyrics} />
+      <div
+        data-testid="lyrics-mode"
+        data-mode="plain"
+        className="w-full h-full"
+      >
+        <UnsyncedLyrics lyrics={lyrics} />
+      </div>
     )
   } else {
     return <CenteredMessage>{noLyricsFound}</CenteredMessage>
