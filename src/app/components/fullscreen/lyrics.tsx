@@ -14,7 +14,7 @@ import { usePlayerRef, usePlayerSonglist } from '@/store/player.store'
 import { ILyric } from '@/types/responses/song'
 
 // disambiguates chinese language code to the user's locale if set
-function resolveLyricsLang(
+export function resolveLyricsLang(
   lyricsLang: string | undefined,
   appLocale: string,
 ): string | undefined {
