@@ -251,8 +251,8 @@ function getLyricsCacheKey(
 
 function osStructuredLyricsToILyric(lyrics: IStructuredLyric): ILyric {
   return {
-    artist: lyrics.displayArtist,
-    title: lyrics.displayTitle,
+    artist: lyrics.displayArtist ?? '',
+    title: lyrics.displayTitle ?? '',
     lang: normalizeLangCode(lyrics.lang),
     value: formatLyrics(lyrics.line.map(osLineToILyricLine).join('\n')),
   }
