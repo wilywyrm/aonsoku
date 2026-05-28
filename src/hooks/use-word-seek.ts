@@ -12,7 +12,10 @@ export function useWordSeek(): (cueStartMs: number) => void {
     (cueStartMs: number) => {
       if (!playerRef || cueStartMs < 0) return
       const seconds = cueStartMs / 1000
-      playerRef.currentTime = Math.max(0, Math.min(seconds, playerRef.duration || Infinity))
+      playerRef.currentTime = Math.max(
+        0,
+        Math.min(seconds, playerRef.duration || Infinity),
+      )
     },
     [playerRef],
   )

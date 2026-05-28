@@ -80,9 +80,9 @@ export function useRafActiveCue({
   enabled = true,
 }: UseRafActiveCueArgs): UseRafActiveCueResult {
   const [activeLineIdx, setActiveLineIdx] = useState(-1)
-  const [activeCueByKey, setActiveCueByKey] = useState<
-    Record<string, number>
-  >({})
+  const [activeCueByKey, setActiveCueByKey] = useState<Record<string, number>>(
+    {},
+  )
   const rafIdRef = useRef<number | null>(null)
   const mountedRef = useRef(true)
   const lineIdxRef = useRef(-1)

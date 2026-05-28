@@ -98,12 +98,12 @@ export function normalizeStructuredLyric(
     }
 
     // Cap cues at 500
-    const rawCues =
-      rawCl.cue.length > 500
-        ? (import.meta.env.DEV &&
-            console.warn('[wordTiming] cueLine.cue truncated to 500'),
-          rawCl.cue.slice(0, 500))
-        : rawCl.cue
+    let rawCues = rawCl.cue
+    if (rawCl.cue.length > 500) {
+      if (import.meta.env.DEV)
+        console.warn('[wordTiming] cueLine.cue truncated to 500')
+      rawCues = rawCl.cue.slice(0, 500)
+    }
 
     // Build normalised cue list
     // Determine all-or-none state for `end`
@@ -141,7 +141,10 @@ export function normalizeStructuredLyric(
       let byteEnd = c.byteEnd
       if (byteStart != null && byteEnd != null && byteStart > byteEnd) {
         if (import.meta.env.DEV)
-          console.warn('[wordTiming] byteStart > byteEnd', { byteStart, byteEnd })
+          console.warn('[wordTiming] byteStart > byteEnd', {
+            byteStart,
+            byteEnd,
+          })
         byteStart = undefined
         byteEnd = undefined
       }

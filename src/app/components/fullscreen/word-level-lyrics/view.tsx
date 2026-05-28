@@ -62,7 +62,7 @@ export function WordLevelLyricsView({
                   key={cueLine.key}
                   lang={resolvedLang}
                   dir="auto"
-                  aria-label={cueLine.value}
+                  role="text"
                   data-testid={`word-line-${i}-cueline-${cueLine.key}`}
                   data-agent-role={cueLine.agentRole ?? 'unknown'}
                   data-display-order={cueLine.displayOrder}

@@ -69,11 +69,7 @@ export function LyricsTab() {
       )
     }
     return areLyricsSynced(lyrics) ? (
-      <div
-        data-testid="lyrics-mode"
-        data-mode="line"
-        className="w-full h-full"
-      >
+      <div data-testid="lyrics-mode" data-mode="line" className="w-full h-full">
         <SyncedLyrics lyrics={lyrics} />
       </div>
     ) : (

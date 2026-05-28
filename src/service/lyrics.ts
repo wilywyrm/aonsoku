@@ -49,7 +49,9 @@ interface LRCLibResponse {
   syncedLyrics: string
 }
 
-async function getLyrics(getLyricsData: GetLyricsData): Promise<LyricsResult | undefined> {
+async function getLyrics(
+  getLyricsData: GetLyricsData,
+): Promise<LyricsResult | undefined> {
   const { preferSyncedLyrics } = usePlayerStore.getState().settings.lyrics
   const { songLyricsEnabled, songLyricsV2Enabled } = getServerExtensions()
 
@@ -244,7 +246,7 @@ function osStartMsToSongTimestamp(startTime: number): string {
   // Date() isoString is formatted as:
   // YYYY-MM-DDTHH:mm:ss.sssZ -> mm:ss.ss
   // 2011-10-05T14:48:00.000Z -> 48:00.00
-  return new Date(startTime).toISOString().slice(14, -2);
+  return new Date(startTime).toISOString().slice(14, -2)
 }
 
 function getLyricsCacheKey(
