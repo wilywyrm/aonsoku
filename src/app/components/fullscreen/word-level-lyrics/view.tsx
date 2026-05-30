@@ -81,10 +81,7 @@ export function WordLevelLyricsView({
                   data-testid={`word-line-${i}-cueline-${cueLine.key}`}
                   data-agent-role={cueLine.agentRole ?? 'unknown'}
                   data-display-order={cueLine.displayOrder}
-                  className={clsx(
-                    '[word-break:keep-all]',
-                    cueLine.displayOrder >= 1 && 'opacity-70',
-                  )}
+                  className="[word-break:keep-all]"
                 >
                   {/* NOTE: screen-reader fragmentation is a known limitation; role="text" on p partially mitigates it */}
                   {cueLine.cues.map((cue, cueIdx) => {
