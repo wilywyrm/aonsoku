@@ -3,6 +3,16 @@ import { isSafari } from 'react-device-detect'
 import { byteSliceFallback } from '@/utils/byteSlice'
 import type { NormalizedStructuredLyric } from '@/utils/wordTiming'
 
+const HUE_ROTATE_CLASSES = [
+  '[filter:hue-rotate(180deg)]',
+  '[filter:hue-rotate(90deg)]',
+  '[filter:hue-rotate(270deg)]',
+  '[filter:hue-rotate(45deg)]',
+  '[filter:hue-rotate(135deg)]',
+  '[filter:hue-rotate(225deg)]',
+  '[filter:hue-rotate(315deg)]',
+] as const
+
 export interface WordLevelLyricsViewProps {
   data: NormalizedStructuredLyric
   /** -1 when no line is active. */
@@ -102,11 +112,19 @@ export function WordLevelLyricsView({
                       cueState = 'future'
                     }
 
+                    const hueClass =
+                      cueState === 'active' && cueLine.displayOrder >= 1
+                        ? HUE_ROTATE_CLASSES[
+                            (cueLine.displayOrder - 1) %
+                              HUE_ROTATE_CLASSES.length
+                          ]
+                        : undefined
                     const cueClassName = clsx(
                       'transition-[color,font-weight] duration-150 motion-reduce:transition-none',
                       !isWhitespaceOnly && 'cursor-pointer whitespace-nowrap',
                       cueState === 'past' && 'opacity-50',
                       cueState === 'active' && 'text-primary font-semibold',
+                      hueClass,
                     )
 
                     return (
