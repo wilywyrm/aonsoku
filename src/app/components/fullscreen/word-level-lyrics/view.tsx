@@ -81,7 +81,6 @@ export function WordLevelLyricsView({
                   data-testid={`word-line-${i}-cueline-${cueLine.key}`}
                   data-agent-role={cueLine.agentRole ?? 'unknown'}
                   data-display-order={cueLine.displayOrder}
-                  className="[word-break:keep-all]"
                 >
                   {/* NOTE: screen-reader fragmentation is a known limitation; role="text" on p partially mitigates it */}
                   {cueLine.cues.map((cue, cueIdx) => {
@@ -105,7 +104,7 @@ export function WordLevelLyricsView({
 
                     const cueClassName = clsx(
                       'transition-[color,font-weight] duration-150 motion-reduce:transition-none',
-                      !isWhitespaceOnly && 'cursor-pointer',
+                      !isWhitespaceOnly && 'cursor-pointer whitespace-nowrap',
                       cueState === 'past' && 'opacity-50',
                       cueState === 'active' && 'text-primary font-semibold',
                     )
