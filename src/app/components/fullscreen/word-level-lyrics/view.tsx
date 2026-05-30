@@ -98,6 +98,7 @@ export function WordLevelLyricsView({
 
                     const cueClassName = clsx(
                       'transition-[color,font-weight] duration-150 motion-reduce:transition-none',
+                      !isWhitespaceOnly && 'cursor-pointer',
                       cueState === 'past' &&
                         i === activeLineIdx &&
                         'opacity-50',

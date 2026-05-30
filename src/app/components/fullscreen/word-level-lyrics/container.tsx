@@ -80,17 +80,34 @@ export function WordLevelLyricsContainer({
     if (performance.now() < userScrollGuardRef.current.pausedUntilMs) return
 
     const lineEl = lineRefs.current[activeLineIdx]
-    if (!lineEl) return
+    const scrollEl = scrollContainerRef.current
+    if (!lineEl || !scrollEl) return
 
     programmaticScrollRef.current = true
     lineEl.scrollIntoView({
       behavior: isSafari ? 'auto' : 'smooth',
       block: 'center',
     })
-    // Clear the flag after the browser has processed the scroll event.
-    const handle = setTimeout(() => {
+
+    // A smooth scroll fires many `scroll` events asynchronously over ~300-500ms.
+    // We must keep `programmaticScrollRef.current` true until the scroll really
+    // finishes, otherwise the scroll-listener mistakes those events for a user
+    // scroll and pauses auto-scroll for SCROLL_RECOVERY_MS — causing the next
+    // line transition to be silently skipped.
+    const clearFlag = () => {
       programmaticScrollRef.current = false
-    }, 0)
+    }
+
+    // Prefer the native `scrollend` event when available (Chrome 114+, Firefox
+    // 109+, Safari 18.2+). Otherwise fall back to a timeout long enough to
+    // cover typical smooth-scroll durations across browsers.
+    if ('onscrollend' in scrollEl) {
+      scrollEl.addEventListener('scrollend', clearFlag, { once: true })
+      return () => {
+        scrollEl.removeEventListener('scrollend', clearFlag)
+      }
+    }
+    const handle = setTimeout(clearFlag, 700)
     return () => clearTimeout(handle)
   }, [activeLineIdx])
 
