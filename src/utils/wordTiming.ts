@@ -97,22 +97,11 @@ export function normalizeStructuredLyric(
       continue
     }
 
-    let rawCues: ICue[] = []
-    for (const rawCue of rawCl.cue) {
-      for (const w of rawCue.word ?? []) {
-        rawCues.push({
-          start: w.start,
-          end: w.end,
-          value: w.value,
-          byteStart: w.byteStart,
-          byteEnd: w.byteEnd,
-        })
-      }
-    }
-    if (rawCues.length > 500) {
+    let rawCues = rawCl.cue
+    if (rawCl.cue.length > 500) {
       if (import.meta.env.DEV)
-        console.warn('[wordTiming] effective cue list truncated to 500')
-      rawCues = rawCues.slice(0, 500)
+        console.warn('[wordTiming] cueLine.cue truncated to 500')
+      rawCues = rawCl.cue.slice(0, 500)
     }
 
     // Build normalised cue list

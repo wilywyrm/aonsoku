@@ -57,7 +57,7 @@ export function LyricsTab() {
     const hasWordData =
       songLyricsV2Enabled &&
       !!lyrics.structuredLyric?.cueLine?.some((cl) =>
-        cl.cue.some((c) => c.word && c.word.length > 0),
+        cl.cue.some((c) => c.start != null),
       )
     if (hasWordData && lyrics.structuredLyric) {
       return (
