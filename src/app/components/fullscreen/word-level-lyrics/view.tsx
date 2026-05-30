@@ -9,6 +9,13 @@ export interface WordLevelLyricsViewProps {
   activeLineIdx: number
   /** Map from NormalizedCueLine.key → active cue index. Empty Record when no line active. */
   activeCueByKey: Readonly<Record<string, number>>
+  /**
+   * Map from NormalizedCueLine.key → greatest cue index whose start time has
+   * passed. Stays populated during inter-cue gaps and between-line transitions
+   * so previously-visited words keep their `opacity-50` past styling instead
+   * of snapping back to the future state.
+   */
+  lastVisitedCueByKey: Readonly<Record<string, number>>
   /** Called with the cue's normalised (offset-applied) start time in ms. */
   onWordClick: (cueStartMs: number) => void
   /** Result of resolveLyricsLang(data.lang, langCode) — computed by the container. */
@@ -23,6 +30,7 @@ export function WordLevelLyricsView({
   data,
   activeLineIdx,
   activeCueByKey,
+  lastVisitedCueByKey,
   onWordClick,
   resolvedLang,
   scrollContainerRef,
@@ -60,6 +68,8 @@ export function WordLevelLyricsView({
             line.cueLines.map((cueLine) => {
               const activeCueIdxForThisCueLine =
                 activeCueByKey[cueLine.key] ?? -1
+              const lastVisitedCueIdxForThisCueLine =
+                lastVisitedCueByKey[cueLine.key] ?? -1
               return (
                 <p
                   key={cueLine.key}
@@ -72,7 +82,6 @@ export function WordLevelLyricsView({
                   className={clsx(
                     '[word-break:keep-all]',
                     cueLine.displayOrder >= 1 && 'opacity-70',
-                    cueLine.displayOrder >= 1 && 'text-sm',
                   )}
                 >
                   {/* NOTE: screen-reader fragmentation is a known limitation; role="text" on p partially mitigates it */}
@@ -81,17 +90,16 @@ export function WordLevelLyricsView({
                     const isWhitespaceOnly = renderedText.trim().length === 0
 
                     let cueState: 'past' | 'active' | 'future'
-                    if (
-                      i < activeLineIdx ||
-                      (i === activeLineIdx &&
-                        cueIdx < activeCueIdxForThisCueLine)
-                    ) {
+                    if (i < activeLineIdx) {
                       cueState = 'past'
-                    } else if (
-                      i === activeLineIdx &&
-                      cueIdx === activeCueIdxForThisCueLine
-                    ) {
-                      cueState = 'active'
+                    } else if (i === activeLineIdx) {
+                      if (cueIdx === activeCueIdxForThisCueLine) {
+                        cueState = 'active'
+                      } else if (cueIdx <= lastVisitedCueIdxForThisCueLine) {
+                        cueState = 'past'
+                      } else {
+                        cueState = 'future'
+                      }
                     } else {
                       cueState = 'future'
                     }
@@ -123,32 +131,8 @@ export function WordLevelLyricsView({
                           }
                         }}
                         tabIndex={isWhitespaceOnly ? -1 : 0}
-                        style={
-                          isWhitespaceOnly
-                            ? undefined
-                            : {
-                                display: 'inline-block',
-                                minWidth: '1ch',
-                                position: 'relative',
-                              }
-                        }
-                        data-text={renderedText}
                       >
                         {renderedText}
-                        {/* Width-reservation sibling — pre-reserves bold width to prevent layout shift (D2) */}
-                        {!isWhitespaceOnly && (
-                          <span
-                            aria-hidden="true"
-                            className="font-semibold pointer-events-none"
-                            style={{
-                              visibility: 'hidden',
-                              height: 0,
-                              display: 'block',
-                            }}
-                          >
-                            {renderedText}
-                          </span>
-                        )}
                       </span>
                     )
                   })}

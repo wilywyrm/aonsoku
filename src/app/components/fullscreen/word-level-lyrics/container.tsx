@@ -42,11 +42,12 @@ export function WordLevelLyricsContainer({
   )
 
   // 60fps active-index tracking.
-  const { activeLineIdx, activeCueByKey } = useRafActiveCue({
-    lines: normalized.lines,
-    getCurrentTimeMs,
-    enabled: enabled && normalized.hasWordTiming,
-  })
+  const { activeLineIdx, activeCueByKey, lastVisitedCueByKey } =
+    useRafActiveCue({
+      lines: normalized.lines,
+      getCurrentTimeMs,
+      enabled: enabled && normalized.hasWordTiming,
+    })
 
   // Click-to-seek callback (cue.start already has offset baked in).
   const onWordClick = useWordSeek()
@@ -119,6 +120,7 @@ export function WordLevelLyricsContainer({
       data={normalized}
       activeLineIdx={activeLineIdx}
       activeCueByKey={activeCueByKey}
+      lastVisitedCueByKey={lastVisitedCueByKey}
       onWordClick={onWordClick}
       resolvedLang={resolvedLang}
       scrollContainerRef={scrollContainerRef}

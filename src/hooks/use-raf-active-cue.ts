@@ -18,6 +18,7 @@ export interface UseRafActiveCueArgs {
 export interface UseRafActiveCueResult {
   activeLineIdx: number
   activeCueByKey: Readonly<Record<string, number>>
+  lastVisitedCueByKey: Readonly<Record<string, number>>
 }
 
 /**
@@ -83,10 +84,14 @@ export function useRafActiveCue({
   const [activeCueByKey, setActiveCueByKey] = useState<Record<string, number>>(
     {},
   )
+  const [lastVisitedCueByKey, setLastVisitedCueByKey] = useState<
+    Record<string, number>
+  >({})
   const rafIdRef = useRef<number | null>(null)
   const mountedRef = useRef(true)
   const lineIdxRef = useRef(-1)
   const cueByKeyRef = useRef<Record<string, number>>({})
+  const lastVisitedRef = useRef<Record<string, number>>({})
 
   // Pre-compute sorted arrays for binary search (memoized by line identity).
   const lineStarts = useMemo(() => lines.map((l) => l.start ?? 0), [lines])
@@ -108,8 +113,10 @@ export function useRafActiveCue({
     if (!enabled || lines.length === 0) {
       setActiveLineIdx(-1)
       setActiveCueByKey({})
+      setLastVisitedCueByKey({})
       lineIdxRef.current = -1
       cueByKeyRef.current = {}
+      lastVisitedRef.current = {}
       return
     }
 
@@ -125,6 +132,7 @@ export function useRafActiveCue({
       const t = getCurrentTimeMs()
       const newLineIdx = findLineIdx(lineStarts, t)
       const newCueByKey: Record<string, number> = {}
+      const newLastVisited: Record<string, number> = {}
 
       if (newLineIdx >= 0) {
         const cueLines = cueDataByLine[newLineIdx]
@@ -132,6 +140,10 @@ export function useRafActiveCue({
           const cueIdx = findCueIdx(cl.starts, cl.ends, t)
           if (cueIdx >= 0) {
             newCueByKey[cl.key] = cueIdx
+          }
+          const visitedIdx = findLineIdx(cl.starts, t)
+          if (visitedIdx >= 0) {
+            newLastVisited[cl.key] = visitedIdx
           }
         }
       }
@@ -142,15 +154,24 @@ export function useRafActiveCue({
         if (mountedRef.current) setActiveLineIdx(newLineIdx)
       }
 
-      // Shallow-compare the cue-by-key map; setState only on real change.
       const prevKeys = Object.keys(cueByKeyRef.current)
       const newKeys = Object.keys(newCueByKey)
-      const changed =
+      const cueChanged =
         prevKeys.length !== newKeys.length ||
         newKeys.some((k) => cueByKeyRef.current[k] !== newCueByKey[k])
-      if (changed) {
+      if (cueChanged) {
         cueByKeyRef.current = newCueByKey
         if (mountedRef.current) setActiveCueByKey(newCueByKey)
+      }
+
+      const prevVisKeys = Object.keys(lastVisitedRef.current)
+      const newVisKeys = Object.keys(newLastVisited)
+      const visChanged =
+        prevVisKeys.length !== newVisKeys.length ||
+        newVisKeys.some((k) => lastVisitedRef.current[k] !== newLastVisited[k])
+      if (visChanged) {
+        lastVisitedRef.current = newLastVisited
+        if (mountedRef.current) setLastVisitedCueByKey(newLastVisited)
       }
 
       rafIdRef.current = requestAnimationFrame(tick)
@@ -167,5 +188,5 @@ export function useRafActiveCue({
     }
   }, [lines, lineStarts, cueDataByLine, getCurrentTimeMs, enabled])
 
-  return { activeLineIdx, activeCueByKey }
+  return { activeLineIdx, activeCueByKey, lastVisitedCueByKey }
 }

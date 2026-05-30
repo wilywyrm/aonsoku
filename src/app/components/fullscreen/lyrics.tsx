@@ -54,10 +54,11 @@ export function LyricsTab() {
   if (isLoading) {
     return <CenteredMessage>{loadingLyrics}</CenteredMessage>
   } else if (lyrics && lyrics.value) {
-    // Word mode: v2 server + cueLine data present (structuredLyric only returned when preferSyncedLyrics=true per D1)
     const hasWordData =
       songLyricsV2Enabled &&
-      !!lyrics.structuredLyric?.cueLine?.some((cl) => cl.cue.length > 0)
+      !!lyrics.structuredLyric?.cueLine?.some((cl) =>
+        cl.cue.some((c) => c.word && c.word.length > 0),
+      )
     if (hasWordData && lyrics.structuredLyric) {
       return (
         <div
