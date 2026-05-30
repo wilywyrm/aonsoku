@@ -37,7 +37,7 @@ export function LyricsTab() {
   const { id, artist, title, duration } = currentSong
 
   const { data: lyrics, isLoading } = useQuery({
-    queryKey: ['get-lyrics', artist, title, duration],
+    queryKey: ['get-lyrics', id, artist, title, duration],
     queryFn: () =>
       subsonic.lyrics.getLyrics({
         id,
@@ -45,6 +45,7 @@ export function LyricsTab() {
         title,
         duration,
       }),
+    enabled: !!id,
   })
 
   const noLyricsFound = t('fullscreen.noLyrics')

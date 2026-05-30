@@ -33,11 +33,13 @@ export function WordLevelLyricsView({
       ref={scrollContainerRef}
       data-testid="word-sync-lyrics-box"
       className={clsx(
-        'h-full overflow-y-auto',
+        'w-full h-full text-center font-semibold text-2xl 2xl:text-3xl px-2 overflow-y-auto',
         !isSafari && 'scroll-smooth',
-        'w-full text-center font-semibold text-2xl 2xl:text-3xl px-2 maskImage-big-player-lyrics',
+        'lrc-box maskImage-big-player-lyrics',
       )}
     >
+      {/* Top spacer mirrors react-lrc's verticalSpace=true — lets the first line scroll to center */}
+      <div aria-hidden="true" style={{ height: '50%' }} />
       {data.lines.map((line, i) => (
         <div
           ref={(el) => {
@@ -47,8 +49,9 @@ export function WordLevelLyricsView({
           data-testid={`word-line-${i}`}
           data-active={i === activeLineIdx ? 'true' : 'false'}
           className={clsx(
-            'my-5 transition-[opacity] duration-500 motion-reduce:transition-none',
-            i === activeLineIdx ? 'opacity-100' : 'opacity-50',
+            'drop-shadow-lg my-5 hover:opacity-100 duration-500',
+            'transition-[opacity,transform,font-size] motion-reduce:transition-none',
+            i === activeLineIdx ? 'opacity-100 scale-125' : 'opacity-50',
           )}
         >
           {line.cueLines.length === 0 ? (
@@ -67,7 +70,7 @@ export function WordLevelLyricsView({
                   data-agent-role={cueLine.agentRole ?? 'unknown'}
                   data-display-order={cueLine.displayOrder}
                   className={clsx(
-                    'drop-shadow-lg cursor-pointer hover:opacity-100 [word-break:keep-all]',
+                    '[word-break:keep-all]',
                     cueLine.displayOrder >= 1 && 'opacity-70',
                     cueLine.displayOrder >= 1 && 'text-sm',
                   )}
@@ -154,6 +157,8 @@ export function WordLevelLyricsView({
           )}
         </div>
       ))}
+      {/* Bottom spacer mirrors react-lrc's verticalSpace=true — lets the last line scroll to center */}
+      <div aria-hidden="true" style={{ height: '50%' }} />
     </div>
   )
 }
