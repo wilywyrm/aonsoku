@@ -120,8 +120,9 @@ export function WordLevelLyricsView({
                           ]
                         : undefined
                     const cueClassName = clsx(
-                      'transition-[color,font-weight] duration-150 motion-reduce:transition-none',
-                      !isWhitespaceOnly && 'cursor-pointer whitespace-nowrap',
+                      'transition-[color,font-weight,opacity] duration-150 motion-reduce:transition-none',
+                      !isWhitespaceOnly &&
+                        'cursor-pointer whitespace-nowrap hover:opacity-100',
                       cueState === 'past' && 'opacity-50',
                       cueState === 'active' && 'text-primary font-semibold',
                       hueClass,
