@@ -677,7 +677,7 @@
         },
         "preferWordLevel": {
           "label": "Prefer word-level synced lyrics",
-          "info": "When enabled, word-by-word highlighting is used when the server provides word-level timing data. Enabling this also forces 'Prefer synced lyrics' on for as long as this setting is enabled."
+          "info": "When enabled, word-by-word highlighting is used when the server supports providing word-level timing data."
         }
       }
     },
