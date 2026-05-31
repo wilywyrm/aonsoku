@@ -10,7 +10,11 @@ import {
 } from '@/app/components/ui/scroll-area'
 import { subsonic } from '@/service/subsonic'
 import { useLang } from '@/store/lang.store'
-import { usePlayerRef, usePlayerSonglist } from '@/store/player.store'
+import {
+  useLyricsSettings,
+  usePlayerRef,
+  usePlayerSonglist,
+} from '@/store/player.store'
 import { ILyric } from '@/types/responses/song'
 import { getServerExtensions } from '@/utils/servers'
 import { WordLevelLyricsContainer } from './word-level-lyrics'
@@ -33,6 +37,7 @@ export function LyricsTab() {
   const { currentSong } = usePlayerSonglist()
   const { t } = useTranslation()
   const { songLyricsV2Enabled } = getServerExtensions()
+  const { preferWordLevelLyrics } = useLyricsSettings()
 
   const { id, artist, title, duration } = currentSong
 
@@ -56,6 +61,7 @@ export function LyricsTab() {
   } else if (lyrics && lyrics.value) {
     const hasWordData =
       songLyricsV2Enabled &&
+      preferWordLevelLyrics &&
       !!lyrics.structuredLyric?.cueLine?.some((cl) =>
         cl.cue.some((c) => c.start != null),
       )

@@ -52,14 +52,16 @@ interface LRCLibResponse {
 async function getLyrics(
   getLyricsData: GetLyricsData,
 ): Promise<LyricsResult | undefined> {
-  const { preferSyncedLyrics } = usePlayerStore.getState().settings.lyrics
+  const { preferSyncedLyrics, preferWordLevelLyrics } =
+    usePlayerStore.getState().settings.lyrics
   const { songLyricsEnabled, songLyricsV2Enabled } = getServerExtensions()
+  const useWordLevel = songLyricsV2Enabled && preferWordLevelLyrics
 
   const cacheKey = getLyricsCacheKey(
     getLyricsData,
     preferSyncedLyrics,
     songLyricsEnabled,
-    songLyricsV2Enabled,
+    useWordLevel,
   )
 
   const cachedLyrics = await get(cacheKey)
@@ -82,7 +84,7 @@ async function getLyrics(
         method: 'GET',
         query: {
           id: getLyricsData.id,
-          ...(songLyricsV2Enabled ? { enhanced: 'true' } : {}),
+          ...(useWordLevel ? { enhanced: 'true' } : {}),
         },
       },
     )
