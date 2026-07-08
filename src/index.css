@@ -448,12 +448,11 @@ rt {
  */
 [data-testid="word-sync-lyrics-box"] p {
   /*
-   * 2em is the smallest reservation at which a kanji-less <p> and a ruby <p>
-   * share the SAME offsetHeight at every lyric font size (text-2xl 24px and
-   * text-3xl 30px) — below it the 0.5em rt annotation overshoots the strut and
-   * grows the ruby line by 1px, so progressive furigana injection would reflow.
+   * Reserve room for the <rt> annotation (~0.5em above the base) while keeping
+   * rows tight: 1.5em ≈ base line + rt. The per-line my-5 margin supplies the
+   * clearance that stops a row's ruby from touching the row above.
    */
-  line-height: 2em;
+  line-height: 1.5em;
 }
 
 .default-gradient {

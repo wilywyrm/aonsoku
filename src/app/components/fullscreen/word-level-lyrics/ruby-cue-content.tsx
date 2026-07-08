@@ -108,6 +108,10 @@ export function RubyCueContent({
                 'cursor-pointer hover:opacity-100 [word-break:keep-all]',
               isDim && 'opacity-50',
               unitState === 'active' && 'font-semibold',
+              unitState === 'active' &&
+                !unit.kana &&
+                !isWhitespaceOnly &&
+                'karaoke-fill',
             )}
             style={
               hueRotation !== undefined
@@ -126,12 +130,14 @@ export function RubyCueContent({
             }}
             tabIndex={isWhitespaceOnly ? -1 : 0}
           >
-            {unit.kana && unitState === 'active' ? (
+            {unit.kana ? (
               <span className="ruby-unit-wrapper">
                 <span className="ruby-unit-base">{rubyContent(unit)}</span>
-                <span className="ruby-unit-fill" aria-hidden="true">
-                  {rubyContent(unit)}
-                </span>
+                {unitState === 'active' && (
+                  <span className="ruby-unit-fill" aria-hidden="true">
+                    {rubyContent(unit)}
+                  </span>
+                )}
               </span>
             ) : (
               rubyContent(unit)
