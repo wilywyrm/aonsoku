@@ -239,6 +239,13 @@ export function reconcile(
           kana: covered.map((pk) => pk.kana).join(''),
           nonSplittable: false,
           coveringCueIdx: [i],
+          // Carry per-kanji spans so the renderer can place each reading over
+          // its own kanji (copied so the model is never aliased/mutated).
+          perKanji: covered.map((pk) => ({
+            charStart: pk.charStart,
+            charEnd: pk.charEnd,
+            kana: pk.kana,
+          })),
         })
         continue
       }

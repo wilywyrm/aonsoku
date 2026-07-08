@@ -51,6 +51,11 @@ describe('reconcile', () => {
       kana: 'きょう',
       coveringCueIdx: [1],
     })
+    // Per-kanji spans are carried through for the renderer.
+    expect(units[0].perKanji).toEqual([{ charStart: 0, charEnd: 0, kana: 'とう' }])
+    expect(units[1].perKanji).toEqual([
+      { charStart: 1, charEnd: 1, kana: 'きょう' },
+    ])
   })
 
   it('keeps a straddling jukujikun as ONE unit spanning both cues (大人)', () => {

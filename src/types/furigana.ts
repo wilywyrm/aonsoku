@@ -26,6 +26,10 @@ export interface RenderUnit {
   kana?: string // undefined = bare text, no ruby
   nonSplittable: boolean
   coveringCueIdx: number[] // 1 element for single-cue; 2+ for straddling jukujikun
+  // Per-kanji ruby spans (line-char coords) for a splittable unit, so the
+  // renderer can place each reading over its own kanji. Absent for bare units
+  // and for non-splittable jukujikun (which render one <rt> over the group).
+  perKanji?: Array<{ charStart: number; charEnd: number; kana: string }>
 }
 
 // Stable DOM ref key for per-unit refs (extends existing wordRef key scheme)
