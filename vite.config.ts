@@ -13,6 +13,12 @@ export default defineConfig({
       cy: path.resolve(__dirname, './cypress'),
     },
   },
+  optimizeDeps: {
+    // Pre-bundle kuromoji: reached only through a dynamic import it would be
+    // served unoptimized, making the first tokenizer build pathologically slow
+    // in dev and Cypress (~275s vs ~0.5s).
+    include: ['@patdx/kuromoji'],
+  },
   build: {
     minify: 'terser',
     rollupOptions: {
