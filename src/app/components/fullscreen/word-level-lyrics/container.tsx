@@ -4,12 +4,26 @@ import { type RafTickInfo, useRafActiveCue } from '@/hooks/use-raf-active-cue'
 import { useWordSeek } from '@/hooks/use-word-seek'
 import { useLang } from '@/store/lang.store'
 import { usePlayerRef } from '@/store/player.store'
+import { createSongAnalyzer } from '@/service/furigana/analyzeSong'
+import { reconcile } from '@/service/furigana/reconcile'
+import { computeUnitFillPx } from '@/service/furigana/wipeFront'
+import {
+  type RenderUnit,
+  type RubyLineModel,
+  rubyUnitKey,
+} from '@/types/furigana'
 import type { IStructuredLyric } from '@/types/responses/song'
 import { normalizeStructuredLyric } from '@/utils/wordTiming'
 import { resolveLyricsLang } from '../lyrics'
 import { WordLevelLyricsView } from './view'
 
 const SCROLL_RECOVERY_MS = 1500
+
+function isJapaneseLang(lang?: string): boolean {
+  if (!lang) return false
+  const l = lang.toLowerCase()
+  return l === 'ja' || l === 'jpn' || l.startsWith('ja-')
+}
 
 function useScrollToElementWithRecovery(
   trigger: unknown,
@@ -74,6 +88,59 @@ export function WordLevelLyricsContainer({
     [normalized.lang, langCode],
   )
 
+  const analyzer = useMemo(() => createSongAnalyzer(), [])
+  const [rubyModels, setRubyModels] = useState<
+    ReadonlyMap<string, RubyLineModel>
+  >(() => new Map())
+
+  useEffect(() => {
+    if (!isJapaneseLang(normalized.lang)) {
+      setRubyModels(new Map())
+      return
+    }
+    setRubyModels(new Map())
+    const lineValues: string[] = []
+    for (const line of normalized.lines) {
+      for (const cueLine of line.cueLines) lineValues.push(cueLine.value)
+    }
+    const cacheKey = `${structuredLyric.displayArtist ?? ''}:${structuredLyric.displayTitle ?? ''}`
+    const unsubscribe = analyzer.subscribe((lineValue, model) => {
+      setRubyModels((prev) => {
+        if (prev.get(lineValue) === model) return prev
+        const next = new Map(prev)
+        next.set(lineValue, model)
+        return next
+      })
+    })
+    analyzer.analyze(cacheKey, lineValues).catch(() => undefined)
+    return unsubscribe
+  }, [
+    analyzer,
+    normalized,
+    structuredLyric.displayArtist,
+    structuredLyric.displayTitle,
+  ])
+
+  const rubyUnitsByLineCue = useMemo(() => {
+    const map = new Map<string, RenderUnit[]>()
+    if (rubyModels.size === 0) return map
+    normalized.lines.forEach((line, i) => {
+      for (const cueLine of line.cueLines) {
+        const model = rubyModels.get(cueLine.value)
+        if (!model) continue
+        map.set(
+          `${i}|${cueLine.key}`,
+          reconcile(model, cueLine.cues, cueLine.value),
+        )
+      }
+    })
+    return map
+  }, [normalized, rubyModels])
+
+  // Mirror into a ref so the rAF tick reads current units without re-subscribing.
+  const rubyUnitsRef = useRef(rubyUnitsByLineCue)
+  rubyUnitsRef.current = rubyUnitsByLineCue
+
   // Audio time getter — passed to the rAF hook so the hook stays store-agnostic.
   const playerRef = usePlayerRef()
   const getCurrentTimeMs = useCallback(
@@ -136,6 +203,35 @@ export function WordLevelLyricsContainer({
         for (const cueLine of line.cueLines) {
           const cueIdx = cueByKey[cueLine.key]
           if (cueIdx == null || cueIdx < 0) continue
+
+          // Furigana cueLines wipe per render unit (char-proportion union sum
+          // across a unit's covering cues); non-furigana cueLines keep the
+          // legacy per-cue --fill below.
+          const units = rubyUnitsRef.current.get(`${lineIdx}|${cueLine.key}`)
+          if (units) {
+            for (let unitIdx = 0; unitIdx < units.length; unitIdx++) {
+              const unit = units[unitIdx]
+              if (!unit.coveringCueIdx.includes(cueIdx)) continue
+              const timings = unit.coveringCueIdx.map((ci) => {
+                const c = cueLine.cues[ci]
+                return { start: c?.start ?? 0, end: c?.end ?? 0 }
+              })
+              const total = unit.cueCharCounts.reduce((a, b) => a + b, 0)
+              const fill = computeUnitFillPx(t, timings, unit.cueCharCounts)
+              const unitPct = total > 0 ? (fill / total) * 100 : 0
+              const unitEl = wordRefs.current.get(
+                rubyUnitKey(
+                  lineIdx,
+                  cueLine.key,
+                  unit.coveringCueIdx[0] ?? 0,
+                  unitIdx,
+                ),
+              )
+              if (unitEl) unitEl.style.setProperty('--fill', `${unitPct}%`)
+            }
+            continue
+          }
+
           const cue = cueLine.cues[cueIdx]
           if (!cue) continue
           const duration = Math.max(1, cue.end - cue.start)
@@ -263,6 +359,7 @@ export function WordLevelLyricsContainer({
       breakContainerRefs={breakContainerRefs}
       registerWordRef={registerWordRef}
       registerDotRef={registerDotRef}
+      rubyUnitsByLineCue={rubyUnitsByLineCue}
     />
   )
 }
