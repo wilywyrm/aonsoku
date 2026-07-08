@@ -18,7 +18,7 @@ function cueFor(
 }
 
 describe('reconcile', () => {
-  it('splits a per-kanji compound across two cues (東|京)', () => {
+  it('keeps a per-kanji compound as ONE unit spanning both cues (東|京)', () => {
     const model: RubyLineModel = {
       segments: [
         {
@@ -37,27 +37,19 @@ describe('reconcile', () => {
 
     const units = reconcile(model, cues, '東京')
 
-    expect(units.length).toBe(2)
+    expect(units.length).toBe(1)
     expect(units[0]).toMatchObject({
       charStart: 0,
-      charEnd: 0,
-      kana: 'とう',
-      nonSplittable: false,
-      coveringCueIdx: [0],
-    })
-    expect(units[1]).toMatchObject({
-      charStart: 1,
       charEnd: 1,
-      kana: 'きょう',
-      coveringCueIdx: [1],
+      kana: 'とうきょう',
+      nonSplittable: false,
+      coveringCueIdx: [0, 1],
     })
-    // Per-kanji spans are carried through for the renderer.
-    expect(units[0].perKanji).toEqual([{ charStart: 0, charEnd: 0, kana: 'とう' }])
-    expect(units[1].perKanji).toEqual([
+    expect(units[0].perKanji).toEqual([
+      { charStart: 0, charEnd: 0, kana: 'とう' },
       { charStart: 1, charEnd: 1, kana: 'きょう' },
     ])
-    expect(units[0].cueCharCounts).toEqual([1])
-    expect(units[1].cueCharCounts).toEqual([1])
+    expect(units[0].cueCharCounts).toEqual([1, 1])
   })
 
   it('keeps a straddling jukujikun as ONE unit spanning both cues (大人)', () => {

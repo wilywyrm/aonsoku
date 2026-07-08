@@ -208,9 +208,13 @@ export function reconcile(
 
       if (consumed.has(si)) continue
 
-      if (seg.nonSplittable) {
-        // Jukujikun: emit the whole group as ONE unit and never split its kana,
-        // listing every clean cue it overlaps so a straddling wipe stays single.
+      if (seg.kana !== undefined) {
+        // A kanji-bearing group (jukujikun OR per-kanji splittable) is ONE
+        // render unit spanning every cue it overlaps, so a single wipe front
+        // crosses the whole group even when a provider splits its kanji across
+        // separately-timed cues. perKanji (when present) still places each
+        // reading over its own kanji; cueCharCounts weights the wipe by chars
+        // per covering cue (kanji are full-width, so char-share == width-share).
         const covering = coveringCueIndices(seg, ranges)
         const coveringIdx = covering.length > 0 ? covering : [i]
         units.push({
@@ -218,11 +222,8 @@ export function reconcile(
           charEnd: seg.charEnd,
           kanjiText: charSlice(lineValue, seg.charStart, seg.charEnd),
           kana: seg.kana,
-          nonSplittable: true,
+          nonSplittable: seg.nonSplittable,
           coveringCueIdx: coveringIdx,
-          // Char count of the group inside each covering cue -> proportional
-          // wipe timing across the straddle (jukujikun are pure kanji, so
-          // char-share == width-share).
           cueCharCounts: coveringIdx.map((c) =>
             Math.max(
               1,
@@ -231,36 +232,13 @@ export function reconcile(
                 1,
             ),
           ),
-        })
-        consumed.add(si)
-        continue
-      }
-
-      if (seg.perKanji && seg.perKanji.length > 0) {
-        // Splittable group: keep only the per-kanji readings whose kanji fall in
-        // THIS cue, so a compound split across cues yields one unit per cue.
-        const covered = seg.perKanji.filter((pk) =>
-          overlaps(pk.charStart, pk.charEnd, range.start, range.end),
-        )
-        if (covered.length === 0) continue
-        const unitStart = Math.max(range.start, covered[0].charStart)
-        const unitEnd = Math.min(range.end, covered[covered.length - 1].charEnd)
-        units.push({
-          charStart: unitStart,
-          charEnd: unitEnd,
-          kanjiText: charSlice(lineValue, unitStart, unitEnd),
-          kana: covered.map((pk) => pk.kana).join(''),
-          nonSplittable: false,
-          coveringCueIdx: [i],
-          cueCharCounts: [Math.max(1, unitEnd - unitStart + 1)],
-          // Carry per-kanji spans so the renderer can place each reading over
-          // its own kanji (copied so the model is never aliased/mutated).
-          perKanji: covered.map((pk) => ({
+          perKanji: seg.perKanji?.map((pk) => ({
             charStart: pk.charStart,
             charEnd: pk.charEnd,
             kana: pk.kana,
           })),
         })
+        consumed.add(si)
         continue
       }
 

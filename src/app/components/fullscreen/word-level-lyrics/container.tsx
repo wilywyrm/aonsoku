@@ -1,10 +1,15 @@
+import { get as idbGet, set as idbSet } from 'idb-keyval'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { isSafari } from 'react-device-detect'
 import { type RafTickInfo, useRafActiveCue } from '@/hooks/use-raf-active-cue'
 import { useWordSeek } from '@/hooks/use-word-seek'
+import { useAppStore } from '@/store/app.store'
 import { useLang } from '@/store/lang.store'
 import { usePlayerRef } from '@/store/player.store'
-import { createSongAnalyzer } from '@/service/furigana/analyzeSong'
+import {
+  createSongAnalyzer,
+  type LineModelMap,
+} from '@/service/furigana/analyzeSong'
 import { reconcile } from '@/service/furigana/reconcile'
 import { computeUnitFillPx } from '@/service/furigana/wipeFront'
 import {
@@ -88,7 +93,22 @@ export function WordLevelLyricsContainer({
     [normalized.lang, langCode],
   )
 
-  const analyzer = useMemo(() => createSongAnalyzer(), [])
+  const analyzer = useMemo(
+    () =>
+      createSongAnalyzer({
+        // Persist ruby models only while the lyrics cache is enabled (mirrors
+        // src/service/lyrics.ts) so toggling the cache off serves fresh results.
+        idbGet: (key) =>
+          useAppStore.getState().pages.lyricsCacheEnabled
+            ? idbGet<LineModelMap>(key)
+            : Promise.resolve(undefined),
+        idbSet: (key, value) =>
+          useAppStore.getState().pages.lyricsCacheEnabled
+            ? idbSet(key, value)
+            : Promise.resolve(),
+      }),
+    [],
+  )
   const [rubyModels, setRubyModels] = useState<
     ReadonlyMap<string, RubyLineModel>
   >(() => new Map())
