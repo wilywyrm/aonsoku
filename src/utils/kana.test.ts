@@ -54,6 +54,11 @@ describe('kana utilities', () => {
       expect(isKanji(0x30a2)).toBe(false) // ア (katakana)
       expect(isKanji(0x0061)).toBe(false) // a (ASCII)
     })
+
+    it('recognizes ideographic iteration marks', () => {
+      expect(isKanji(0x3005)).toBe(true) // 々
+      expect(isKanji(0x303b)).toBe(true) // 〻
+    })
   })
 
   describe('segmentScriptRuns', () => {
@@ -86,6 +91,12 @@ describe('kana utilities', () => {
 
     it('handles consecutive kanji', () => {
       expect(segmentScriptRuns('漢字')).toEqual([
+        { kind: 'kanji', charStart: 0, charEnd: 1 },
+      ])
+    })
+
+    it('treats the 々 iteration mark as part of a kanji run', () => {
+      expect(segmentScriptRuns('人々')).toEqual([
         { kind: 'kanji', charStart: 0, charEnd: 1 },
       ])
     })

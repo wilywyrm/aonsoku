@@ -133,16 +133,27 @@ function alignToken(
     }
   }
 
-  // OOV (no jmdict entry) — best-effort: attach the whole token reading to its
-  // kanji span as a non-splittable group; the renderer distributes the kana
-  // across the kanji. Never throws.
+  // OOV (no jmdict entry) — best-effort: strip the okurigana the surface already
+  // spells out from the reading so the kanji span keeps only its own reading
+  // (e.g. conjugated 立った → 立=た, not たった; 引っ… → 引=ひ, not ひっ), then
+  // attach it as a non-splittable group. Never throws.
   const span = kanjiSpan(surface)
   if (!span) return []
+  const leadingKana = surface.slice(0, span.first)
+  const trailingKana = surface.slice(span.last + 1)
+  let kana = readingHira
+  if (trailingKana && kana.endsWith(trailingKana)) {
+    kana = kana.slice(0, kana.length - trailingKana.length)
+  }
+  if (leadingKana && kana.startsWith(leadingKana)) {
+    kana = kana.slice(leadingKana.length)
+  }
+  if (!kana) return []
   return [
     {
       charStart: tStart + span.first,
       charEnd: tStart + span.last,
-      kana: readingHira,
+      kana,
       nonSplittable: true,
     },
   ]

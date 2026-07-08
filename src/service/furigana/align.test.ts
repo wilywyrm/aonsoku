@@ -89,6 +89,16 @@ describe('alignLine', () => {
     ])
   })
 
+  it('strips trailing okurigana from an OOV conjugated verb reading', () => {
+    const m = alignLine(
+      '立った',
+      fakeTokenizer([{ surface_form: '立った', reading: 'タッタ' }]),
+      deps,
+    )
+    expect(m.segments.find((s) => s.charStart === 0)?.kana).toBe('た')
+    expect(m.segments.find((s) => s.charStart === 1)?.kana).toBeUndefined()
+  })
+
   it('emits no ruby for a katakana-only line', () => {
     const m = alignLine(
       'カタカナ',

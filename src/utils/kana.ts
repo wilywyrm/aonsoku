@@ -38,7 +38,9 @@ export function isKanji(cp: number): boolean {
     (cp >= 0x4e00 && cp <= 0x9fff) || // CJK Unified Ideographs
     (cp >= 0x3400 && cp <= 0x4dbf) || // CJK Extension A
     (cp >= 0x20000 && cp <= 0x2a6df) || // CJK Extension B
-    (cp >= 0xf900 && cp <= 0xfaff) // CJK Compatibility Ideographs
+    (cp >= 0xf900 && cp <= 0xfaff) || // CJK Compatibility Ideographs
+    (cp >= 0x3005 && cp <= 0x3007) || // ideographic iteration marks 々〆〇
+    cp === 0x303b // vertical ideographic iteration mark 〻
   )
 }
 
