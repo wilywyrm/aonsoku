@@ -56,6 +56,8 @@ describe('reconcile', () => {
     expect(units[1].perKanji).toEqual([
       { charStart: 1, charEnd: 1, kana: 'きょう' },
     ])
+    expect(units[0].cueCharCounts).toEqual([1])
+    expect(units[1].cueCharCounts).toEqual([1])
   })
 
   it('keeps a straddling jukujikun as ONE unit spanning both cues (大人)', () => {
@@ -76,6 +78,7 @@ describe('reconcile', () => {
       nonSplittable: true,
       coveringCueIdx: [0, 1],
     })
+    expect(units[0].cueCharCounts).toEqual([1, 1])
   })
 
   it('degrades a cue with out-of-range byte offsets to bare text (no throw)', () => {

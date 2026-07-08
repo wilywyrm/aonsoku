@@ -95,6 +95,7 @@ describe('computeUnitFillPxForUnit', () => {
       kana: 'おとな',
       nonSplittable: true,
       coveringCueIdx: [1, 2],
+      cueCharCounts: [1, 1],
     }
     const subWidths = [30, 30]
     // At t=600: cue[1] just filled (30), cue[2] not started (0).

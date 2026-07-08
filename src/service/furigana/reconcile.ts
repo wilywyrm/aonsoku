@@ -131,6 +131,7 @@ function bareUnit(
     kana: undefined,
     nonSplittable: false,
     coveringCueIdx,
+    cueCharCounts: [Math.max(1, charEnd - charStart + 1)],
   }
 }
 
@@ -211,13 +212,25 @@ export function reconcile(
         // Jukujikun: emit the whole group as ONE unit and never split its kana,
         // listing every clean cue it overlaps so a straddling wipe stays single.
         const covering = coveringCueIndices(seg, ranges)
+        const coveringIdx = covering.length > 0 ? covering : [i]
         units.push({
           charStart: seg.charStart,
           charEnd: seg.charEnd,
           kanjiText: charSlice(lineValue, seg.charStart, seg.charEnd),
           kana: seg.kana,
           nonSplittable: true,
-          coveringCueIdx: covering.length > 0 ? covering : [i],
+          coveringCueIdx: coveringIdx,
+          // Char count of the group inside each covering cue -> proportional
+          // wipe timing across the straddle (jukujikun are pure kanji, so
+          // char-share == width-share).
+          cueCharCounts: coveringIdx.map((c) =>
+            Math.max(
+              1,
+              Math.min(seg.charEnd, ranges[c].end) -
+                Math.max(seg.charStart, ranges[c].start) +
+                1,
+            ),
+          ),
         })
         consumed.add(si)
         continue
@@ -239,6 +252,7 @@ export function reconcile(
           kana: covered.map((pk) => pk.kana).join(''),
           nonSplittable: false,
           coveringCueIdx: [i],
+          cueCharCounts: [Math.max(1, unitEnd - unitStart + 1)],
           // Carry per-kanji spans so the renderer can place each reading over
           // its own kanji (copied so the model is never aliased/mutated).
           perKanji: covered.map((pk) => ({
