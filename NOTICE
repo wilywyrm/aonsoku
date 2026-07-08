@@ -1,0 +1,18 @@
+Third-Party Data Attributions
+==============================
+
+This project includes the following third-party data assets:
+
+1. JMdict/JMnedict
+   © Electronic Dictionary Research and Development Group (EDRDG)
+   License: CC BY-SA 4.0
+   URL: https://www.edrdg.org/
+
+2. jmdict-furigana
+   © Doublevil
+   License: CC BY-SA 4.0
+   URL: https://github.com/Doublevil/JmdictFurigana
+
+3. IPADIC (kuromoji morphological dictionary)
+   License: Apache License 2.0
+   URL: https://github.com/takuyaa/kuromoji.js

@@ -265,6 +265,8 @@ This project uses [Weblate](https://hosted.weblate.org/projects/aonsoku/) for tr
 
 Distributed under the MIT License. See `LICENSE.txt` for more information.
 
+For third-party data assets and their attributions, see `NOTICE`.
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
