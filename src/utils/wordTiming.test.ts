@@ -1,18 +1,13 @@
-import { normalizeStructuredLyric } from '@/utils/wordTiming'
+import { describe, expect, it } from 'vitest'
 import type { IStructuredLyric } from '@/types/responses/song'
+import { normalizeStructuredLyric } from '@/utils/wordTiming'
 
 describe('normalizeStructuredLyric', () => {
   it('sorts cues by start time in ascending order', () => {
     const raw: IStructuredLyric = {
       synced: true,
       kind: 'main',
-      line: [
-        {
-          index: 0,
-          start: 0,
-          value: 'Test line',
-        },
-      ],
+      line: [{ index: 0, start: 0, value: 'Test line' }],
       cueLine: [
         {
           index: 0,
@@ -28,27 +23,18 @@ describe('normalizeStructuredLyric', () => {
 
     const result = normalizeStructuredLyric(raw)
 
-    expect(result.lines).to.have.lengthOf(1)
-    expect(result.lines[0].cueLines).to.have.lengthOf(1)
+    expect(result.lines).toHaveLength(1)
+    expect(result.lines[0].cueLines).toHaveLength(1)
     const cues = result.lines[0].cueLines[0].cues
-    expect(cues).to.have.lengthOf(3)
-
-    // Assert cues are sorted by start time
-    const starts = cues.map((c) => c.start)
-    expect(starts).to.deep.equal([0, 250, 500])
+    expect(cues).toHaveLength(3)
+    expect(cues.map((c) => c.start)).toEqual([0, 250, 500])
   })
 
   it('preserves relative order for cues with equal start times (stable sort)', () => {
     const raw: IStructuredLyric = {
       synced: true,
       kind: 'main',
-      line: [
-        {
-          index: 0,
-          start: 0,
-          value: 'Test line',
-        },
-      ],
+      line: [{ index: 0, start: 0, value: 'Test line' }],
       cueLine: [
         {
           index: 0,
@@ -65,11 +51,9 @@ describe('normalizeStructuredLyric', () => {
     const result = normalizeStructuredLyric(raw)
 
     const cues = result.lines[0].cueLines[0].cues
-    expect(cues).to.have.lengthOf(3)
-
-    // Assert stable sort: A and B maintain their relative order
-    expect(cues[0].value).to.equal('A')
-    expect(cues[1].value).to.equal('B')
-    expect(cues[2].value).to.equal('C')
+    expect(cues).toHaveLength(3)
+    expect(cues[0].value).toBe('A')
+    expect(cues[1].value).toBe('B')
+    expect(cues[2].value).toBe('C')
   })
 })
