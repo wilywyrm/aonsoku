@@ -34,3 +34,6 @@ env-config.js
 out
 
 .pnpm-store/*
+
+# TypeScript incremental build cache
+*.tsbuildinfo
