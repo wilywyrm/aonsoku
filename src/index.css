@@ -373,6 +373,90 @@ svg#bars .eq-bar--4 {
   -webkit-text-fill-color: transparent;
 }
 
+/*
+ * ─── Furigana two-layer karaoke wipe ──────────────────────────────────────
+ * background-clip:text (used by .karaoke-fill above) does NOT reliably clip
+ * <rt> annotation glyphs across Chromium versions, so ruby cues wipe via two
+ * stacked <ruby> layers instead: a base layer painted in `currentColor`
+ * (unsung / past) and an absolutely-positioned fill layer painted in
+ * `hsl(var(--primary))` (sung) that a mask reveals only up to --fill.
+ *
+ * The colors mirror .karaoke-fill exactly — hsl(var(--primary)) for the sung
+ * portion, currentColor for the unsung portion — so ruby and non-ruby words
+ * read identically. The mask feather is expressed in PIXELS (±3px), not the
+ * ±3% used by .karaoke-fill: --fill is written in px for ruby units, and a
+ * percentage feather would collapse to a hard edge on tiny single-kanji units.
+ */
+.ruby-unit-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.ruby-unit-base {
+  color: currentColor;
+}
+
+/*
+ * Fill layer: absolutely stacked on top, painted in hsl(var(--primary)) and
+ * revealed by the mask only from 0 → --fill (with a 3px feather each side).
+ * aria-hidden is set on this element in the DOM (task 13). pointer-events:none
+ * lets clicks fall through to the base layer so onWordClick keeps working.
+ */
+.ruby-unit-fill {
+  position: absolute;
+  inset: 0;
+  color: hsl(var(--primary));
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    #000 0,
+    #000 calc(var(--fill, 0px) - 3px),
+    transparent calc(var(--fill, 0px) + 3px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    90deg,
+    #000 0,
+    #000 calc(var(--fill, 0px) - 3px),
+    transparent calc(var(--fill, 0px) + 3px),
+    transparent 100%
+  );
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  pointer-events: none;
+}
+
+/* ─── Ruby / furigana typography ─────────────────────────────────────────── */
+ruby {
+  ruby-position: over;
+  ruby-align: center;
+}
+
+rt {
+  font-size: 0.5em;
+  font-weight: normal; /* override font-semibold on the active cue */
+  ruby-overhang: none; /* keep <rt> from overflowing adjacent non-ruby words */
+  line-height: normal; /* decouple annotation height from the <p> reservation below */
+}
+
+/*
+ * Reserve the <rt> annotation line-height on EVERY word-level cue <p>, even
+ * kanji-less ones, so progressive furigana injection (task 15) never changes a
+ * line's height and triggers reflow. Scoped to the word-sync scroll container's
+ * data-testid — NOT `.lrc-box`, which line-level lyrics (lyrics.tsx) also use
+ * and must keep their tighter spacing.
+ */
+[data-testid="word-sync-lyrics-box"] p {
+  /*
+   * 2em is the smallest reservation at which a kanji-less <p> and a ruby <p>
+   * share the SAME offsetHeight at every lyric font size (text-2xl 24px and
+   * text-3xl 30px) — below it the 0.5em rt annotation overshoots the strut and
+   * grows the ruby line by 1px, so progressive furigana injection would reflow.
+   */
+  line-height: 2em;
+}
+
 .default-gradient {
   @apply bg-gradient-to-b from-background/10 to-background/40;
 }

@@ -1,0 +1,50 @@
+PASS
+
+Task 7 - Two-layer per-unit karaoke wipe + ruby typography (src/index.css)
+
+=== WHAT WAS ADDED (src/index.css, +84 lines, after .karaoke-fill) ===
+- .ruby-unit-wrapper : position:relative; display:inline-block (kept inline-block)
+- .ruby-unit-base    : color:currentColor (unsung/past base layer)
+- .ruby-unit-fill    : position:absolute; inset:0; color:hsl(var(--primary));
+                       mask + -webkit-mask linear-gradient with PX feather
+                       (#000 0 -> #000 calc(--fill - 3px) -> transparent calc(--fill + 3px) -> transparent 100%);
+                       pointer-events:none (clicks fall through to base)
+- ruby { ruby-position:over; ruby-align:center }
+- rt   { font-size:0.5em; font-weight:normal; ruby-overhang:none; line-height:normal }
+- [data-testid="word-sync-lyrics-box"] p { line-height: 2em }
+  (scoped to the UNIQUE word-sync testid, NOT .lrc-box which line-level lyrics.tsx
+   also uses; word-sync-lyrics-box is a data-testid, not a CSS class.)
+
+Colors mirror .karaoke-fill EXACTLY: hsl(var(--primary)) sung / currentColor unsung.
+.karaoke-fill itself was NOT modified (non-ruby words wipe exactly as before).
+
+=== VERIFICATION ===
+pnpm build (tsc && vite build) : EXIT 0
+biome check src/index.css      : clean (0 errors)
+
+Cypress component spec src/app/components/fullscreen/word-level-lyrics/ruby-wipe.cy.tsx : 4/4 PASSING
+  1. fill masks primary over currentColor at --fill px; mask is linear-gradient
+     containing 17px & 23px (20 +/- 3 px feather) -> feather is PX not %.
+  2. --fill:0px -> opaque band ends at -3px (nothing filled);
+     --fill:40px -> opaque to 37px (fully filled).
+  3. rt ~0.5em (16px @32px base); ruby-position over.
+  4. plain <p> offsetHeight == ruby <p> offsetHeight (no reflow).
+
+Bicolor split (objective pixel sample of ruby-wipe-20px.png, 40px unit @ --fill:20px):
+  LEFT  glyph avg rgb=(38,166,123) => GREEN  (hsl(var(--primary)) sung)
+  RIGHT glyph avg rgb=(197,215,209) => WHITE  (currentColor unsung)
+  BICOLOR_SPLIT = CONFIRMED
+
+=== LINE-HEIGHT RESERVATION (empirically derived) ===
+Measured across the two production lyric sizes (text-2xl 24px, text-3xl 30px) + 32px,
+font-weight 600. Exact plain==ruby offsetHeight equality holds ONLY at line-height >= 2em:
+  size=24: 1.9=NE 1.95=NE 2.0=EQ
+  size=30: 1.9=EQ 1.95=EQ 2.0=EQ
+  size=32: 1.9=NE 1.95=EQ 2.0=EQ
+Task's suggested calc(1em + 0.6em)=1.6em was too small (ruby overshoots strut by ~5px);
+final value 2em is the smallest reservation giving zero reflow at every lyric size.
+
+=== REGRESSION CHECK ===
+Pre-existing suite failures (view/container/lyrics: currentTime read-only TypeError,
+app-code errors) are UNRELATED to this change. Proven by baseline: with src/index.css
+reverted to HEAD, view.cy.tsx still 9 passing / 21 failing (identical). My change = 0 regressions.
