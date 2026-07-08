@@ -1,11 +1,13 @@
 import clsx from 'clsx'
 import { Fragment, useMemo } from 'react'
 import { isSafari } from 'react-device-detect'
+import type { RenderUnit } from '@/types/furigana'
 import { byteSliceFallback } from '@/utils/byteSlice'
 import type {
   NormalizedBreak,
   NormalizedStructuredLyric,
 } from '@/utils/wordTiming'
+import { RubyCueContent } from './ruby-cue-content'
 
 const SECONDARY_AGENT_HUE_ROTATIONS = [180, 90, 270, 45, 135, 225, 315] as const
 
@@ -48,6 +50,13 @@ export interface WordLevelLyricsViewProps {
    * keyed by `${break.key}|${dotIdx}`.
    */
   registerDotRef?: (key: string, el: HTMLSpanElement | null) => void
+  /**
+   * Per-cueLine reconciled furigana render units, keyed by
+   * `${lineIdx}|${cueLine.key}`. Present only for Japanese cueLines whose
+   * analysis has resolved; that cueLine then renders per-unit (ruby + two-layer
+   * wipe). Absent → the legacy per-cue path renders unchanged.
+   */
+  rubyUnitsByLineCue?: ReadonlyMap<string, RenderUnit[]>
 }
 
 export function WordLevelLyricsView({
@@ -64,6 +73,7 @@ export function WordLevelLyricsView({
   breakContainerRefs,
   registerWordRef,
   registerDotRef,
+  rubyUnitsByLineCue,
 }: WordLevelLyricsViewProps) {
   const breaksByLine = new Map<number, NormalizedBreak>()
   for (const brk of data.breaks) {
@@ -155,6 +165,9 @@ export function WordLevelLyricsView({
                       activeCueByKey[cueLine.key] ?? -1
                     const lastVisitedCueIdxForThisCueLine =
                       lastVisitedCueByKey[cueLine.key] ?? -1
+                    const rubyUnits = rubyUnitsByLineCue?.get(
+                      `${i}|${cueLine.key}`,
+                    )
                     return (
                       <p
                         key={cueLine.key}
@@ -164,84 +177,100 @@ export function WordLevelLyricsView({
                         data-agent-role={cueLine.agentRole ?? 'unknown'}
                         data-display-order={cueLine.displayOrder}
                       >
-                        {cueLine.cues.map((cue, cueIdx) => {
-                          const renderedText = byteSliceFallback(
-                            cue,
-                            cueLine.value,
-                          )
-                          const isWhitespaceOnly =
-                            renderedText.trim().length === 0
+                        {rubyUnits ? (
+                          <RubyCueContent
+                            units={rubyUnits}
+                            lineIdx={i}
+                            cueLine={cueLine}
+                            isLineActive={activeIndicesSet.has(i)}
+                            activeLineIdx={activeLineIdx}
+                            activeCueIdx={activeCueIdxForThisCueLine}
+                            lastVisitedCueIdx={lastVisitedCueIdxForThisCueLine}
+                            onWordClick={onWordClick}
+                            registerWordRef={registerWordRef}
+                          />
+                        ) : (
+                          cueLine.cues.map((cue, cueIdx) => {
+                            const renderedText = byteSliceFallback(
+                              cue,
+                              cueLine.value,
+                            )
+                            const isWhitespaceOnly =
+                              renderedText.trim().length === 0
 
-                          let cueState: 'past' | 'active' | 'future'
-                          if (activeIndicesSet.has(i)) {
-                            if (cueIdx === activeCueIdxForThisCueLine) {
-                              cueState = 'active'
-                            } else if (
-                              cueIdx <= lastVisitedCueIdxForThisCueLine
-                            ) {
+                            let cueState: 'past' | 'active' | 'future'
+                            if (activeIndicesSet.has(i)) {
+                              if (cueIdx === activeCueIdxForThisCueLine) {
+                                cueState = 'active'
+                              } else if (
+                                cueIdx <= lastVisitedCueIdxForThisCueLine
+                              ) {
+                                cueState = 'past'
+                              } else {
+                                cueState = 'future'
+                              }
+                            } else if (i <= activeLineIdx) {
+                              // `<=`, not `<`: catches the rightmost-started line when it has ended while an earlier concurrent line keeps going (i === activeLineIdx AND not in active set).
                               cueState = 'past'
                             } else {
                               cueState = 'future'
                             }
-                          } else if (i <= activeLineIdx) {
-                            // `<=`, not `<`: catches the rightmost-started line when it has ended while an earlier concurrent line keeps going (i === activeLineIdx AND not in active set).
-                            cueState = 'past'
-                          } else {
-                            cueState = 'future'
-                          }
 
-                          const hueRotation =
-                            cueState === 'active' && cueLine.displayOrder >= 1
-                              ? SECONDARY_AGENT_HUE_ROTATIONS[
-                                  (cueLine.displayOrder - 1) %
-                                    SECONDARY_AGENT_HUE_ROTATIONS.length
-                                ]
-                              : undefined
-                          const isDim =
-                            cueState === 'past' ||
-                            (cueState === 'future' && i > activeLineIdx)
-                          const cueClassName = clsx(
-                            !isWhitespaceOnly &&
-                              'cursor-pointer hover:opacity-100 [word-break:keep-all]',
-                            isDim && 'opacity-50',
-                            cueState === 'active' && 'font-semibold',
-                            cueState === 'active' &&
+                            const hueRotation =
+                              cueState === 'active' && cueLine.displayOrder >= 1
+                                ? SECONDARY_AGENT_HUE_ROTATIONS[
+                                    (cueLine.displayOrder - 1) %
+                                      SECONDARY_AGENT_HUE_ROTATIONS.length
+                                  ]
+                                : undefined
+                            const isDim =
+                              cueState === 'past' ||
+                              (cueState === 'future' && i > activeLineIdx)
+                            const cueClassName = clsx(
                               !isWhitespaceOnly &&
-                              'karaoke-fill',
-                          )
-                          const wordKey = `${i}|${cueLine.key}|${cueIdx}`
+                                'cursor-pointer hover:opacity-100 [word-break:keep-all]',
+                              isDim && 'opacity-50',
+                              cueState === 'active' && 'font-semibold',
+                              cueState === 'active' &&
+                                !isWhitespaceOnly &&
+                                'karaoke-fill',
+                            )
+                            const wordKey = `${i}|${cueLine.key}|${cueIdx}`
 
-                          return (
-                            <span
-                              key={cueIdx}
-                              ref={(el) => registerWordRef?.(wordKey, el)}
-                              data-testid={`word-${i}-${cueLine.key}-${cueIdx}`}
-                              data-state={cueState}
-                              aria-hidden={
-                                isWhitespaceOnly ? 'true' : undefined
-                              }
-                              className={cueClassName}
-                              style={
-                                hueRotation !== undefined
-                                  ? { filter: `hue-rotate(${hueRotation}deg)` }
-                                  : undefined
-                              }
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                onWordClick(cue.start)
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault()
-                                  onWordClick(cue.start)
+                            return (
+                              <span
+                                key={cueIdx}
+                                ref={(el) => registerWordRef?.(wordKey, el)}
+                                data-testid={`word-${i}-${cueLine.key}-${cueIdx}`}
+                                data-state={cueState}
+                                aria-hidden={
+                                  isWhitespaceOnly ? 'true' : undefined
                                 }
-                              }}
-                              tabIndex={isWhitespaceOnly ? -1 : 0}
-                            >
-                              {renderedText}
-                            </span>
-                          )
-                        })}
+                                className={cueClassName}
+                                style={
+                                  hueRotation !== undefined
+                                    ? {
+                                        filter: `hue-rotate(${hueRotation}deg)`,
+                                      }
+                                    : undefined
+                                }
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onWordClick(cue.start)
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault()
+                                    onWordClick(cue.start)
+                                  }
+                                }}
+                                tabIndex={isWhitespaceOnly ? -1 : 0}
+                              >
+                                {renderedText}
+                              </span>
+                            )
+                          })
+                        )}
                       </p>
                     )
                   })

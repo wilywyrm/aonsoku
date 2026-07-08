@@ -383,9 +383,8 @@ svg#bars .eq-bar--4 {
  *
  * The colors mirror .karaoke-fill exactly — hsl(var(--primary)) for the sung
  * portion, currentColor for the unsung portion — so ruby and non-ruby words
- * read identically. The mask feather is expressed in PIXELS (±3px), not the
- * ±3% used by .karaoke-fill: --fill is written in px for ruby units, and a
- * percentage feather would collapse to a hard edge on tiny single-kanji units.
+ * read identically. --fill is a PERCENTAGE (the unit's char-proportion progress
+ * written by handleTick), so the mask feather mirrors .karaoke-fill's ±3%.
  */
 .ruby-unit-wrapper {
   position: relative;
@@ -409,15 +408,15 @@ svg#bars .eq-bar--4 {
   -webkit-mask-image: linear-gradient(
     90deg,
     #000 0,
-    #000 calc(var(--fill, 0px) - 3px),
-    transparent calc(var(--fill, 0px) + 3px),
+    #000 calc(var(--fill, 0%) - 3%),
+    transparent calc(var(--fill, 0%) + 3%),
     transparent 100%
   );
   mask-image: linear-gradient(
     90deg,
     #000 0,
-    #000 calc(var(--fill, 0px) - 3px),
-    transparent calc(var(--fill, 0px) + 3px),
+    #000 calc(var(--fill, 0%) - 3%),
+    transparent calc(var(--fill, 0%) + 3%),
     transparent 100%
   );
   -webkit-mask-repeat: no-repeat;
