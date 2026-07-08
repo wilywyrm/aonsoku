@@ -188,6 +188,9 @@ export function normalizeStructuredLyric(
       })
     }
 
+    // fix: findCueIdx binary-search assumes ascending start
+    cues.sort((a, b) => a.start - b.start)
+
     // Resolve agent display order
     const matchedAgent = agents.find((a) => a.id === rawCl.agentId)
     const posCount = lineDisplayOrderCounters.get(idx) ?? 0
