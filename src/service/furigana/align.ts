@@ -10,11 +10,12 @@ import {
 } from './jmdictFurigana'
 
 // Minimal token shape this module reads. A real @patdx/kuromoji IpadicFeatures
-// (surface_form + katakana reading) structurally satisfies this, so production
-// passes the real tokenizer; tests pass a fake.
+// (surface_form + katakana reading + dictionary basic_form) structurally
+// satisfies this, so production passes the real tokenizer; tests pass a fake.
 export interface AlignToken {
   surface_form: string
   reading?: string
+  basic_form?: string
 }
 
 export interface TokenizerLike {
@@ -71,72 +72,115 @@ function kanjiSpan(surface: string): { first: number; last: number } | null {
   return first < 0 ? null : { first, last }
 }
 
-// Produce the kana-bearing segments for ONE kanji-containing token. Non-kanji
-// portions (okurigana) are intentionally omitted — they become bare via
-// gap-filling in alignLine.
+// Emit the kana-bearing segment(s) for ONE jmdict-furigana entry's parts,
+// anchored at `tStart`. A jukujikun/ateji entry (isNonSplittable) yields ONE
+// whole-group segment whose reading cannot be split per kanji; a splittable
+// entry yields one segment carrying a perKanji span per reading-bearing kanji.
+// Non-kanji parts (okurigana) are dropped so alignLine's gap-filling makes them
+// bare. Empty when no part carries a kanji reading.
+function segmentsFromParts(
+  parts: RubyPart[],
+  tStart: number,
+  isNonSplittable: NonNullable<AlignDeps['isNonSplittable']>,
+): RubyLineSegment[] {
+  const ranges = partRanges(parts)
+
+  if (isNonSplittable(parts)) {
+    const rtParts = ranges.filter((r) => r.part.rt && hasKanji(r.part.ruby))
+    if (rtParts.length === 0) return []
+    return [
+      {
+        charStart: tStart + rtParts[0].start,
+        charEnd: tStart + rtParts[rtParts.length - 1].end,
+        kana: rtParts.map((r) => r.part.rt).join(''),
+        nonSplittable: true,
+      },
+    ]
+  }
+
+  const perKanji: NonNullable<RubyLineSegment['perKanji']> = []
+  for (const r of ranges) {
+    const rt = r.part.rt
+    if (rt && hasKanji(r.part.ruby)) {
+      perKanji.push({ charStart: tStart + r.start, charEnd: tStart + r.end, kana: rt })
+    }
+  }
+  if (perKanji.length === 0) return []
+  return [
+    {
+      charStart: perKanji[0].charStart,
+      charEnd: perKanji[perKanji.length - 1].charEnd,
+      kana: perKanji.map((p) => p.kana).join(''),
+      nonSplittable: false,
+      perKanji,
+    },
+  ]
+}
+
+// Derive a conjugated word's DICTIONARY-form reading from its surface reading by
+// swapping the trailing okurigana. A surface and its basic_form share a leading
+// stem that carries every kanji; only the trailing kana differ, and okurigana
+// reads as itself — so stemReading = surfaceReading minus the surface okurigana
+// tail, and the dict reading = stemReading + the basic_form okurigana tail.
+// Returns undefined when the swap is unsafe: no usable basic_form, a tail that
+// carries kanji, or a surface reading that doesn't end with its okurigana tail
+// (irregular stems like 来る/来た whose kanji reading shifts across conjugation),
+// leaving such tokens to the OOV heuristic below.
+function deriveBasicReading(
+  surface: string,
+  basicForm: string | undefined,
+  surfaceReading: string,
+): string | undefined {
+  if (!basicForm || basicForm === '*' || basicForm === surface) return undefined
+  let stem = 0
+  const max = Math.min(surface.length, basicForm.length)
+  while (stem < max && surface[stem] === basicForm[stem]) stem++
+  const surfaceTail = surface.slice(stem)
+  const basicTail = basicForm.slice(stem)
+  if (hasKanji(surfaceTail) || hasKanji(basicTail)) return undefined
+  if (surfaceTail && !surfaceReading.endsWith(surfaceTail)) return undefined
+  const stemReading = surfaceTail
+    ? surfaceReading.slice(0, surfaceReading.length - surfaceTail.length)
+    : surfaceReading
+  return stemReading + basicTail || undefined
+}
+
+// Produce the kana-bearing segments for ONE kanji-containing token, trying three
+// tiers in order: (1) surface-form jmdict lookup, whose key includes kuromoji's
+// contextual reading so it disambiguates homographs; (2) dictionary-form lookup
+// for conjugated words that miss under their surface — every kanji sits in the
+// stem shared with the surface, so the entry's per-kanji offsets map straight
+// onto the surface; (3) an OOV heuristic that strips the okurigana the surface
+// spells out. Non-kanji portions are omitted and become bare via alignLine's
+// gap-filling.
 function alignToken(
   surface: string,
   tStart: number,
   readingHira: string | undefined,
+  basicForm: string | undefined,
   lookup: NonNullable<AlignDeps['lookup']>,
   isNonSplittable: NonNullable<AlignDeps['isNonSplittable']>,
 ): RubyLineSegment[] {
-  // No reliable reading -> cannot annotate; leave the kanji bare.
   if (!readingHira) return []
 
-  const parts = lookup(surface, readingHira)
+  const surfaceParts = lookup(surface, readingHira)
+  if (surfaceParts && surfaceParts.length > 0) {
+    const segs = segmentsFromParts(surfaceParts, tStart, isNonSplittable)
+    if (segs.length > 0) return segs
+  }
 
-  if (parts && parts.length > 0) {
-    const ranges = partRanges(parts)
-
-    if (isNonSplittable(parts)) {
-      // Jukujikun/ateji: reading cannot be attributed to individual kanji, so
-      // emit ONE whole-group segment over its kanji-bearing parts.
-      const rtParts = ranges.filter(
-        (r) => r.part.rt && hasKanji(r.part.ruby),
-      )
-      if (rtParts.length > 0) {
-        const kana = rtParts.map((r) => r.part.rt).join('')
-        return [
-          {
-            charStart: tStart + rtParts[0].start,
-            charEnd: tStart + rtParts[rtParts.length - 1].end,
-            kana,
-            nonSplittable: true,
-          },
-        ]
-      }
-    } else {
-      // Splittable: one per-kanji entry per reading-bearing kanji part.
-      const perKanji: NonNullable<RubyLineSegment['perKanji']> = []
-      for (const r of ranges) {
-        const rt = r.part.rt
-        if (rt && hasKanji(r.part.ruby)) {
-          perKanji.push({
-            charStart: tStart + r.start,
-            charEnd: tStart + r.end,
-            kana: rt,
-          })
-        }
-      }
-      if (perKanji.length > 0) {
-        return [
-          {
-            charStart: perKanji[0].charStart,
-            charEnd: perKanji[perKanji.length - 1].charEnd,
-            kana: perKanji.map((p) => p.kana).join(''),
-            nonSplittable: false,
-            perKanji,
-          },
-        ]
-      }
+  const basicReading = deriveBasicReading(surface, basicForm, readingHira)
+  if (basicForm && basicReading) {
+    const basicParts = lookup(basicForm, basicReading)
+    if (basicParts && basicParts.length > 0) {
+      const segs = segmentsFromParts(basicParts, tStart, isNonSplittable)
+      if (segs.length > 0) return segs
     }
   }
 
-  // OOV (no jmdict entry) — best-effort: strip the okurigana the surface already
-  // spells out from the reading so the kanji span keeps only its own reading
-  // (e.g. conjugated 立った → 立=た, not たった; 引っ… → 引=ひ, not ひっ), then
-  // attach it as a non-splittable group. Never throws.
+  // OOV — strip the okurigana the surface already spells out from the reading so
+  // the kanji span keeps only its own reading (e.g. 立った → 立=た, not たった;
+  // 引っ… → 引=ひ, not ひっ), then attach it as a non-splittable group.
   const span = kanjiSpan(surface)
   if (!span) return []
   const leadingKana = surface.slice(0, span.first)
@@ -220,6 +264,7 @@ export function alignLine(
         surface,
         tStart,
         toHiragana(token.reading),
+        token.basic_form,
         lookup,
         isNonSplittable,
       ),

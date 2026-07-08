@@ -12,6 +12,12 @@ const FIX: Record<string, RubyPart[]> = {
   '食べる\u0000たべる': [{ ruby: '食', rt: 'た' }, { ruby: 'べる' }],
   '大人\u0000おとな': [{ ruby: '大人', rt: 'おとな' }],
   '今日\u0000きょう': [{ ruby: '今日', rt: 'きょう' }],
+  '見送る\u0000みおくる': [
+    { ruby: '見', rt: 'み' },
+    { ruby: '送', rt: 'おく' },
+    { ruby: 'る' },
+  ],
+  '来る\u0000くる': [{ ruby: '来', rt: 'く' }, { ruby: 'る' }],
 }
 const fixtureLookup = (s: string, r: string): RubyPart[] | undefined =>
   FIX[`${s}\u0000${r}`]
@@ -139,5 +145,47 @@ describe('alignLine', () => {
       deps,
     )
     expect(m.segments.every((s) => s.kana === undefined)).toBe(true)
+  })
+
+  it('resolves a conjugated verb via its dictionary form (見送った -> 見送る)', () => {
+    const m = alignLine(
+      '見送った',
+      fakeTokenizer([
+        { surface_form: '見送った', reading: 'ミオクッタ', basic_form: '見送る' },
+      ]),
+      deps,
+    )
+    const seg = m.segments.find((s) => s.charStart === 0)
+    expect(seg?.nonSplittable).toBe(false)
+    expect(seg?.perKanji?.map((p) => p.kana)).toEqual(['み', 'おく'])
+    expect(seg).toMatchObject({ charStart: 0, charEnd: 1 })
+    expect(m.segments.find((s) => s.charStart === 2)?.kana).toBeUndefined()
+  })
+
+  it('degrades an irregular stem to the OOV reading when dict-form lookup misses (来た)', () => {
+    const m = alignLine(
+      '来た',
+      fakeTokenizer([{ surface_form: '来た', reading: 'キタ', basic_form: '来る' }]),
+      deps,
+    )
+    expect(m.segments.find((s) => s.charStart === 0)).toMatchObject({
+      charStart: 0,
+      charEnd: 0,
+      kana: 'き',
+      nonSplittable: true,
+    })
+  })
+
+  it('prefers the surface-form entry over basic_form when the surface hits', () => {
+    const m = alignLine(
+      '東京',
+      fakeTokenizer([
+        { surface_form: '東京', reading: 'トウキョウ', basic_form: '大人' },
+      ]),
+      deps,
+    )
+    expect(
+      m.segments.find((s) => s.charStart === 0)?.perKanji?.map((p) => p.kana),
+    ).toEqual(['とう', 'きょう'])
   })
 })
