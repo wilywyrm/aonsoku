@@ -4,8 +4,9 @@ import { type AlignDeps, type TokenizerLike, alignLine } from './align'
 import { getTokenizer } from './tokenizer'
 
 // Bump when the dictionary or alignment algorithm changes so cached furigana is
-// invalidated on the next load.
-export const JMDICT_VERSION = '2026-03'
+// invalidated on the next load. 2026-07: dict-form lookup, one-unit-per-word,
+// sokuon-split, re-compounding, and unread-kanji recovery all changed alignment.
+export const JMDICT_VERSION = '2026-07'
 
 export type LineModelMap = Record<string, RubyLineModel>
 export type FuriganaListener = (lineValue: string, model: RubyLineModel) => void

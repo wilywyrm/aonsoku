@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { RubyPart } from '@/types/furigana'
+import type { NormalizedCue } from '@/utils/wordTiming'
 import { type AlignToken, type TokenizerLike, alignLine } from './align'
 import { isNonSplittable } from './jmdictFurigana'
+import { reconcile } from './reconcile'
 
 // Fixture stand-in for jmdict-furigana lookup — keyed like the real index.
 const FIX: Record<string, RubyPart[]> = {
@@ -349,5 +351,34 @@ describe('alignLine', () => {
         perKanji: [{ charStart: 0, charEnd: 0, kana: 'し' }],
       },
     ])
+  })
+})
+
+function cueFor(lineValue: string, sub: string): NormalizedCue {
+  const enc = new TextEncoder()
+  const idx = lineValue.indexOf(sub)
+  const byteStart = enc.encode(lineValue.slice(0, idx)).length
+  const byteEnd = byteStart + enc.encode(sub).length - 1
+  return { start: 0, end: 1000, value: sub, byteStart, byteEnd }
+}
+
+describe('alignLine + reconcile (integration)', () => {
+  it('keeps a recovered reading when 識 is its own separately-timed cue', () => {
+    const model = alignLine(
+      '識る',
+      fakeTokenizer([
+        { surface_form: '識' },
+        { surface_form: 'る', reading: 'ル' },
+      ]),
+      deps,
+    )
+    const units = reconcile(
+      model,
+      [cueFor('識る', '識'), cueFor('識る', 'る')],
+      '識る',
+    )
+    const ruby = units.find((u) => u.kana === 'し')
+    expect(ruby?.perKanji).toEqual([{ charStart: 0, charEnd: 0, kana: 'し' }])
+    expect(ruby?.coveringCueIdx).toEqual([0, 1])
   })
 })
