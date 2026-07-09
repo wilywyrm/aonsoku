@@ -29,6 +29,7 @@ const FIX_SURFACE: Record<string, RubyPart[][]> = {
     [{ ruby: '大人', rt: 'おとな' }],
     [{ ruby: '大', rt: 'だい' }, { ruby: '人', rt: 'にん' }],
   ],
+  識る: [[{ ruby: '識', rt: 'し' }, { ruby: 'る' }]],
 }
 const fixtureLookupBySurface = (s: string): RubyPart[][] | undefined =>
   FIX_SURFACE[s]
@@ -326,6 +327,26 @@ describe('alignLine', () => {
           { charStart: 0, charEnd: 0, kana: 'だい' },
           { charStart: 1, charEnd: 1, kana: 'にん' },
         ],
+      },
+    ])
+  })
+
+  it('recovers an unread kanji via a jmdict surface lookup (識 + る -> 識る)', () => {
+    const m = alignLine(
+      '識る',
+      fakeTokenizer([
+        { surface_form: '識' },
+        { surface_form: 'る', reading: 'ル' },
+      ]),
+      deps,
+    )
+    expect(m.segments).toEqual([
+      {
+        charStart: 0,
+        charEnd: 1,
+        kana: 'し',
+        nonSplittable: false,
+        perKanji: [{ charStart: 0, charEnd: 0, kana: 'し' }],
       },
     ])
   })

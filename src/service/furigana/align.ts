@@ -401,10 +401,45 @@ function tryRecompound(
   return null
 }
 
+// Recover a reading when the tokenizer left a kanji token UNREAD (reading '*',
+// e.g. IPADIC doesn't know the literary verb 識る): look the kanji up in jmdict
+// by SURFACE together with its following kana, longest span first, and use an
+// UNAMBIGUOUS entry (識 + る -> 識る -> 識[し]る). Gating on the no-reading failure
+// keeps over-merging low — it fires only once the tokenizer has already given up.
+function tryNoReadingRecovery(
+  toks: AlignedToken[],
+  start: number,
+  lookupBySurface: NonNullable<AlignDeps['lookupBySurface']>,
+  isNonSplittable: NonNullable<AlignDeps['isNonSplittable']>,
+): { segments: RubyLineSegment[]; nextIndex: number } | null {
+  const first = toks[start]
+  if (first.readingHira !== undefined || !hasKanji(first.surface)) return null
+  const maxEnd = Math.min(start + 3, toks.length - 1)
+  for (let end = maxEnd; end >= start; end--) {
+    let surface = ''
+    for (let k = start; k <= end; k++) surface += toks[k].surface
+    const candidates = lookupBySurface(surface)
+    // No tokenizer reading is available to disambiguate, so accept only a single
+    // (unambiguous) decomposition rather than guessing a homograph.
+    if (!candidates || candidates.length !== 1) continue
+    return {
+      segments: segmentsFromParts(
+        candidates[0],
+        first.tStart,
+        surface.length,
+        isNonSplittable,
+      ),
+      nextIndex: end + 1,
+    }
+  }
+  return null
+}
+
 // Align a full line into a per-kanji ruby model. Tokenizes the WHOLE line for
 // context-aware readings, re-compounds adjacent kanji tokens that jmdict knows
-// as one word, resolves per-kanji spans via jmdict-furigana, and falls back to
-// an OOV heuristic. Pure aside from the injected tokenizer/lookup.
+// as one word, recovers unread kanji via a jmdict surface lookup, resolves
+// per-kanji spans via jmdict-furigana, and falls back to an OOV heuristic. Pure
+// aside from the injected tokenizer/lookup.
 export function alignLine(
   line: string,
   tokenizer: TokenizerLike,
@@ -440,6 +475,17 @@ export function alignLine(
     if (merged) {
       kanjiSegments.push(...merged.segments)
       i = merged.nextIndex
+      continue
+    }
+    const recovered = tryNoReadingRecovery(
+      toks,
+      i,
+      lookupBySurface,
+      isNonSplittable,
+    )
+    if (recovered) {
+      kanjiSegments.push(...recovered.segments)
+      i = recovered.nextIndex
       continue
     }
     const tok = toks[i]
