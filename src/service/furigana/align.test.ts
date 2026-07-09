@@ -23,13 +23,27 @@ const FIX: Record<string, RubyPart[]> = {
 const fixtureLookup = (s: string, r: string): RubyPart[] | undefined =>
   FIX[`${s}\u0000${r}`]
 
+const FIX_SURFACE: Record<string, RubyPart[][]> = {
+  魔眼: [[{ ruby: '魔', rt: 'ま' }, { ruby: '眼', rt: 'がん' }]],
+  大人: [
+    [{ ruby: '大人', rt: 'おとな' }],
+    [{ ruby: '大', rt: 'だい' }, { ruby: '人', rt: 'にん' }],
+  ],
+}
+const fixtureLookupBySurface = (s: string): RubyPart[][] | undefined =>
+  FIX_SURFACE[s]
+
 // Fake tokenizer: returns preset tokens regardless of input (each test aligns
 // one line). A real @patdx/kuromoji tokenizer structurally satisfies this.
 function fakeTokenizer(tokens: AlignToken[]): TokenizerLike {
   return { tokenize: () => tokens }
 }
 
-const deps = { lookup: fixtureLookup, isNonSplittable }
+const deps = {
+  lookup: fixtureLookup,
+  lookupBySurface: fixtureLookupBySurface,
+  isNonSplittable,
+}
 
 describe('alignLine', () => {
   it('aligns a per-kanji compound (東京) with context readings', () => {
@@ -265,6 +279,52 @@ describe('alignLine', () => {
         perKanji: [
           { charStart: 0, charEnd: 0, kana: 'ま' },
           { charStart: 2, charEnd: 2, kana: 'か' },
+        ],
+      },
+    ])
+  })
+
+  it('re-compounds adjacent kanji tokens into a jmdict entry (魔眼 -> まがん)', () => {
+    const m = alignLine(
+      '魔眼',
+      fakeTokenizer([
+        { surface_form: '魔', reading: 'マ' },
+        { surface_form: '眼', reading: 'メ' },
+      ]),
+      deps,
+    )
+    expect(m.segments).toEqual([
+      {
+        charStart: 0,
+        charEnd: 1,
+        kana: 'まがん',
+        nonSplittable: false,
+        perKanji: [
+          { charStart: 0, charEnd: 0, kana: 'ま' },
+          { charStart: 1, charEnd: 1, kana: 'がん' },
+        ],
+      },
+    ])
+  })
+
+  it('re-compounds by the homograph reading matching the tokenizer (大人 -> だいにん)', () => {
+    const m = alignLine(
+      '大人',
+      fakeTokenizer([
+        { surface_form: '大', reading: 'ダイ' },
+        { surface_form: '人', reading: 'ニン' },
+      ]),
+      deps,
+    )
+    expect(m.segments).toEqual([
+      {
+        charStart: 0,
+        charEnd: 1,
+        kana: 'だいにん',
+        nonSplittable: false,
+        perKanji: [
+          { charStart: 0, charEnd: 0, kana: 'だい' },
+          { charStart: 1, charEnd: 1, kana: 'にん' },
         ],
       },
     ])

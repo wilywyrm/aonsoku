@@ -31,6 +31,23 @@ export function buildIndex(entries: RawEntry[]): Map<string, RubyPart[]> {
   return index
 }
 
+// Pure: fold raw entries into a by-SURFACE index (text -> every decomposition it
+// carries, one per reading of a homograph). Keyed by text alone so the
+// re-compounding pass can recover a compound the tokenizer split apart — the
+// pieces' concatenated reading differs from the compound's (魔+眼 -> まめ, but
+// 魔眼 -> まがん), so a (text, reading) lookup would miss.
+export function buildSurfaceIndex(
+  entries: RawEntry[],
+): Map<string, RubyPart[][]> {
+  const index = new Map<string, RubyPart[][]>()
+  for (const entry of entries) {
+    const list = index.get(entry.text)
+    if (list) list.push(entry.furigana)
+    else index.set(entry.text, [entry.furigana])
+  }
+  return index
+}
+
 // True iff any single part carries an `rt` spanning >=2 kanji code points. Such
 // a part is a jukujikun/ateji group whose reading cannot be attributed to
 // individual kanji, so the whole group must render as one unit.
@@ -49,6 +66,7 @@ export function isNonSplittable(parts: RubyPart[]): boolean {
 // map backs the synchronous `getIndex`/`lookup` path once parsing completes.
 let indexPromise: Promise<Map<string, RubyPart[]>> | null = null
 let resolvedIndex: Map<string, RubyPart[]> | null = null
+let resolvedSurfaceIndex: Map<string, RubyPart[][]> | null = null
 
 // Lazily fetch, parse, and index the dataset exactly once. Safe to call
 // fire-and-forget (progressive enhancement) or awaited for the built map.
@@ -66,6 +84,7 @@ export function load(): Promise<Map<string, RubyPart[]>> {
       .then((entries) => {
         const index = buildIndex(entries)
         resolvedIndex = index
+        resolvedSurfaceIndex = buildSurfaceIndex(entries)
         return index
       })
   }
@@ -86,4 +105,10 @@ export function lookup(
   const index = getIndex()
   if (!index) return undefined
   return index.get(KEY(surface, hiraganaReading))
+}
+
+// Every per-kanji decomposition recorded for a surface, across all its readings.
+// Returns undefined before load() resolves or on a miss.
+export function lookupBySurface(surface: string): RubyPart[][] | undefined {
+  return resolvedSurfaceIndex?.get(surface)
 }

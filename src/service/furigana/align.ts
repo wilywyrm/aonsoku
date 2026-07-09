@@ -12,6 +12,7 @@ import {
 import {
   isNonSplittable as jmdictIsNonSplittable,
   lookup as jmdictLookup,
+  lookupBySurface as jmdictLookupBySurface,
 } from './jmdictFurigana'
 
 // Minimal token shape this module reads. A kuromoji IpadicFeatures (surface_form
@@ -33,6 +34,7 @@ export interface TokenizerLike {
 // fixture-backed lookup so no real dictionary (or network) is touched.
 export interface AlignDeps {
   lookup?: (surface: string, hiraganaReading: string) => RubyPart[] | undefined
+  lookupBySurface?: (surface: string) => RubyPart[][] | undefined
   isNonSplittable?: (parts: RubyPart[]) => boolean
 }
 
@@ -317,43 +319,144 @@ function fillBare(
   return [...kanjiSegments, ...bare].sort((a, b) => a.charStart - b.charStart)
 }
 
+// True iff `s` is non-empty and every code point is a kanji. Gates the
+// re-compounding pass to kanji compounds, away from okurigana and particles
+// (which the tokenizer already separates into their own tokens).
+function isAllKanji(s: string): boolean {
+  if (!s) return false
+  let i = 0
+  while (i < s.length) {
+    const cp = s.codePointAt(i)!
+    if (!isKanji(cp)) return false
+    i += cp > 0xffff ? 2 : 1
+  }
+  return true
+}
+
+// Full reading of a jmdict entry, reconstructed from its parts (a bare part with
+// no rt reads as its own kana).
+function partsReading(parts: RubyPart[]): string {
+  let out = ''
+  for (const p of parts) out += p.rt ?? p.ruby
+  return out
+}
+
+// Choose one decomposition for a merged surface. A single candidate is
+// unambiguous; with several homograph readings, only merge when one matches the
+// tokenizer's concatenated reading — otherwise leave the tokens split rather
+// than guess a compound reading.
+function pickCandidate(
+  candidates: RubyPart[][],
+  concatReading: string,
+): RubyPart[] | undefined {
+  if (candidates.length === 1) return candidates[0]
+  return candidates.find((parts) => partsReading(parts) === concatReading)
+}
+
+interface AlignedToken {
+  surface: string
+  tStart: number
+  readingHira: string | undefined
+  basicForm: string | undefined
+  lemmaReadingHira: string | undefined
+}
+
+// Re-compounding: a kanji compound the tokenizer split into adjacent single-word
+// pieces (魔眼 -> 魔 + 眼, 眼 alone = め) is recovered by merging a run of adjacent
+// PURE-kanji tokens and looking the merged surface up in jmdict by TEXT, longest
+// run first (選挙+管理+委員+会 beats a shorter prefix). Returns the compound's
+// segments and the next token index, or null when no 2+ token merge applies.
+function tryRecompound(
+  toks: AlignedToken[],
+  start: number,
+  lookupBySurface: NonNullable<AlignDeps['lookupBySurface']>,
+  isNonSplittable: NonNullable<AlignDeps['isNonSplittable']>,
+): { segments: RubyLineSegment[]; nextIndex: number } | null {
+  if (!isAllKanji(toks[start].surface)) return null
+  let runEnd = start
+  while (runEnd + 1 < toks.length && isAllKanji(toks[runEnd + 1].surface)) {
+    runEnd++
+  }
+  for (let end = runEnd; end > start; end--) {
+    let surface = ''
+    let concatReading = ''
+    for (let k = start; k <= end; k++) {
+      surface += toks[k].surface
+      concatReading += toks[k].readingHira ?? ''
+    }
+    const candidates = lookupBySurface(surface)
+    if (!candidates || candidates.length === 0) continue
+    const parts = pickCandidate(candidates, concatReading)
+    if (!parts) continue
+    return {
+      segments: segmentsFromParts(
+        parts,
+        toks[start].tStart,
+        surface.length,
+        isNonSplittable,
+      ),
+      nextIndex: end + 1,
+    }
+  }
+  return null
+}
+
 // Align a full line into a per-kanji ruby model. Tokenizes the WHOLE line for
-// context-aware readings, resolves per-kanji spans via jmdict-furigana, and
-// falls back to even distribution for out-of-vocabulary kanji. Pure aside from
-// the injected tokenizer/lookup.
+// context-aware readings, re-compounds adjacent kanji tokens that jmdict knows
+// as one word, resolves per-kanji spans via jmdict-furigana, and falls back to
+// an OOV heuristic. Pure aside from the injected tokenizer/lookup.
 export function alignLine(
   line: string,
   tokenizer: TokenizerLike,
   deps: AlignDeps = {},
 ): RubyLineModel {
   const lookup = deps.lookup ?? jmdictLookup
+  const lookupBySurface = deps.lookupBySurface ?? jmdictLookupBySurface
   const isNonSplittable = deps.isNonSplittable ?? jmdictIsNonSplittable
 
-  const kanjiSegments: RubyLineSegment[] = []
+  // Materialize tokens with their line positions first so re-compounding can
+  // look ahead across adjacent tokens. Position by scanning forward — robust to
+  // whatever offset the tokenizer reports (and to repeated surfaces).
+  const toks: AlignedToken[] = []
   let searchFrom = 0
   for (const token of tokenizer.tokenize(line)) {
     const surface = token.surface_form
     if (!surface) continue
-
-    // Position the token in the line by scanning forward; robust to whatever
-    // 1-based char offset the tokenizer reports (and to repeated surfaces).
     let tStart = line.indexOf(surface, searchFrom)
     if (tStart < 0) tStart = searchFrom
     searchFrom = tStart + surface.length
+    toks.push({
+      surface,
+      tStart,
+      readingHira: toHiragana(token.reading),
+      basicForm: token.basic_form,
+      lemmaReadingHira: toHiragana(token.lemmaReading),
+    })
+  }
 
-    if (!hasKanji(surface)) continue
-
-    kanjiSegments.push(
-      ...alignToken(
-        surface,
-        tStart,
-        toHiragana(token.reading),
-        token.basic_form,
-        toHiragana(token.lemmaReading),
-        lookup,
-        isNonSplittable,
-      ),
-    )
+  const kanjiSegments: RubyLineSegment[] = []
+  for (let i = 0; i < toks.length; ) {
+    const merged = tryRecompound(toks, i, lookupBySurface, isNonSplittable)
+    if (merged) {
+      kanjiSegments.push(...merged.segments)
+      i = merged.nextIndex
+      continue
+    }
+    const tok = toks[i]
+    if (hasKanji(tok.surface)) {
+      kanjiSegments.push(
+        ...alignToken(
+          tok.surface,
+          tok.tStart,
+          tok.readingHira,
+          tok.basicForm,
+          tok.lemmaReadingHira,
+          lookup,
+          isNonSplittable,
+        ),
+      )
+    }
+    i++
   }
 
   return { segments: fillBare(line, kanjiSegments) }

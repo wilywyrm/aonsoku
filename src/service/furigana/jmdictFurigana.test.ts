@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { RubyPart } from '@/types/furigana'
-import { buildIndex, isNonSplittable, load, lookup } from './jmdictFurigana'
+import {
+  buildIndex,
+  buildSurfaceIndex,
+  isNonSplittable,
+  load,
+  lookup,
+} from './jmdictFurigana'
 
 // Small inline stand-in for the 33 MB public/dict/JmdictFurigana.json. The real
 // file MUST NOT be fetched here — dictionary-dependent logic is unit-tested with
@@ -85,6 +91,33 @@ describe('jmdictFurigana', () => {
 
     it('returns an empty map for no entries', () => {
       expect(buildIndex([]).size).toBe(0)
+    })
+  })
+
+  describe('buildSurfaceIndex', () => {
+    it('indexes each surface to its decomposition(s)', () => {
+      const index = buildSurfaceIndex(FIXTURE)
+      expect(index.get('東京')).toEqual([
+        [
+          { ruby: '東', rt: 'とう' },
+          { ruby: '京', rt: 'きょう' },
+        ],
+      ])
+    })
+
+    it('collects every reading of a homograph under one surface key', () => {
+      const index = buildSurfaceIndex([
+        { text: '眼', reading: 'め', furigana: [{ ruby: '眼', rt: 'め' }] },
+        { text: '眼', reading: 'がん', furigana: [{ ruby: '眼', rt: 'がん' }] },
+      ])
+      expect(index.get('眼')).toEqual([
+        [{ ruby: '眼', rt: 'め' }],
+        [{ ruby: '眼', rt: 'がん' }],
+      ])
+    })
+
+    it('returns an empty map for no entries', () => {
+      expect(buildSurfaceIndex([]).size).toBe(0)
     })
   })
 
