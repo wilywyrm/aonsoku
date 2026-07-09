@@ -6,6 +6,7 @@ import {
   isNonSplittable,
   load,
   lookup,
+  lookupBySurface,
 } from './jmdictFurigana'
 
 // Small inline stand-in for the 33 MB public/dict/JmdictFurigana.json. The real
@@ -181,6 +182,23 @@ describe('jmdictFurigana', () => {
       // Miss on unknown surface and on wrong reading both fall back.
       expect(lookup('京都', 'きょうと')).toBeUndefined()
       expect(lookup('東京', 'とうきよう')).toBeUndefined()
+    })
+
+    it('populates the by-surface index in the same load()', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          new Response(JSON.stringify(FIXTURE), { status: 200 }),
+        ),
+      )
+      await load()
+      expect(lookupBySurface('東京')).toEqual([
+        [
+          { ruby: '東', rt: 'とう' },
+          { ruby: '京', rt: 'きょう' },
+        ],
+      ])
+      expect(lookupBySurface('京都')).toBeUndefined()
     })
   })
 })
