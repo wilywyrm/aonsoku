@@ -381,4 +381,30 @@ describe('alignLine + reconcile (integration)', () => {
     expect(ruby?.perKanji).toEqual([{ charStart: 0, charEnd: 0, kana: 'し' }])
     expect(ruby?.coveringCueIdx).toEqual([0, 1])
   })
+
+  it('recovers 識 in the full per-character-cued line (羽ばたきを識るウイング)', () => {
+    const line = '羽ばたきを識るウイング'
+    const model = alignLine(
+      line,
+      fakeTokenizer([
+        { surface_form: '羽ばたき', reading: 'ハバタキ', basic_form: '羽ばたく' },
+        { surface_form: 'を', reading: 'ヲ' },
+        { surface_form: '識' },
+        { surface_form: 'る', reading: 'ル' },
+        { surface_form: 'ウイング', reading: 'ウイング' },
+      ]),
+      deps,
+    )
+    const cues = [...line].map((ch) => cueFor(line, ch))
+    const units = reconcile(model, cues, line)
+    const shiki = units.find(
+      (u) => u.charStart <= 5 && u.charEnd >= 5 && u.kana === 'し',
+    )
+    expect(shiki).toBeDefined()
+    expect(shiki?.perKanji).toContainEqual({
+      charStart: 5,
+      charEnd: 5,
+      kana: 'し',
+    })
+  })
 })

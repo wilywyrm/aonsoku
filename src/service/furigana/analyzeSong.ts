@@ -1,6 +1,7 @@
 import type { RubyLineModel } from '@/types/furigana'
 import { get as idbGet, set as idbSet } from 'idb-keyval'
 import { type AlignDeps, type TokenizerLike, alignLine } from './align'
+import { load as loadJmdict } from './jmdictFurigana'
 import { getTokenizer } from './tokenizer'
 
 // Bump when the dictionary or alignment algorithm changes so cached furigana is
@@ -20,6 +21,7 @@ export interface AnalyzerDeps {
     deps?: AlignDeps,
   ) => RubyLineModel
   getTokenizer?: () => Promise<TokenizerLike>
+  loadDictionary?: () => Promise<unknown>
   idbGet?: (key: string) => Promise<LineModelMap | undefined>
   idbSet?: (key: string, value: LineModelMap) => Promise<void>
   schedule?: (cb: () => void) => void
@@ -51,6 +53,7 @@ export interface SongAnalyzer {
 export function createSongAnalyzer(deps: AnalyzerDeps = {}): SongAnalyzer {
   const align = deps.align ?? alignLine
   const loadTokenizer = deps.getTokenizer ?? getTokenizer
+  const loadDictionary = deps.loadDictionary ?? loadJmdict
   const readIdb =
     deps.idbGet ??
     (idbGet as (key: string) => Promise<LineModelMap | undefined>)
@@ -90,6 +93,11 @@ export function createSongAnalyzer(deps: AnalyzerDeps = {}): SongAnalyzer {
       notify(line, model)
     }
 
+    // Start loading the jmdict-furigana dataset alongside the tokenizer; a load
+    // failure degrades to kuromoji-only OOV alignment (lookups return undefined)
+    // rather than aborting.
+    const dictionaryReady = loadDictionary().catch(() => undefined)
+
     let tokenizer: TokenizerLike
     try {
       tokenizer = await loadTokenizer()
@@ -98,6 +106,9 @@ export function createSongAnalyzer(deps: AnalyzerDeps = {}): SongAnalyzer {
       // enhancement) rather than surfacing an error.
       return
     }
+    // Per-kanji lookups (splits, re-compounding, unread-kanji recovery) need the
+    // jmdict dataset resolved before aligning.
+    await dictionaryReady
     if (gen !== generation) return
 
     const result: LineModelMap = { ...stored }

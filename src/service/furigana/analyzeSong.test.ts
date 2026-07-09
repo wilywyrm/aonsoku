@@ -13,6 +13,7 @@ function makeDeps(over: Partial<AnalyzerDeps> = {}) {
   return {
     align: vi.fn((line: string) => model(`R:${line}`)),
     getTokenizer: vi.fn(async () => emptyTokenizer),
+    loadDictionary: vi.fn(async () => {}),
     idbGet: vi.fn(async () => undefined),
     idbSet: vi.fn(async () => {}),
     schedule: (cb: () => void) => {
@@ -39,6 +40,23 @@ describe('createSongAnalyzer', () => {
     const [key, value] = deps.idbSet.mock.calls[0]
     expect(key).toContain(':furi:hira:')
     expect(Object.keys(value).sort()).toEqual(['今日', '東京'])
+  })
+
+  it('loads the jmdict dictionary before aligning', async () => {
+    const order: string[] = []
+    const deps = makeDeps({
+      loadDictionary: vi.fn(async () => {
+        order.push('dict')
+      }),
+      align: vi.fn((line: string) => {
+        order.push('align')
+        return model(`R:${line}`)
+      }),
+    })
+    const analyzer = createSongAnalyzer(deps)
+    await analyzer.analyze('s', ['東京'])
+    expect(deps.loadDictionary).toHaveBeenCalledOnce()
+    expect(order).toEqual(['dict', 'align'])
   })
 
   it('skips blank / whitespace-only lines', async () => {
