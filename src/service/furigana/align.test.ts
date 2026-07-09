@@ -18,6 +18,7 @@ const FIX: Record<string, RubyPart[]> = {
     { ruby: 'る' },
   ],
   '来る\u0000くる': [{ ruby: '来', rt: 'く' }, { ruby: 'る' }],
+  '遊び\u0000あそび': [{ ruby: '遊', rt: 'あそ' }, { ruby: 'び' }],
 }
 const fixtureLookup = (s: string, r: string): RubyPart[] | undefined =>
   FIX[`${s}\u0000${r}`]
@@ -55,22 +56,21 @@ describe('alignLine', () => {
     ])
   })
 
-  it('annotates only the kanji in 食べる; okurigana stays bare', () => {
+  it('renders 食べる as one unit spanning the okurigana (bare べる inside)', () => {
     const m = alignLine(
       '食べる',
       fakeTokenizer([{ surface_form: '食べる', reading: 'タベル' }]),
       deps,
     )
-    const kanjiSeg = m.segments.find((s) => s.kana === 'た')
-    expect(kanjiSeg).toMatchObject({
-      charStart: 0,
-      charEnd: 0,
-      nonSplittable: false,
-    })
-    expect(kanjiSeg?.perKanji).toEqual([{ charStart: 0, charEnd: 0, kana: 'た' }])
-    const bare = m.segments.find((s) => s.charStart === 1)
-    expect(bare).toMatchObject({ charStart: 1, charEnd: 2 })
-    expect(bare?.kana).toBeUndefined()
+    expect(m.segments).toEqual([
+      {
+        charStart: 0,
+        charEnd: 2,
+        kana: 'た',
+        nonSplittable: false,
+        perKanji: [{ charStart: 0, charEnd: 0, kana: 'た' }],
+      },
+    ])
   })
 
   it('keeps a jukujikun (大人) as one non-splittable segment', () => {
@@ -95,14 +95,21 @@ describe('alignLine', () => {
     ])
   })
 
-  it('strips trailing okurigana from an OOV conjugated verb reading', () => {
+  it('splits an OOV conjugated verb into one unit, trailing okurigana bare (立った)', () => {
     const m = alignLine(
       '立った',
       fakeTokenizer([{ surface_form: '立った', reading: 'タッタ' }]),
       deps,
     )
-    expect(m.segments.find((s) => s.charStart === 0)?.kana).toBe('た')
-    expect(m.segments.find((s) => s.charStart === 1)?.kana).toBeUndefined()
+    expect(m.segments).toEqual([
+      {
+        charStart: 0,
+        charEnd: 2,
+        kana: 'た',
+        nonSplittable: false,
+        perKanji: [{ charStart: 0, charEnd: 0, kana: 'た' }],
+      },
+    ])
   })
 
   it('emits no ruby for a katakana-only line', () => {
@@ -147,7 +154,7 @@ describe('alignLine', () => {
     expect(m.segments.every((s) => s.kana === undefined)).toBe(true)
   })
 
-  it('resolves a conjugated verb via its dictionary form (見送った -> 見送る)', () => {
+  it('resolves a conjugated verb via its dictionary form as one unit (見送った)', () => {
     const m = alignLine(
       '見送った',
       fakeTokenizer([
@@ -155,25 +162,35 @@ describe('alignLine', () => {
       ]),
       deps,
     )
-    const seg = m.segments.find((s) => s.charStart === 0)
-    expect(seg?.nonSplittable).toBe(false)
-    expect(seg?.perKanji?.map((p) => p.kana)).toEqual(['み', 'おく'])
-    expect(seg).toMatchObject({ charStart: 0, charEnd: 1 })
-    expect(m.segments.find((s) => s.charStart === 2)?.kana).toBeUndefined()
+    expect(m.segments).toEqual([
+      {
+        charStart: 0,
+        charEnd: 3,
+        kana: 'みおく',
+        nonSplittable: false,
+        perKanji: [
+          { charStart: 0, charEnd: 0, kana: 'み' },
+          { charStart: 1, charEnd: 1, kana: 'おく' },
+        ],
+      },
+    ])
   })
 
-  it('degrades an irregular stem to the OOV reading when dict-form lookup misses (来た)', () => {
+  it('degrades an irregular stem to an OOV one-unit reading when dict-form lookup misses (来た)', () => {
     const m = alignLine(
       '来た',
       fakeTokenizer([{ surface_form: '来た', reading: 'キタ', basic_form: '来る' }]),
       deps,
     )
-    expect(m.segments.find((s) => s.charStart === 0)).toMatchObject({
-      charStart: 0,
-      charEnd: 0,
-      kana: 'き',
-      nonSplittable: true,
-    })
+    expect(m.segments).toEqual([
+      {
+        charStart: 0,
+        charEnd: 1,
+        kana: 'き',
+        nonSplittable: false,
+        perKanji: [{ charStart: 0, charEnd: 0, kana: 'き' }],
+      },
+    ])
   })
 
   it('prefers the surface-form entry over basic_form when the surface hits', () => {
@@ -187,5 +204,42 @@ describe('alignLine', () => {
     expect(
       m.segments.find((s) => s.charStart === 0)?.perKanji?.map((p) => p.kana),
     ).toEqual(['とう', 'きょう'])
+  })
+
+  it('renders a kanji+okurigana word as one unit spanning the okurigana (遊び)', () => {
+    const m = alignLine(
+      '遊び',
+      fakeTokenizer([{ surface_form: '遊び', reading: 'アソビ' }]),
+      deps,
+    )
+    expect(m.segments).toEqual([
+      {
+        charStart: 0,
+        charEnd: 1,
+        kana: 'あそ',
+        nonSplittable: false,
+        perKanji: [{ charStart: 0, charEnd: 0, kana: 'あそ' }],
+      },
+    ])
+  })
+
+  it('splits an OOV internal-sokuon word so the sokuon stays bare (真っ赤)', () => {
+    const m = alignLine(
+      '真っ赤',
+      fakeTokenizer([{ surface_form: '真っ赤', reading: 'マッカ' }]),
+      deps,
+    )
+    expect(m.segments).toEqual([
+      {
+        charStart: 0,
+        charEnd: 2,
+        kana: 'まか',
+        nonSplittable: false,
+        perKanji: [
+          { charStart: 0, charEnd: 0, kana: 'ま' },
+          { charStart: 2, charEnd: 2, kana: 'か' },
+        ],
+      },
+    ])
   })
 })
