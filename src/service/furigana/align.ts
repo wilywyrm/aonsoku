@@ -14,13 +14,15 @@ import {
   lookup as jmdictLookup,
 } from './jmdictFurigana'
 
-// Minimal token shape this module reads. A real @patdx/kuromoji IpadicFeatures
-// (surface_form + katakana reading + dictionary basic_form) structurally
-// satisfies this, so production passes the real tokenizer; tests pass a fake.
+// Minimal token shape this module reads. A kuromoji IpadicFeatures (surface_form
+// + katakana reading + basic_form) satisfies this; a Lindera/UniDic token also
+// supplies lemmaReading (語彙素読み) so the dictionary-form lookup needs no
+// okurigana-swap derivation. Production passes a real tokenizer; tests pass a fake.
 export interface AlignToken {
   surface_form: string
   reading?: string
   basic_form?: string
+  lemmaReading?: string
 }
 
 export interface TokenizerLike {
@@ -208,6 +210,7 @@ function alignToken(
   tStart: number,
   readingHira: string | undefined,
   basicForm: string | undefined,
+  lemmaReadingHira: string | undefined,
   lookup: NonNullable<AlignDeps['lookup']>,
   isNonSplittable: NonNullable<AlignDeps['isNonSplittable']>,
 ): RubyLineSegment[] {
@@ -224,7 +227,10 @@ function alignToken(
     if (segs.length > 0) return segs
   }
 
-  const basicReading = deriveBasicReading(surface, basicForm, readingHira)
+  // Dictionary-form lookup: prefer an explicit lemma reading (UniDic supplies
+  // 語彙素読み directly), else derive one from the surface (kuromoji path).
+  const basicReading =
+    lemmaReadingHira ?? deriveBasicReading(surface, basicForm, readingHira)
   if (basicForm && basicReading) {
     const basicParts = lookup(basicForm, basicReading)
     if (basicParts && basicParts.length > 0) {
@@ -343,6 +349,7 @@ export function alignLine(
         tStart,
         toHiragana(token.reading),
         token.basic_form,
+        toHiragana(token.lemmaReading),
         lookup,
         isNonSplittable,
       ),

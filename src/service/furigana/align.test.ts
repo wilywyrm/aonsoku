@@ -176,6 +176,33 @@ describe('alignLine', () => {
     ])
   })
 
+  it('uses an explicit lemma reading for the dict-form lookup (UniDic-style 見送っ)', () => {
+    const m = alignLine(
+      '見送っ',
+      fakeTokenizer([
+        {
+          surface_form: '見送っ',
+          reading: 'ミオクル',
+          basic_form: '見送る',
+          lemmaReading: 'ミオクル',
+        },
+      ]),
+      deps,
+    )
+    expect(m.segments).toEqual([
+      {
+        charStart: 0,
+        charEnd: 2,
+        kana: 'みおく',
+        nonSplittable: false,
+        perKanji: [
+          { charStart: 0, charEnd: 0, kana: 'み' },
+          { charStart: 1, charEnd: 1, kana: 'おく' },
+        ],
+      },
+    ])
+  })
+
   it('degrades an irregular stem to an OOV one-unit reading when dict-form lookup misses (来た)', () => {
     const m = alignLine(
       '来た',
