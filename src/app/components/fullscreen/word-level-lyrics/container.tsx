@@ -11,7 +11,12 @@ import {
   type LineModelMap,
 } from '@/service/furigana/analyzeSong'
 import { reconcile } from '@/service/furigana/reconcile'
-import { computeUnitFillPx } from '@/service/furigana/wipeFront'
+import {
+  computeWipeLayout,
+  unitWipePct,
+  type WipeLayout,
+  wipeFrontChar,
+} from '@/service/furigana/wipeFront'
 import {
   type RenderUnit,
   type RubyLineModel,
@@ -141,25 +146,32 @@ export function WordLevelLyricsContainer({
     structuredLyric.displayTitle,
   ])
 
-  const rubyUnitsByLineCue = useMemo(() => {
-    const map = new Map<string, RenderUnit[]>()
-    if (rubyModels.size === 0) return map
+  const { rubyUnitsByLineCue, wipeLayoutsByLineCue } = useMemo(() => {
+    const units = new Map<string, RenderUnit[]>()
+    const layouts = new Map<string, WipeLayout>()
+    if (rubyModels.size === 0) {
+      return { rubyUnitsByLineCue: units, wipeLayoutsByLineCue: layouts }
+    }
     normalized.lines.forEach((line, i) => {
       for (const cueLine of line.cueLines) {
         const model = rubyModels.get(cueLine.value)
         if (!model) continue
-        map.set(
-          `${i}|${cueLine.key}`,
-          reconcile(model, cueLine.cues, cueLine.value),
-        )
+        const key = `${i}|${cueLine.key}`
+        const u = reconcile(model, cueLine.cues, cueLine.value)
+        units.set(key, u)
+        // Precompute the shared-front char layout once per cueLine, not per frame.
+        layouts.set(key, computeWipeLayout(u, cueLine.cues.length))
       }
     })
-    return map
+    return { rubyUnitsByLineCue: units, wipeLayoutsByLineCue: layouts }
   }, [normalized, rubyModels])
 
-  // Mirror into a ref so the rAF tick reads current units without re-subscribing.
+  // Mirror into refs so the rAF tick reads current units + layout without
+  // re-subscribing.
   const rubyUnitsRef = useRef(rubyUnitsByLineCue)
   rubyUnitsRef.current = rubyUnitsByLineCue
+  const wipeLayoutsRef = useRef(wipeLayoutsByLineCue)
+  wipeLayoutsRef.current = wipeLayoutsByLineCue
 
   // Audio time getter — passed to the rAF hook so the hook stays store-agnostic.
   const playerRef = usePlayerRef()
@@ -224,21 +236,25 @@ export function WordLevelLyricsContainer({
           const cueIdx = cueByKey[cueLine.key]
           if (cueIdx == null || cueIdx < 0) continue
 
-          // Furigana cueLines wipe per render unit (char-proportion union sum
-          // across a unit's covering cues); non-furigana cueLines keep the
-          // legacy per-cue --fill below.
+          // Furigana cueLines wipe as ONE shared front per cue: every unit in
+          // the active cue (kanji group, bare okurigana, paren, particle) fills
+          // only as the front crosses its own char slice, so a cue never shows
+          // parallel wipes. Non-furigana cueLines keep the legacy per-cue --fill.
           const units = rubyUnitsRef.current.get(`${lineIdx}|${cueLine.key}`)
-          if (units) {
+          const layout = wipeLayoutsRef.current.get(`${lineIdx}|${cueLine.key}`)
+          if (units && layout) {
+            const activeCue = cueLine.cues[cueIdx]
+            const front = wipeFrontChar(
+              t,
+              cueIdx,
+              activeCue?.start ?? 0,
+              activeCue?.end ?? 0,
+              layout,
+            )
             for (let unitIdx = 0; unitIdx < units.length; unitIdx++) {
               const unit = units[unitIdx]
               if (!unit.coveringCueIdx.includes(cueIdx)) continue
-              const timings = unit.coveringCueIdx.map((ci) => {
-                const c = cueLine.cues[ci]
-                return { start: c?.start ?? 0, end: c?.end ?? 0 }
-              })
-              const total = unit.cueCharCounts.reduce((a, b) => a + b, 0)
-              const fill = computeUnitFillPx(t, timings, unit.cueCharCounts)
-              const unitPct = total > 0 ? (fill / total) * 100 : 0
+              const unitPct = unitWipePct(front, unitIdx, layout)
               const unitEl = wordRefs.current.get(
                 rubyUnitKey(
                   lineIdx,

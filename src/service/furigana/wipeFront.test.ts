@@ -1,110 +1,101 @@
 import { describe, expect, it } from 'vitest'
 import type { RenderUnit } from '@/types/furigana'
-import {
-  type CueTiming,
-  computeUnitFillPx,
-  computeUnitFillPxForUnit,
-} from './wipeFront'
+import { computeWipeLayout, unitWipePct, wipeFrontChar } from './wipeFront'
 
-describe('computeUnitFillPx', () => {
-  describe('single cue (n=1) reduces to clamp((t-s)/(e-s)) * W', () => {
-    const cues: CueTiming[] = [{ start: 0, end: 1000 }]
-    const widths = [40]
+// Minimal unit: only coveringCueIdx + cueCharCounts drive the wipe layout.
+function unit(coveringCueIdx: number[], cueCharCounts: number[]): RenderUnit {
+  return {
+    charStart: 0,
+    charEnd: 0,
+    kanjiText: '',
+    nonSplittable: false,
+    coveringCueIdx,
+    cueCharCounts,
+  }
+}
 
-    it('is 0 at/before start', () => {
-      expect(computeUnitFillPx(0, cues, widths)).toBeCloseTo(0, 5)
-      expect(computeUnitFillPx(-100, cues, widths)).toBeCloseTo(0, 5)
-    })
-
-    it('is proportional mid-cue', () => {
-      expect(computeUnitFillPx(250, cues, widths)).toBeCloseTo(10, 5)
-      expect(computeUnitFillPx(500, cues, widths)).toBeCloseTo(20, 5)
-      expect(computeUnitFillPx(750, cues, widths)).toBeCloseTo(30, 5)
-    })
-
-    it('clamps to W at/after end', () => {
-      expect(computeUnitFillPx(1000, cues, widths)).toBeCloseTo(40, 5)
-      expect(computeUnitFillPx(5000, cues, widths)).toBeCloseTo(40, 5)
-    })
+describe('computeWipeLayout', () => {
+  it('lays out several single-cue units in one cue (（ + 遊び)', () => {
+    const layout = computeWipeLayout([unit([0], [1]), unit([0], [2])], 1)
+    expect(layout.cueChars).toEqual([3])
+    expect(layout.cueStart).toEqual([0])
+    expect(layout.unitOffset).toEqual([0, 1])
+    expect(layout.unitWidth).toEqual([1, 2])
   })
 
-  describe('two contiguous cues (e0 === s1) are continuous and monotone', () => {
-    const cues: CueTiming[] = [
-      { start: 0, end: 500 },
-      { start: 500, end: 1000 },
-    ]
-    const widths = [30, 30]
-
-    it('reaches exactly w0 at the boundary t = e0 = s1', () => {
-      expect(computeUnitFillPx(500, cues, widths)).toBeCloseTo(30, 5)
-    })
-
-    it('fills across the second cue', () => {
-      expect(computeUnitFillPx(750, cues, widths)).toBeCloseTo(45, 5)
-      expect(computeUnitFillPx(1000, cues, widths)).toBeCloseTo(60, 5)
-    })
-
-    it('is monotonically non-decreasing in t', () => {
-      const samples = [0, 125, 250, 500, 625, 750, 1000].map((t) =>
-        computeUnitFillPx(t, cues, widths),
-      )
-      for (let i = 1; i < samples.length; i++) {
-        expect(samples[i]).toBeGreaterThanOrEqual(samples[i - 1])
-      }
-    })
+  it('accumulates char offsets across multiple cues', () => {
+    const layout = computeWipeLayout([unit([0], [2]), unit([1], [3])], 2)
+    expect(layout.cueChars).toEqual([2, 3])
+    expect(layout.cueStart).toEqual([0, 2])
+    expect(layout.unitOffset).toEqual([0, 2])
+    expect(layout.unitWidth).toEqual([2, 3])
   })
 
-  it('pauses across a timing gap between cues', () => {
-    const cues: CueTiming[] = [
-      { start: 0, end: 500 },
-      { start: 1000, end: 1500 },
-    ]
-    const widths = [20, 20]
-    // In the gap (t=750): first cue full, second not started.
-    expect(computeUnitFillPx(750, cues, widths)).toBeCloseTo(20, 5)
-    expect(computeUnitFillPx(1250, cues, widths)).toBeCloseTo(30, 5)
-  })
-
-  it('handles a degenerate (zero-duration) cue without NaN/Infinity', () => {
-    const cues: CueTiming[] = [{ start: 100, end: 100 }]
-    const widths = [20]
-    const atStart = computeUnitFillPx(100, cues, widths)
-    const afterStart = computeUnitFillPx(101, cues, widths)
-    expect(Number.isFinite(atStart)).toBe(true)
-    expect(atStart).toBeCloseTo(0, 5)
-    // Any time past the instant fills the whole sub-portion.
-    expect(afterStart).toBeCloseTo(20, 5)
-  })
-
-  it('returns 0 on a cueTimings/subWidths length mismatch (caller bug)', () => {
-    expect(computeUnitFillPx(500, [{ start: 0, end: 1000 }], [30, 30])).toBe(0)
+  it('places a straddling unit in one shared coordinate space', () => {
+    const layout = computeWipeLayout([unit([0, 1], [1, 1])], 2)
+    expect(layout.cueChars).toEqual([1, 1])
+    expect(layout.cueStart).toEqual([0, 1])
+    expect(layout.unitOffset).toEqual([0])
+    expect(layout.unitWidth).toEqual([2])
   })
 })
 
-describe('computeUnitFillPxForUnit', () => {
-  it('selects the unit covering cues by index then delegates', () => {
-    const allCueTimings: CueTiming[] = [
-      { start: 0, end: 100 },
-      { start: 100, end: 600 },
-      { start: 600, end: 1100 },
-    ]
-    const unit: RenderUnit = {
-      charStart: 0,
-      charEnd: 1,
-      kanjiText: '大人',
-      kana: 'おとな',
-      nonSplittable: true,
-      coveringCueIdx: [1, 2],
-      cueCharCounts: [1, 1],
-    }
-    const subWidths = [30, 30]
-    // At t=600: cue[1] just filled (30), cue[2] not started (0).
-    expect(
-      computeUnitFillPxForUnit(unit, 600, allCueTimings, subWidths),
-    ).toBeCloseTo(30, 5)
-    // At t=1100: both filled.
-    expect(
-      computeUnitFillPxForUnit(unit, 1100, allCueTimings, subWidths),
-    ).toBeCloseTo(60, 5)
+describe('wipeFrontChar', () => {
+  const layout = computeWipeLayout([unit([0], [3]), unit([1], [2])], 2)
+
+  it('clamps before start and after end', () => {
+    expect(wipeFrontChar(-50, 0, 0, 300, layout)).toBeCloseTo(0, 5)
+    expect(wipeFrontChar(9999, 0, 0, 300, layout)).toBeCloseTo(3, 5)
+  })
+
+  it('is proportional to elapsed time within the active cue', () => {
+    expect(wipeFrontChar(100, 0, 0, 300, layout)).toBeCloseTo(1, 5)
+    expect(wipeFrontChar(200, 0, 0, 300, layout)).toBeCloseTo(2, 5)
+  })
+
+  it('offsets by earlier cues chars when a later cue is active', () => {
+    // Cue 1 starts at absolute char 3; halfway through adds 1 of its 2 chars.
+    expect(wipeFrontChar(400, 1, 300, 500, layout)).toBeCloseTo(4, 5)
+  })
+
+  it('does not divide by zero on a degenerate cue', () => {
+    const v = wipeFrontChar(100, 0, 100, 100, layout)
+    expect(Number.isFinite(v)).toBe(true)
+  })
+})
+
+describe('unitWipePct — shared front across a cue', () => {
+  it('wipes a leading paren fully before its kanji word starts (（遊び)', () => {
+    const layout = computeWipeLayout([unit([0], [1]), unit([0], [2])], 1)
+    // Front at char 1 (one third through a 3-char cue): paren done, word idle.
+    const front = wipeFrontChar(100, 0, 0, 300, layout)
+    expect(unitWipePct(front, 0, layout)).toBeCloseTo(100, 5)
+    expect(unitWipePct(front, 1, layout)).toBeCloseTo(0, 5)
+    // End of cue: both full.
+    const end = wipeFrontChar(300, 0, 0, 300, layout)
+    expect(unitWipePct(end, 0, layout)).toBeCloseTo(100, 5)
+    expect(unitWipePct(end, 1, layout)).toBeCloseTo(100, 5)
+  })
+
+  it('wipes a kanji before its trailing particle within one cue (目に)', () => {
+    const layout = computeWipeLayout([unit([0], [1]), unit([0], [1])], 1)
+    const mid = wipeFrontChar(100, 0, 0, 200, layout)
+    expect(unitWipePct(mid, 0, layout)).toBeCloseTo(100, 5)
+    expect(unitWipePct(mid, 1, layout)).toBeCloseTo(0, 5)
+  })
+
+  it('fills a straddling unit continuously across the cue boundary', () => {
+    const layout = computeWipeLayout([unit([0, 1], [1, 1])], 2)
+    const endCue0 = wipeFrontChar(500, 0, 0, 500, layout)
+    const startCue1 = wipeFrontChar(500, 1, 500, 1000, layout)
+    expect(unitWipePct(endCue0, 0, layout)).toBeCloseTo(50, 5)
+    expect(unitWipePct(startCue1, 0, layout)).toBeCloseTo(50, 5)
+    const endCue1 = wipeFrontChar(1000, 1, 500, 1000, layout)
+    expect(unitWipePct(endCue1, 0, layout)).toBeCloseTo(100, 5)
+  })
+
+  it('returns 0 for a zero-width unit', () => {
+    const layout = computeWipeLayout([unit([0], [0])], 1)
+    expect(unitWipePct(5, 0, layout)).toBe(0)
   })
 })
