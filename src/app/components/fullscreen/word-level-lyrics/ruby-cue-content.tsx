@@ -1,38 +1,80 @@
 import clsx from 'clsx'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { type RenderUnit, rubyUnitKey, rubyUnitTestId } from '@/types/furigana'
 import type { NormalizedCueLine } from '@/utils/wordTiming'
 
 const SECONDARY_AGENT_HUE_ROTATIONS = [180, 90, 270, 45, 135, 225, 315] as const
 
-function rubyContent(unit: RenderUnit): ReactNode {
-  if (!unit.kana) return unit.kanjiText
+// Furigana overlay cells for one kanji unit. Rendered ABOVE the flat .ruby-base
+// copy in a separate absolutely-positioned layer, so the reading never widens
+// the base (kanji stay flush) and the base glyphs are never duplicated.
+//
+// Each reading carries two static CSS vars consumed by the karaoke wipe:
+//   --seg-start  this kanji's char offset as a % of the unit's width
+//   --seg-span   this kanji's char width as a fraction of the unit's width
+// The unit-level --fill (written per frame) plus these derive a per-reading
+// --local-fill in CSS, so every reading wipes in lockstep with the kanji below.
+function renderFuriCells(unit: RenderUnit): ReactNode {
+  const text = unit.kanjiText
+  const total = text.length
 
+  // Jukujikun (non-splittable): one reading floated over the whole group.
   if (!unit.perKanji || unit.perKanji.length === 0) {
     return (
-      <ruby>
-        {unit.kanjiText}
-        <rt>{unit.kana}</rt>
-      </ruby>
+      <span className="ruby-furi-cell">
+        <span className="ruby-furi-spacer">{text}</span>
+        <span
+          className="ruby-furi-rt"
+          style={{ '--seg-start': '0%', '--seg-span': '1' } as CSSProperties}
+        >
+          {unit.kana}
+        </span>
+      </span>
     )
   }
 
-  const parts: ReactNode[] = []
+  const cells: ReactNode[] = []
   let local = 0
   unit.perKanji.forEach((pk, idx) => {
     const start = pk.charStart - unit.charStart
     const end = pk.charEnd - unit.charStart
-    if (start > local) parts.push(unit.kanjiText.slice(local, start))
-    parts.push(
-      <ruby key={idx}>
-        {unit.kanjiText.slice(start, end + 1)}
-        <rt>{pk.kana}</rt>
-      </ruby>,
+    // Okurigana / non-kanji gap: a hidden spacer keeps the overlay aligned with
+    // the base but carries no reading.
+    if (start > local) {
+      cells.push(
+        <span key={`gap-${idx}`} className="ruby-furi-gap">
+          {text.slice(local, start)}
+        </span>,
+      )
+    }
+    const segStart = (start / total) * 100
+    const segSpan = (end + 1 - start) / total
+    cells.push(
+      <span key={idx} className="ruby-furi-cell">
+        <span className="ruby-furi-spacer">{text.slice(start, end + 1)}</span>
+        <span
+          className="ruby-furi-rt"
+          style={
+            {
+              '--seg-start': `${segStart}%`,
+              '--seg-span': `${segSpan}`,
+            } as CSSProperties
+          }
+        >
+          {pk.kana}
+        </span>
+      </span>,
     )
     local = end + 1
   })
-  if (local < unit.kanjiText.length) parts.push(unit.kanjiText.slice(local))
-  return parts
+  if (local < total) {
+    cells.push(
+      <span key="gap-tail" className="ruby-furi-gap">
+        {text.slice(local)}
+      </span>,
+    )
+  }
+  return cells
 }
 
 export interface RubyCueContentProps {
@@ -131,16 +173,14 @@ export function RubyCueContent({
             tabIndex={isWhitespaceOnly ? -1 : 0}
           >
             {unit.kana ? (
-              <span className="ruby-unit-wrapper">
-                <span className="ruby-unit-base">{rubyContent(unit)}</span>
-                {unitState === 'active' && (
-                  <span className="ruby-unit-fill" aria-hidden="true">
-                    {rubyContent(unit)}
-                  </span>
-                )}
+              <span className="ruby-unit">
+                <span className="ruby-base">{unit.kanjiText}</span>
+                <span className="ruby-furi" aria-hidden="true">
+                  {renderFuriCells(unit)}
+                </span>
               </span>
             ) : (
-              rubyContent(unit)
+              unit.kanjiText
             )}
           </span>
         )

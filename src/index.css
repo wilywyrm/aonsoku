@@ -374,83 +374,117 @@ svg#bars .eq-bar--4 {
 }
 
 /*
- * ─── Furigana two-layer karaoke wipe ──────────────────────────────────────
- * background-clip:text (used by .karaoke-fill above) does NOT reliably clip
- * <rt> annotation glyphs across Chromium versions, so ruby cues wipe via two
- * stacked <ruby> layers instead: a base layer painted in `currentColor`
- * (unsung / past) and an absolutely-positioned fill layer painted in
- * `hsl(var(--primary))` (sung) that a mask reveals only up to --fill.
+ * ─── Furigana single-copy karaoke wipe ────────────────────────────────────
+ * Native <ruby> is avoided entirely because it breaks BOTH goals: (1)
+ * background-clip:text does NOT reliably clip across a ruby box's positioned
+ * children on Chromium, and (2) a <ruby> box widens to its widest child, so a
+ * wide reading spreads the kanji apart. Instead each kanji unit renders ONE
+ * visible copy of its base glyphs as a flat, continuous run (.ruby-base) that
+ * carries the wipe via background-clip:text, plus a separate absolutely-
+ * positioned overlay (.ruby-furi) that floats the reading above each kanji
+ * WITHOUT affecting the base width — so kanji stay flush and never ghost.
  *
- * The colors mirror .karaoke-fill exactly — hsl(var(--primary)) for the sung
- * portion, currentColor for the unsung portion — so ruby and non-ruby words
- * read identically. --fill is a PERCENTAGE (the unit's char-proportion progress
- * written by handleTick), so the mask feather mirrors .karaoke-fill's ±3%.
+ * Both layers share ONE wipe front: --fill (a percentage written per frame by
+ * handleTick onto the unit span) inherits into .ruby-base, and each reading
+ * derives its own --local-fill from --fill plus two static per-segment vars
+ * (--seg-start, --seg-span). Gradients mirror .karaoke-fill exactly
+ * (hsl(var(--primary)) sung, currentColor unsung, ±3% feather); only the active
+ * unit paints the gradient, so past/future units stay currentColor.
  */
-.ruby-unit-wrapper {
+.ruby-unit {
+  position: relative;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.ruby-base {
+  color: currentColor;
+}
+
+.ruby-furi {
+  position: absolute;
+  inset: 0;
+  white-space: nowrap;
+}
+
+/*
+ * Transparent spacers reproduce the base glyph layout so each reading centers
+ * over its own kanji without pixel measurement. visibility:hidden preserves
+ * their width but drops them from paint AND hit-testing, so a click over a
+ * kanji falls through to the .ruby-base glyph beneath and bubbles to the unit
+ * span's onWordClick.
+ */
+.ruby-furi-gap,
+.ruby-furi-spacer {
+  visibility: hidden;
+}
+
+.ruby-furi-cell {
   position: relative;
   display: inline-block;
 }
 
-.ruby-unit-base {
+.ruby-furi-rt {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.5em;
+  font-weight: normal; /* override font-semibold on the active cue */
+  line-height: normal; /* decouple annotation height from the <p> reservation below */
   color: currentColor;
 }
 
+/* Active unit only: base + each reading wipe left→right on the shared front. */
+[data-state='active'] .ruby-base {
+  background-image: linear-gradient(
+    90deg,
+    hsl(var(--primary)) 0%,
+    hsl(var(--primary)) calc(var(--fill, 0%) - 3%),
+    currentColor calc(var(--fill, 0%) + 3%),
+    currentColor 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
 /*
- * Fill layer: absolutely stacked on top, painted in hsl(var(--primary)) and
- * revealed by the mask only from 0 → --fill (with a 3px feather each side).
- * aria-hidden is set on this element in the DOM (task 13). pointer-events:none
- * lets clicks fall through to the base layer so onWordClick keeps working.
+ * Per-reading fill: remap the unit's --fill into this segment's local 0–100%
+ * range so the reading wipes exactly as the shared front crosses its kanji.
+ *   local = (fill − seg-start) / seg-span, clamped to [0%, 100%]
+ * (seg-span is a unitless fraction, so %/number = % is valid calc.)
  */
-.ruby-unit-fill {
-  position: absolute;
-  inset: 0;
-  color: hsl(var(--primary));
-  -webkit-mask-image: linear-gradient(
-    90deg,
-    #000 0,
-    #000 calc(var(--fill, 0%) - 3%),
-    transparent calc(var(--fill, 0%) + 3%),
-    transparent 100%
+[data-state='active'] .ruby-furi-rt {
+  --local-fill: clamp(
+    0%,
+    calc((var(--fill, 0%) - var(--seg-start, 0%)) / var(--seg-span, 1)),
+    100%
   );
-  mask-image: linear-gradient(
+  background-image: linear-gradient(
     90deg,
-    #000 0,
-    #000 calc(var(--fill, 0%) - 3%),
-    transparent calc(var(--fill, 0%) + 3%),
-    transparent 100%
+    hsl(var(--primary)) 0%,
+    hsl(var(--primary)) calc(var(--local-fill) - 3%),
+    currentColor calc(var(--local-fill) + 3%),
+    currentColor 100%
   );
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-  pointer-events: none;
-}
-
-/* ─── Ruby / furigana typography ─────────────────────────────────────────── */
-ruby {
-  ruby-position: over;
-  ruby-align: center;
-}
-
-rt {
-  font-size: 0.5em;
-  font-weight: normal; /* override font-semibold on the active cue */
-  ruby-overhang: none; /* keep <rt> from overflowing adjacent non-ruby words */
-  line-height: normal; /* decouple annotation height from the <p> reservation below */
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 /*
- * Reserve the <rt> annotation line-height on EVERY word-level cue <p>, even
- * kanji-less ones, so progressive furigana injection (task 15) never changes a
- * line's height and triggers reflow. Scoped to the word-sync scroll container's
- * data-testid — NOT `.lrc-box`, which line-level lyrics (lyrics.tsx) also use
- * and must keep their tighter spacing.
+ * Reserve the furigana line-height on EVERY word-level cue <p>, even kanji-less
+ * ones, so progressive furigana injection never changes a line's height and
+ * triggers reflow. Scoped to the word-sync scroll container's data-testid —
+ * NOT `.lrc-box`, which line-level lyrics (lyrics.tsx) also use and must keep
+ * their tighter spacing.
  */
 [data-testid="word-sync-lyrics-box"] p {
   /*
-   * Reserve room for the <rt> annotation (~0.5em above the base) while keeping
-   * rows tight: 1.5em ≈ base line + rt. The per-line my-5 margin supplies the
-   * clearance that stops a row's ruby from touching the row above.
+   * Reserve room for the .ruby-furi reading (~0.5em above the base) while
+   * keeping rows tight: 1.5em ≈ base line + reading. The per-line my-5 margin
+   * supplies the clearance that stops a row's furigana touching the row above.
    */
   line-height: 1.5em;
 }
