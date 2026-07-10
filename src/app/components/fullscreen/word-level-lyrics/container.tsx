@@ -10,6 +10,7 @@ import {
   createSongAnalyzer,
   type LineModelMap,
 } from '@/service/furigana/analyzeSong'
+import { mergeCollidingUnits } from '@/service/furigana/grouping'
 import { reconcile } from '@/service/furigana/reconcile'
 import {
   computeWipeLayout,
@@ -157,7 +158,10 @@ export function WordLevelLyricsContainer({
         const model = rubyModels.get(cueLine.value)
         if (!model) continue
         const key = `${i}|${cueLine.key}`
-        const u = reconcile(model, cueLine.cues, cueLine.value)
+        // Merge adjacent kanji units whose readings would overhang into each
+        // other (e.g. 心構えても → 心 + 構え split across cues) so the shared
+        // wipe layout and the render agree on one group-ruby unit.
+        const u = mergeCollidingUnits(reconcile(model, cueLine.cues, cueLine.value))
         units.set(key, u)
         // Precompute the shared-front char layout once per cueLine, not per frame.
         layouts.set(key, computeWipeLayout(u, cueLine.cues.length))

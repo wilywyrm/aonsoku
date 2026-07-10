@@ -1,61 +1,10 @@
 import clsx from 'clsx'
 import type { CSSProperties, ReactNode } from 'react'
+import { groupReadings } from '@/service/furigana/grouping'
 import { type RenderUnit, rubyUnitKey, rubyUnitTestId } from '@/types/furigana'
 import type { NormalizedCueLine } from '@/utils/wordTiming'
 
 const SECONDARY_AGENT_HUE_ROTATIONS = [180, 90, 270, 45, 135, 225, 315] as const
-
-// Furigana annotation size as a fraction of the base glyph (MUST match
-// .ruby-furi-rt font-size in index.css). CJK base glyphs are full-width (1em)
-// and each kana reading char is RT_EM em, so a reading's natural width is
-// kana.length * RT_EM em — the basis for the collision test below.
-const RT_EM = 0.5
-
-// Minimum horizontal gap (em) kept between two adjacent readings; if their
-// natural widths would leave less than this, they are merged into one group.
-const READING_GAP_EM = 0.1
-
-interface ReadingGroup {
-  start: number // unit-local char index of the group's first kanji
-  end: number // unit-local char index of the group's last kanji (inclusive)
-  kana: string // combined reading, centred over the whole group
-}
-
-// A reading is centred over its kanji span and may overhang it. Two adjacent
-// readings collide when the earlier one's right edge (plus a small gap) passes
-// the next one's left edge. All quantities are em (1 em per base char).
-function readingsCollide(a: ReadingGroup, b: ReadingGroup): boolean {
-  const spanCentre = (g: ReadingGroup) => (g.start + g.end + 1) / 2
-  const half = (g: ReadingGroup) => (g.kana.length * RT_EM) / 2
-  return spanCentre(a) + half(a) + READING_GAP_EM > spanCentre(b) - half(b)
-}
-
-// Per-kanji readings, but any run of adjacent readings that would overhang into
-// each other is merged so the combined reading centres over the whole kanji
-// group (group-ruby) instead of overlapping. Kanji never move (flush); only the
-// reading grouping changes. Merging is transitive: a widened group is re-tested
-// against the next reading.
-function groupReadings(
-  perKanji: NonNullable<RenderUnit['perKanji']>,
-  unitStart: number,
-): ReadingGroup[] {
-  const groups: ReadingGroup[] = []
-  for (const pk of perKanji) {
-    const next: ReadingGroup = {
-      start: pk.charStart - unitStart,
-      end: pk.charEnd - unitStart,
-      kana: pk.kana,
-    }
-    const prev = groups[groups.length - 1]
-    if (prev && readingsCollide(prev, next)) {
-      prev.end = next.end
-      prev.kana += next.kana
-    } else {
-      groups.push(next)
-    }
-  }
-  return groups
-}
 
 // --seg-start/--seg-span position a reading's wipe within the unit's shared
 // --fill front (index.css remaps them into a per-reading --local-fill).
