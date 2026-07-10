@@ -374,103 +374,98 @@ svg#bars .eq-bar--4 {
 }
 
 /*
- * ─── Furigana single-copy karaoke wipe ────────────────────────────────────
- * Native <ruby> is avoided entirely because it breaks BOTH goals: (1)
- * background-clip:text does NOT reliably clip across a ruby box's positioned
- * children on Chromium, and (2) a <ruby> box widens to its widest child, so a
- * wide reading spreads the kanji apart. Instead each kanji unit renders ONE
- * visible copy of its base glyphs as a flat, continuous run (.ruby-base) that
- * carries the wipe via background-clip:text, plus a separate absolutely-
- * positioned overlay (.ruby-furi) that floats the reading above each kanji
- * WITHOUT affecting the base width — so kanji stay flush and never ghost.
+ * ─── Furigana two-layer karaoke wipe ──────────────────────────────────────
+ * Ruby cues wipe via two stacked native <ruby> layers (kanji + <rt> reading):
+ * a base layer painted currentColor (unsung) and an absolutely-stacked fill
+ * layer painted hsl(var(--primary)) (sung). Native <ruby> keeps the kanji
+ * spacing correct with NO width scaling. background-clip:text is not used (it
+ * does not reliably clip <rt> across Chromium); instead each layer is revealed
+ * by a horizontal mask keyed to --fill (the unit's char-proportion progress,
+ * written per frame by handleTick onto the unit span). One mask front crosses
+ * the kanji and its reading together, so the reading always wipes in lockstep
+ * with the kanji beneath it.
  *
- * Both layers share ONE wipe front: --fill (a percentage written per frame by
- * handleTick onto the unit span) inherits into .ruby-base, and each reading
- * derives its own --local-fill from --fill plus two static per-segment vars
- * (--seg-start, --seg-span). Gradients mirror .karaoke-fill exactly
- * (hsl(var(--primary)) sung, currentColor unsung, ±3% feather); only the active
- * unit paints the gradient, so past/future units stay currentColor.
+ * The two masks are COMPLEMENTARY: the fill shows the sung side (0 → --fill),
+ * the base shows the unsung side (--fill → 100%). Every pixel therefore paints
+ * exactly ONE glyph set (the ±3% feathers sum to full coverage), so the stacked
+ * layers never overlap — which is what produced the earlier ghosting. The base
+ * is masked only while active; past/future units show it in full.
  */
-.ruby-unit {
+.ruby-unit-wrapper {
   position: relative;
   display: inline-block;
-  white-space: nowrap;
 }
 
-.ruby-base {
+.ruby-unit-base {
   color: currentColor;
 }
 
-.ruby-furi {
+/*
+ * Active base: hidden on the sung side by the INVERSE of the fill mask, so left
+ * of the wipe front only the primary-coloured fill glyph is painted (no ghost).
+ */
+[data-state='active'] .ruby-unit-base {
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    transparent calc(var(--fill, 0%) - 3%),
+    #000 calc(var(--fill, 0%) + 3%),
+    #000 100%
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    transparent calc(var(--fill, 0%) - 3%),
+    #000 calc(var(--fill, 0%) + 3%),
+    #000 100%
+  );
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+
+/*
+ * Fill layer: stacked on top, painted hsl(var(--primary)), revealed by the mask
+ * only from 0 → --fill (±3% feather). pointer-events:none lets clicks fall
+ * through to the base so onWordClick keeps working.
+ */
+.ruby-unit-fill {
   position: absolute;
   inset: 0;
-  white-space: nowrap;
+  color: hsl(var(--primary));
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    #000 0,
+    #000 calc(var(--fill, 0%) - 3%),
+    transparent calc(var(--fill, 0%) + 3%),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    90deg,
+    #000 0,
+    #000 calc(var(--fill, 0%) - 3%),
+    transparent calc(var(--fill, 0%) + 3%),
+    transparent 100%
+  );
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  pointer-events: none;
 }
 
-/*
- * Transparent spacers reproduce the base glyph layout so each reading centers
- * over its own kanji without pixel measurement. visibility:hidden preserves
- * their width but drops them from paint AND hit-testing, so a click over a
- * kanji falls through to the .ruby-base glyph beneath and bubbles to the unit
- * span's onWordClick.
- */
-.ruby-furi-gap,
-.ruby-furi-spacer {
-  visibility: hidden;
+/* ─── Ruby / furigana typography ─────────────────────────────────────────── */
+ruby {
+  ruby-position: over;
+  ruby-align: center;
 }
 
-.ruby-furi-cell {
-  position: relative;
-  display: inline-block;
-}
-
-.ruby-furi-rt {
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
+rt {
   font-size: 0.5em;
   font-weight: normal; /* override font-semibold on the active cue */
+  ruby-overhang: none; /* keep <rt> from overflowing adjacent non-ruby words */
   line-height: normal; /* decouple annotation height from the <p> reservation below */
-  color: currentColor;
-}
-
-/* Active unit only: base + each reading wipe left→right on the shared front. */
-[data-state='active'] .ruby-base {
-  background-image: linear-gradient(
-    90deg,
-    hsl(var(--primary)) 0%,
-    hsl(var(--primary)) calc(var(--fill, 0%) - 3%),
-    currentColor calc(var(--fill, 0%) + 3%),
-    currentColor 100%
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-/*
- * Per-reading fill: remap the unit's --fill into this segment's local 0–100%
- * range so the reading wipes exactly as the shared front crosses its kanji.
- *   local = (fill − seg-start) / seg-span, clamped to [0%, 100%]
- * (seg-span is a unitless fraction, so %/number = % is valid calc.)
- */
-[data-state='active'] .ruby-furi-rt {
-  --local-fill: clamp(
-    0%,
-    calc((var(--fill, 0%) - var(--seg-start, 0%)) / var(--seg-span, 1)),
-    100%
-  );
-  background-image: linear-gradient(
-    90deg,
-    hsl(var(--primary)) 0%,
-    hsl(var(--primary)) calc(var(--local-fill) - 3%),
-    currentColor calc(var(--local-fill) + 3%),
-    currentColor 100%
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
 }
 
 /*
