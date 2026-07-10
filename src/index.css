@@ -374,98 +374,117 @@ svg#bars .eq-bar--4 {
 }
 
 /*
- * ─── Furigana two-layer karaoke wipe ──────────────────────────────────────
- * Ruby cues wipe via two stacked native <ruby> layers (kanji + <rt> reading):
- * a base layer painted currentColor (unsung) and an absolutely-stacked fill
- * layer painted hsl(var(--primary)) (sung). Native <ruby> keeps the kanji
- * spacing correct with NO width scaling. background-clip:text is not used (it
- * does not reliably clip <rt> across Chromium); instead each layer is revealed
- * by a horizontal mask keyed to --fill (the unit's char-proportion progress,
- * written per frame by handleTick onto the unit span). One mask front crosses
- * the kanji and its reading together, so the reading always wipes in lockstep
- * with the kanji beneath it.
+ * ─── Furigana single-copy karaoke wipe ────────────────────────────────────
+ * Each kanji unit renders ONE visible copy of its base glyphs as a flat,
+ * continuous run (.ruby-base) plus a separate absolutely-positioned overlay
+ * (.ruby-furi) that floats the readings above. The base alone establishes the
+ * unit's width, so a reading OVERHANGS without widening it — kanji stay flush.
+ * Only one glyph set is painted per pixel, so there is no ghosting. (Adjacent
+ * readings that would overhang into each other are merged upstream in
+ * ruby-cue-content.tsx into one reading centred over the kanji group.)
  *
- * The two masks are COMPLEMENTARY: the fill shows the sung side (0 → --fill),
- * the base shows the unsung side (--fill → 100%). Every pixel therefore paints
- * exactly ONE glyph set (the ±3% feathers sum to full coverage), so the stacked
- * layers never overlap — which is what produced the earlier ghosting. The base
- * is masked only while active; past/future units show it in full.
+ * The wipe: --fill (a percentage written per frame by handleTick onto the unit
+ * span) inherits into .ruby-base, and each reading remaps it into its own
+ * segment via --local-fill (from static --seg-start/--seg-span), so a reading
+ * wipes in lockstep with the kanji beneath it. background-clip:text stays ON in
+ * every state (solid currentColor when not active, the --fill split when
+ * active) so the active↔past switch never re-rasterises the glyph box (which
+ * otherwise snaps when the line's scale-125 transition ends).
  */
-.ruby-unit-wrapper {
+.ruby-unit {
   position: relative;
   display: inline-block;
+  white-space: nowrap;
 }
 
-.ruby-unit-base {
+.ruby-base {
   color: currentColor;
+  background-image: linear-gradient(90deg, currentColor 0%, currentColor 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 /*
- * Active base: hidden on the sung side by the INVERSE of the fill mask, so left
- * of the wipe front only the primary-coloured fill glyph is painted (no ghost).
+ * line-height:1 makes the overlay boxes exactly glyph-height so the reading's
+ * vertical anchor is deterministic, not a percentage of the inherited 1.5em row
+ * reservation (which differs between states and snapped on fade).
  */
-[data-state='active'] .ruby-unit-base {
-  -webkit-mask-image: linear-gradient(
-    90deg,
-    transparent 0,
-    transparent calc(var(--fill, 0%) - 3%),
-    #000 calc(var(--fill, 0%) + 3%),
-    #000 100%
-  );
-  mask-image: linear-gradient(
-    90deg,
-    transparent 0,
-    transparent calc(var(--fill, 0%) - 3%),
-    #000 calc(var(--fill, 0%) + 3%),
-    #000 100%
-  );
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-}
-
-/*
- * Fill layer: stacked on top, painted hsl(var(--primary)), revealed by the mask
- * only from 0 → --fill (±3% feather). pointer-events:none lets clicks fall
- * through to the base so onWordClick keeps working.
- */
-.ruby-unit-fill {
+.ruby-furi {
   position: absolute;
   inset: 0;
-  color: hsl(var(--primary));
-  -webkit-mask-image: linear-gradient(
-    90deg,
-    #000 0,
-    #000 calc(var(--fill, 0%) - 3%),
-    transparent calc(var(--fill, 0%) + 3%),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    90deg,
-    #000 0,
-    #000 calc(var(--fill, 0%) - 3%),
-    transparent calc(var(--fill, 0%) + 3%),
-    transparent 100%
-  );
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-  pointer-events: none;
+  line-height: 1;
+  white-space: nowrap;
 }
 
-/* ─── Ruby / furigana typography ─────────────────────────────────────────── */
-ruby {
-  ruby-position: over;
-  ruby-align: center;
+/*
+ * Transparent spacers reproduce the base glyph layout so each reading centres
+ * over its own kanji without pixel measurement. visibility:hidden keeps their
+ * width but drops them from paint AND hit-testing, so a click over a kanji falls
+ * through to the .ruby-base glyph beneath and bubbles to the unit's onWordClick.
+ */
+.ruby-furi-gap,
+.ruby-furi-spacer {
+  visibility: hidden;
 }
 
-rt {
+.ruby-furi-cell {
+  position: relative;
+  display: inline-block;
+  line-height: 1;
+}
+
+/*
+ * The reading, floated (out of flow) above its kanji cell so it can overhang
+ * without spreading the base. --furi-offset (fixed em) is the single vertical
+ * knob; translate's -50% centres the reading on its kanji group.
+ */
+.ruby-furi-rt {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translate(-50%, var(--furi-offset, 0.15em));
   font-size: 0.5em;
-  font-weight: normal; /* override font-semibold on the active cue */
-  ruby-overhang: none; /* keep <rt> from overflowing adjacent non-ruby words */
-  line-height: normal; /* decouple annotation height from the <p> reservation below */
+  font-weight: normal;
+  line-height: 1;
+  white-space: nowrap;
+  color: currentColor;
+  background-image: linear-gradient(90deg, currentColor 0%, currentColor 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Active unit only: base wipes left→right on the shared --fill front. */
+[data-state='active'] .ruby-base {
+  background-image: linear-gradient(
+    90deg,
+    hsl(var(--primary)) 0%,
+    hsl(var(--primary)) calc(var(--fill, 0%) - 3%),
+    currentColor calc(var(--fill, 0%) + 3%),
+    currentColor 100%
+  );
+}
+
+/*
+ * Per-reading fill: remap the unit's --fill into this reading's local 0–100%
+ * range so it wipes as the shared front crosses its kanji group.
+ *   local = (fill − seg-start) / seg-span, clamped to [0%, 100%]
+ * (seg-span is a unitless fraction, so %/number = % is valid calc.)
+ */
+[data-state='active'] .ruby-furi-rt {
+  --local-fill: clamp(
+    0%,
+    calc((var(--fill, 0%) - var(--seg-start, 0%)) / var(--seg-span, 1)),
+    100%
+  );
+  background-image: linear-gradient(
+    90deg,
+    hsl(var(--primary)) 0%,
+    hsl(var(--primary)) calc(var(--local-fill) - 3%),
+    currentColor calc(var(--local-fill) + 3%),
+    currentColor 100%
+  );
 }
 
 /*
