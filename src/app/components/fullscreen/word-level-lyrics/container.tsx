@@ -1,5 +1,12 @@
 import { get as idbGet, set as idbSet } from 'idb-keyval'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { isSafari } from 'react-device-detect'
 import { type RafTickInfo, useRafActiveCue } from '@/hooks/use-raf-active-cue'
 import { useWordSeek } from '@/hooks/use-word-seek'
@@ -390,6 +397,49 @@ export function WordLevelLyricsContainer({
         ? (breakContainerRefs.current.get(activeBreakInfo.breakKey) ?? null)
         : null,
   )
+
+  // Preserve the viewport-centred line across a furigana toggle: toggling ruby
+  // on/off changes line heights, so without this the lyrics jump. Capture the
+  // centred line while the OLD layout is still committed (rubyModels swaps a
+  // render later in the analysis effect above), then restore it once the new
+  // layout lands.
+  const centredLineRef = useRef(-1)
+  const furiganaRestorePendingRef = useRef(false)
+  const prevFuriganaRef = useRef(furigana)
+  useLayoutEffect(() => {
+    if (prevFuriganaRef.current === furigana) return
+    prevFuriganaRef.current = furigana
+    if (!isJapaneseLang(normalized.lang)) return
+    const scrollEl = scrollContainerRef.current
+    if (!scrollEl) return
+    const centreY =
+      scrollEl.getBoundingClientRect().top + scrollEl.clientHeight / 2
+    let best = -1
+    let bestDist = Number.POSITIVE_INFINITY
+    lineRefs.current.forEach((el, idx) => {
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      const dist = Math.abs(rect.top + rect.height / 2 - centreY)
+      if (dist < bestDist) {
+        bestDist = dist
+        best = idx
+      }
+    })
+    centredLineRef.current = best
+    furiganaRestorePendingRef.current = true
+  }, [furigana, normalized.lang])
+  // biome-ignore lint/correctness/useExhaustiveDependencies: rubyUnitsByLineCue is the layout-swap trigger; the restore reads only stable refs
+  useLayoutEffect(() => {
+    if (!furiganaRestorePendingRef.current) return
+    furiganaRestorePendingRef.current = false
+    const el = lineRefs.current[centredLineRef.current]
+    if (!el) return
+    programmaticScrollRef.current = true
+    el.scrollIntoView({ block: 'center', behavior: 'auto' })
+    requestAnimationFrame(() => {
+      programmaticScrollRef.current = false
+    })
+  }, [rubyUnitsByLineCue])
 
   // Defensive: should never be mounted without word timing, but bail out safely.
   if (!normalized.hasWordTiming) return null

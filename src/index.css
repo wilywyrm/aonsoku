@@ -472,8 +472,16 @@ svg#bars .eq-bar--4 {
   -webkit-text-fill-color: transparent;
 }
 
-/* Active unit only: base wipes left→right on the shared --fill front. */
-[data-state='active'] .ruby-base {
+/*
+ * Active unit only: base wipes left→right on the shared --fill front. The
+ * `> .ruby-unit >` child chain is REQUIRED, not cosmetic: data-state='active'
+ * also sits on ancestor Radix wrappers (the Lyrics TabsContent), so a plain
+ * descendant selector would paint EVERY unit — including past ones (whose stale
+ * --fill sits at 100%) — in the primary wipe colour instead of letting them
+ * fade. Anchoring to the unit's own outer span (the direct parent of
+ * .ruby-unit) matches only the truly-active unit.
+ */
+[data-state='active'] > .ruby-unit > .ruby-base {
   background-image: linear-gradient(
     90deg,
     hsl(var(--primary)) 0%,
@@ -489,7 +497,7 @@ svg#bars .eq-bar--4 {
  *   local = (fill − seg-start) / seg-span, clamped to [0%, 100%]
  * (seg-span is a unitless fraction, so %/number = % is valid calc.)
  */
-[data-state='active'] .ruby-furi-rt {
+[data-state='active'] > .ruby-unit .ruby-furi-rt {
   --local-fill: clamp(
     0%,
     calc((var(--fill, 0%) - var(--seg-start, 0%)) / var(--seg-span, 1)),

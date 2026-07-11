@@ -63,6 +63,7 @@ export function QueueSettings() {
         <div className="flex flex-col">
           <QueueDynamicColorOption showSeparator={false} />
           {useSongColorOnQueue && <ColorIntensityOption />}
+          <FuriganaOption />
         </div>
       </PopoverContent>
     </Popover>
