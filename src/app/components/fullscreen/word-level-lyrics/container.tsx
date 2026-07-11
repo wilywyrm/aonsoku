@@ -435,7 +435,11 @@ export function WordLevelLyricsContainer({
     const el = lineRefs.current[centredLineRef.current]
     if (!el) return
     programmaticScrollRef.current = true
-    el.scrollIntoView({ block: 'center', behavior: 'auto' })
+    // 'instant' (NOT 'auto') so the re-centre bypasses the container's
+    // scroll-smooth behaviour: the correction lands synchronously in this layout
+    // effect, before paint, so the new line heights render already centred with
+    // no visible scroll animation or jump.
+    el.scrollIntoView({ block: 'center', behavior: 'instant' })
     requestAnimationFrame(() => {
       programmaticScrollRef.current = false
     })
