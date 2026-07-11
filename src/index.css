@@ -391,10 +391,20 @@ svg#bars .eq-bar--4 {
  * active) so the active↔past switch never re-rasterises the glyph box (which
  * otherwise snaps when the line's scale-125 transition ends).
  */
+/*
+ * Reserve the furigana's height ABOVE the base IN FLOW: padding-top grows the
+ * inline-block's HEIGHT (not its width), so a line box that contains ruby
+ * expands to include the furigana and a wrapped line can't overlap the line
+ * above; horizontal overhang still works because the reading stays absolute.
+ * line-height:1 pins the base to one glyph so the padding is the only space
+ * above it; the base still baseline-aligns with surrounding bare text.
+ */
 .ruby-unit {
   position: relative;
   display: inline-block;
   white-space: nowrap;
+  line-height: 1;
+  padding-top: var(--furi-reserve, 0.75em);
 }
 
 .ruby-base {
@@ -406,13 +416,18 @@ svg#bars .eq-bar--4 {
 }
 
 /*
- * line-height:1 makes the overlay boxes exactly glyph-height so the reading's
- * vertical anchor is deterministic, not a percentage of the inherited 1.5em row
- * reservation (which differs between states and snapped on fade).
+ * The overlay covers only the BASE area (offset down from the unit top by the
+ * reserved padding, to the unit bottom); each reading is then pushed UP into the
+ * reserved padding by bottom:100%, so it lands inside the unit box (reserved) yet
+ * still overhangs horizontally. line-height:1 keeps cell boxes glyph-height so
+ * the reading anchor is deterministic.
  */
 .ruby-furi {
   position: absolute;
-  inset: 0;
+  top: var(--furi-reserve, 0.75em);
+  left: 0;
+  right: 0;
+  bottom: 0;
   line-height: 1;
   white-space: nowrap;
 }
@@ -435,15 +450,17 @@ svg#bars .eq-bar--4 {
 }
 
 /*
- * The reading, floated (out of flow) above its kanji cell so it can overhang
- * without spreading the base. --furi-offset (fixed em) is the single vertical
- * knob; translate's -50% centres the reading on its kanji group.
+ * The reading, floated above its kanji cell (out of horizontal flow so it can
+ * overhang without spreading the base). bottom:100% seats it just above the base
+ * top, inside the reserved padding; --furi-offset tunes the vertical gap
+ * (negative = up/looser, positive = down/tighter) and -50% centres it on its
+ * kanji group.
  */
 .ruby-furi-rt {
   position: absolute;
   bottom: 100%;
   left: 50%;
-  transform: translate(-50%, var(--furi-offset, 0.15em));
+  transform: translate(-50%, var(--furi-offset, -0.05em));
   font-size: 0.5em;
   font-weight: normal;
   line-height: 1;
@@ -488,18 +505,14 @@ svg#bars .eq-bar--4 {
 }
 
 /*
- * Reserve the furigana line-height on EVERY word-level cue <p>, even kanji-less
- * ones, so progressive furigana injection never changes a line's height and
- * triggers reflow. Scoped to the word-sync scroll container's data-testid —
- * NOT `.lrc-box`, which line-level lyrics (lyrics.tsx) also use and must keep
- * their tighter spacing.
+ * Floor line-height for word-level cue <p>s. Ruby units now reserve their own
+ * furigana height (see .ruby-unit padding-top), so this only sets a minimum for
+ * kanji-less rows and keeps every row's baseline stable during progressive
+ * furigana injection (no reflow). Scoped to the word-sync scroll container's
+ * data-testid — NOT `.lrc-box`, which line-level lyrics (lyrics.tsx) also use
+ * and must keep their tighter spacing.
  */
 [data-testid="word-sync-lyrics-box"] p {
-  /*
-   * Reserve room for the .ruby-furi reading (~0.5em above the base) while
-   * keeping rows tight: 1.5em ≈ base line + reading. The per-line my-5 margin
-   * supplies the clearance that stops a row's furigana touching the row above.
-   */
   line-height: 1.5em;
 }
 
