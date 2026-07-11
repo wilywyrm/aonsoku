@@ -5,7 +5,7 @@ import { type RafTickInfo, useRafActiveCue } from '@/hooks/use-raf-active-cue'
 import { useWordSeek } from '@/hooks/use-word-seek'
 import { useAppStore } from '@/store/app.store'
 import { useLang } from '@/store/lang.store'
-import { usePlayerRef } from '@/store/player.store'
+import { useLyricsSettings, usePlayerRef } from '@/store/player.store'
 import {
   createSongAnalyzer,
   type LineModelMap,
@@ -94,6 +94,7 @@ export function WordLevelLyricsContainer({
   )
 
   const { langCode } = useLang()
+  const { furigana } = useLyricsSettings()
   const resolvedLang = useMemo(
     () => resolveLyricsLang(normalized.lang, langCode),
     [normalized.lang, langCode],
@@ -120,15 +121,23 @@ export function WordLevelLyricsContainer({
   >(() => new Map())
 
   useEffect(() => {
-    if (!isJapaneseLang(normalized.lang)) {
+    if (!isJapaneseLang(normalized.lang) || !furigana) {
       setRubyModels(new Map())
       return
     }
-    setRubyModels(new Map())
     const lineValues: string[] = []
     for (const line of normalized.lines) {
       for (const cueLine of line.cueLines) lineValues.push(cueLine.value)
     }
+    // Seed models the analyzer already cached: it caches per song and only
+    // re-notifies UNcached lines, so re-enabling furigana mid-song would leave
+    // the already-analysed lines blank without this.
+    const seeded = new Map<string, RubyLineModel>()
+    for (const value of lineValues) {
+      const model = analyzer.get(value)
+      if (model) seeded.set(value, model)
+    }
+    setRubyModels(seeded)
     const cacheKey = `${structuredLyric.displayArtist ?? ''}:${structuredLyric.displayTitle ?? ''}`
     const unsubscribe = analyzer.subscribe((lineValue, model) => {
       setRubyModels((prev) => {
@@ -145,6 +154,7 @@ export function WordLevelLyricsContainer({
     normalized,
     structuredLyric.displayArtist,
     structuredLyric.displayTitle,
+    furigana,
   ])
 
   const { rubyUnitsByLineCue, wipeLayoutsByLineCue } = useMemo(() => {

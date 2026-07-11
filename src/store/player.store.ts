@@ -138,6 +138,12 @@ export const usePlayerStore = createWithEqualityFn<IPlayerContext>()(
                   state.settings.lyrics.preferWordLevelLyrics = value
                 })
               },
+              furigana: true,
+              setFurigana: (value) => {
+                set((state) => {
+                  state.settings.lyrics.furigana = value
+                })
+              },
             },
             replayGain: {
               values: {
@@ -925,6 +931,7 @@ export const usePlayerStore = createWithEqualityFn<IPlayerContext>()(
                 state.settings.fullscreen.autoFullscreenEnabled = false
                 state.settings.lyrics.preferSyncedLyrics = false
                 state.settings.lyrics.preferWordLevelLyrics = false
+                state.settings.lyrics.furigana = true
                 state.settings.replayGain.values = {
                   enabled: false,
                   type: 'track',

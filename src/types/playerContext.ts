@@ -106,6 +106,8 @@ interface ILyrics {
   setPreferSyncedLyrics: (value: boolean) => void
   preferWordLevelLyrics: boolean
   setPreferWordLevelLyrics: (value: boolean) => void
+  furigana: boolean
+  setFurigana: (value: boolean) => void
 }
 
 interface LrcLib {

@@ -650,6 +650,9 @@
           "label": "Big Player",
           "blurSize": "Image Blur Size"
         }
+      },
+      "furigana": {
+        "label": "Furigana"
       }
     },
     "audio": {

@@ -12,7 +12,7 @@ import { Separator } from '@/app/components/ui/separator'
 import { Slider } from '@/app/components/ui/slider'
 import { Switch } from '@/app/components/ui/switch'
 import { cn } from '@/lib/utils'
-import { useSongColor } from '@/store/player.store'
+import { useLyricsSettings, useSongColor } from '@/store/player.store'
 import { buttonsStyle } from './controls'
 
 export function FullscreenSettings() {
@@ -38,6 +38,7 @@ export function FullscreenSettings() {
           <DynamicColorOption showSeparator={false} />
           {useSongColorOnBigPlayer && <ColorIntensityOption />}
           {!useSongColorOnBigPlayer && <ImageBlurSizeOption />}
+          <FuriganaOption />
         </div>
       </PopoverContent>
     </Popover>
@@ -82,6 +83,17 @@ function DynamicColorOption(props: OptionProps) {
           setUseSongColorOnBigPlayer(!useSongColorOnBigPlayer)
         }
       />
+    </SettingWrapper>
+  )
+}
+
+function FuriganaOption(props: OptionProps) {
+  const { t } = useTranslation()
+  const { furigana, setFurigana } = useLyricsSettings()
+
+  return (
+    <SettingWrapper text={t('settings.appearance.furigana.label')} {...props}>
+      <Switch checked={furigana} onCheckedChange={() => setFurigana(!furigana)} />
     </SettingWrapper>
   )
 }
