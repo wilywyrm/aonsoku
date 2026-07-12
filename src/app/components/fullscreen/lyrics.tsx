@@ -151,6 +151,20 @@ function SyncedLyrics({ lyrics, structuredLyric }: SyncedLyricsProps) {
     ReadonlyMap<string, RubyLineModel>
   >(() => new Map())
 
+  const expectedRubyLines = useMemo(() => {
+    if (!structuredLyric) return 0
+    return new Set(
+      structuredLyric.line
+        .map((l) => l.value)
+        .filter((v) => v && v.trim().length > 0),
+    ).size
+  }, [structuredLyric])
+
+  const rubyLayoutSettled =
+    furiganaActive &&
+    expectedRubyLines > 0 &&
+    rubyModels.size >= expectedRubyLines
+
   useEffect(() => {
     if (
       !structuredLyric ||
@@ -200,6 +214,10 @@ function SyncedLyrics({ lyrics, structuredLyric }: SyncedLyricsProps) {
   return (
     <div className="w-full h-full text-center font-semibold text-2xl 2xl:text-3xl px-2 lrc-box maskImage-big-player-lyrics">
       <Lrc
+        // react-lrc measures each line's offsetTop once at mount and its
+        // ResizeObserver only watches the root box, so async furigana height
+        // changes go unmeasured; remount on layout change to re-measure.
+        key={`${furiganaActive}:${rubyLayoutSettled}`}
         lrc={lyrics.value!}
         recoverAutoScrollInterval={1500}
         currentMillisecond={progress}
