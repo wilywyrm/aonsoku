@@ -32,16 +32,11 @@ import {
 } from '@/types/furigana'
 import type { IStructuredLyric } from '@/types/responses/song'
 import { normalizeStructuredLyric } from '@/utils/wordTiming'
+import { isJapaneseLang } from '@/utils/language'
 import { resolveLyricsLang } from '../lyrics'
 import { WordLevelLyricsView } from './view'
 
 const SCROLL_RECOVERY_MS = 1500
-
-function isJapaneseLang(lang?: string): boolean {
-  if (!lang) return false
-  const l = lang.toLowerCase()
-  return l === 'ja' || l === 'jpn' || l.startsWith('ja-')
-}
 
 function useScrollToElementWithRecovery(
   trigger: unknown,
