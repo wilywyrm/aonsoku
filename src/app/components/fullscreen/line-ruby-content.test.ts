@@ -26,7 +26,7 @@ describe('LineRubyContent', () => {
         createElement(LineRubyContent, { text, model }),
       )
 
-      expect(html).toContain('class="ruby-unit"')
+      expect(html).toContain('class="ruby-unit ruby-static"')
       expect(html).toContain('class="ruby-base"')
       expect(html).toContain('class="ruby-furi-rt"')
       expect(html).toContain('aria-hidden="true"')
@@ -72,7 +72,7 @@ describe('LineRubyContent', () => {
         createElement(LineRubyContent, { text, model }),
       )
 
-      expect(html).toContain('class="ruby-unit"')
+      expect(html).toContain('class="ruby-unit ruby-static"')
       expect(html).toContain('class="ruby-furi-cell"')
       expect(html).toContain('きょう')
       // Should NOT have ruby-furi-gap (no cells tiling)

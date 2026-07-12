@@ -473,6 +473,19 @@ svg#bars .eq-bar--4 {
 }
 
 /*
+ * Static ruby (line-timed lyrics, LineRubyContent): there is no karaoke wipe,
+ * so drop the background-clip:text machinery. Transparent fill + gradient
+ * paint forces grayscale antialiasing and interacts with the line's
+ * text-shadow, rendering glyphs slightly lighter than the surrounding plain
+ * text. Paint them as normal text instead.
+ */
+.ruby-static .ruby-base,
+.ruby-static .ruby-furi-rt {
+  background-image: none;
+  -webkit-text-fill-color: currentColor;
+}
+
+/*
  * Active unit only: base wipes left→right on the shared --fill front. The
  * `> .ruby-unit >` child chain is REQUIRED, not cosmetic: data-state='active'
  * also sits on ancestor Radix wrappers (the Lyrics TabsContent), so a plain
