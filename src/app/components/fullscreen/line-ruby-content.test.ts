@@ -4,6 +4,9 @@ import { describe, expect, it } from 'vitest'
 import type { RubyLineModel } from '@/types/furigana'
 import { LineRubyContent } from './line-ruby-content'
 
+// Segment/perKanji charStart/charEnd are INCLUSIVE-end (alignLine ground truth,
+// align.test.ts:61-72): a single kanji is {k, k}, a two-kanji group is {0, 1}.
+
 describe('LineRubyContent', () => {
   describe('splittable kanji segment', () => {
     it('renders ruby-unit with ruby-base and ruby-furi-rt for per-kanji cells', () => {
@@ -12,10 +15,10 @@ describe('LineRubyContent', () => {
         segments: [
           {
             charStart: 2,
-            charEnd: 3,
+            charEnd: 2,
             kana: 'なつ',
             nonSplittable: false,
-            perKanji: [{ charStart: 2, charEnd: 3, kana: 'なつ' }],
+            perKanji: [{ charStart: 2, charEnd: 2, kana: 'なつ' }],
           },
         ],
       }
@@ -37,12 +40,12 @@ describe('LineRubyContent', () => {
         segments: [
           {
             charStart: 0,
-            charEnd: 4,
+            charEnd: 3,
             kana: 'とりひき',
             nonSplittable: false,
             perKanji: [
-              { charStart: 0, charEnd: 1, kana: 'と' },
-              { charStart: 2, charEnd: 3, kana: 'ひ' },
+              { charStart: 0, charEnd: 0, kana: 'と' },
+              { charStart: 2, charEnd: 2, kana: 'ひ' },
             ],
           },
         ],
@@ -62,7 +65,7 @@ describe('LineRubyContent', () => {
       const text = '今日は晴れ'
       const model: RubyLineModel = {
         segments: [
-          { charStart: 0, charEnd: 2, kana: 'きょう', nonSplittable: true },
+          { charStart: 0, charEnd: 1, kana: 'きょう', nonSplittable: true },
         ],
       }
       const html = renderToStaticMarkup(
@@ -109,10 +112,10 @@ describe('LineRubyContent', () => {
         segments: [
           {
             charStart: 2,
-            charEnd: 3,
+            charEnd: 2,
             kana: 'なつ',
             nonSplittable: false,
-            perKanji: [{ charStart: 2, charEnd: 3, kana: 'なつ' }],
+            perKanji: [{ charStart: 2, charEnd: 2, kana: 'なつ' }],
           },
         ],
       }
@@ -129,10 +132,10 @@ describe('LineRubyContent', () => {
         segments: [
           {
             charStart: 2,
-            charEnd: 3,
+            charEnd: 2,
             kana: 'なつ',
             nonSplittable: false,
-            perKanji: [{ charStart: 2, charEnd: 3, kana: 'なつ' }],
+            perKanji: [{ charStart: 2, charEnd: 2, kana: 'なつ' }],
           },
         ],
       }
@@ -149,10 +152,10 @@ describe('LineRubyContent', () => {
         segments: [
           {
             charStart: 2,
-            charEnd: 3,
+            charEnd: 2,
             kana: 'なつ',
             nonSplittable: false,
-            perKanji: [{ charStart: 2, charEnd: 3, kana: 'なつ' }],
+            perKanji: [{ charStart: 2, charEnd: 2, kana: 'なつ' }],
           },
         ],
       }

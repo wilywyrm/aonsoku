@@ -1,9 +1,11 @@
 import type { RubyLineModel, RubyLineSegment } from '@/types/furigana'
 
 // Line-char coordinates below are JS string (code-unit) indices with an
-// EXCLUSIVE end (standard slice semantics): the text a range [start, end)
-// covers is `text.slice(start, end)`. This differs from reconcile.ts, whose
-// cue byte-ranges use an inclusive end.
+// INCLUSIVE end, matching alignLine (align.ts:124 emits
+// `charEnd = tStart + tokenLen - 1`) and reconcile.ts (reconcile.ts:10): the
+// text a range [start, end] covers is `text.slice(start, end + 1)`.
+// buildLineRenderSpans and buildCells convert to an exclusive end
+// (`charEnd + 1`) at the boundary before slicing.
 
 // One tile of a splittable span: a kana-bearing kanji cell or a bare gap char
 // (okurigana / non-kanji, kana undefined).
@@ -45,7 +47,8 @@ function buildCells(
   let local = start
   for (const pk of sorted) {
     const pkStart = Math.max(start, pk.charStart)
-    const pkEnd = Math.min(end, pk.charEnd)
+    // pk.charEnd is inclusive (align.ts); convert to an exclusive slice end.
+    const pkEnd = Math.min(end, pk.charEnd + 1)
     if (pkEnd <= pkStart || pkStart < local) continue
     if (pkStart > local) cells.push({ text: text.slice(local, pkStart) })
     cells.push({ text: text.slice(pkStart, pkEnd), kana: pk.kana })
@@ -74,7 +77,8 @@ export function buildLineRenderSpans(
 
   for (const seg of segments) {
     const start = Math.max(0, seg.charStart)
-    const end = Math.min(text.length, seg.charEnd)
+    // seg.charEnd is inclusive (align.ts); convert to an exclusive slice end.
+    const end = Math.min(text.length, seg.charEnd + 1)
     if (end <= start || start < cursor) continue
 
     if (start > cursor) spans.push({ text: text.slice(cursor, start) })
