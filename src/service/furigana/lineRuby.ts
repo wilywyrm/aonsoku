@@ -82,11 +82,11 @@ export function buildLineRenderSpans(
 
     const slice = text.slice(start, end)
     const kana = seg.kana
-    const hasKana = kana !== undefined && kana !== ''
+    const kanaPresent = kana !== undefined && kana !== ''
     const perKanji = seg.perKanji
     const hasPerKanji = perKanji !== undefined && perKanji.length > 0
 
-    if (!hasKana && !hasPerKanji) {
+    if (!kanaPresent && !hasPerKanji) {
       spans.push({ text: slice })
     } else if (
       seg.nonSplittable === true ||

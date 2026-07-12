@@ -31,7 +31,9 @@ export function LineRubyContent({ text, model }: LineRubyContentProps) {
                       <span className="ruby-furi-rt">{cell.kana}</span>
                     </span>
                   ) : (
-                    <span key={ci} className="ruby-furi-gap">{cell.text}</span>
+                    <span key={ci} className="ruby-furi-gap">
+                      {cell.text}
+                    </span>
                   ),
                 )}
               </span>
