@@ -1,6 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
-import { ComponentPropsWithoutRef, useEffect, useRef, useState } from 'react'
+import { get as idbGet, set as idbSet } from 'idb-keyval'
+import {
+  ComponentPropsWithoutRef,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { isSafari } from 'react-device-detect'
 import { useTranslation } from 'react-i18next'
 import { Lrc } from 'react-lrc'
@@ -8,15 +15,24 @@ import {
   ScrollArea,
   scrollAreaViewportSelector,
 } from '@/app/components/ui/scroll-area'
+import {
+  createSongAnalyzer,
+  type LineModelMap,
+} from '@/service/furigana/analyzeSong'
+import { normalizeLrcContent } from '@/service/furigana/lineRuby'
 import { subsonic } from '@/service/subsonic'
+import { useAppStore } from '@/store/app.store'
 import { useLang } from '@/store/lang.store'
 import {
   useLyricsSettings,
   usePlayerRef,
   usePlayerSonglist,
 } from '@/store/player.store'
-import { ILyric } from '@/types/responses/song'
+import type { RubyLineModel } from '@/types/furigana'
+import { ILyric, type IStructuredLyric } from '@/types/responses/song'
+import { isJapaneseLang } from '@/utils/language'
 import { getServerExtensions } from '@/utils/servers'
+import { LineRubyContent } from './line-ruby-content'
 import { WordLevelLyricsContainer } from './word-level-lyrics'
 
 // disambiguates chinese language code to the user's locale if set
@@ -31,6 +47,11 @@ export function resolveLyricsLang(
 
 interface LyricProps {
   lyrics: ILyric
+}
+
+interface SyncedLyricsProps {
+  lyrics: ILyric
+  structuredLyric?: IStructuredLyric
 }
 
 export function LyricsTab() {
@@ -78,7 +99,10 @@ export function LyricsTab() {
     }
     return areLyricsSynced(lyrics) ? (
       <div data-testid="lyrics-mode" data-mode="line" className="w-full h-full">
-        <SyncedLyrics lyrics={lyrics} />
+        <SyncedLyrics
+          lyrics={lyrics}
+          structuredLyric={lyrics.structuredLyric}
+        />
       </div>
     ) : (
       <div
@@ -94,11 +118,68 @@ export function LyricsTab() {
   }
 }
 
-function SyncedLyrics({ lyrics }: LyricProps) {
+function SyncedLyrics({ lyrics, structuredLyric }: SyncedLyricsProps) {
   const playerRef = usePlayerRef()
   const { langCode } = useLang()
   const [progress, setProgress] = useState(0)
-  const resolvedLang = resolveLyricsLang(lyrics.lang, langCode)
+  const { furigana } = useLyricsSettings()
+
+  const furiganaActive =
+    !!structuredLyric &&
+    structuredLyric.synced &&
+    isJapaneseLang(structuredLyric.lang) &&
+    furigana
+
+  const resolvedLang = resolveLyricsLang(structuredLyric?.lang, langCode)
+
+  const analyzer = useMemo(
+    () =>
+      createSongAnalyzer({
+        idbGet: (key) =>
+          useAppStore.getState().pages.lyricsCacheEnabled
+            ? idbGet<LineModelMap>(key)
+            : Promise.resolve(undefined),
+        idbSet: (key, value) =>
+          useAppStore.getState().pages.lyricsCacheEnabled
+            ? idbSet(key, value)
+            : Promise.resolve(),
+      }),
+    [],
+  )
+
+  const [rubyModels, setRubyModels] = useState<
+    ReadonlyMap<string, RubyLineModel>
+  >(() => new Map())
+
+  useEffect(() => {
+    if (
+      !structuredLyric ||
+      !structuredLyric.synced ||
+      !isJapaneseLang(structuredLyric.lang) ||
+      !furigana
+    ) {
+      setRubyModels(new Map())
+      return
+    }
+    const lineValues = structuredLyric.line.map((l) => l.value)
+    const seeded = new Map<string, RubyLineModel>()
+    for (const value of lineValues) {
+      const model = analyzer.get(value)
+      if (model) seeded.set(value, model)
+    }
+    setRubyModels(seeded)
+    const cacheKey = `${structuredLyric.displayArtist ?? ''}:${structuredLyric.displayTitle ?? ''}`
+    const unsubscribe = analyzer.subscribe((lineValue, model) => {
+      setRubyModels((prev) => {
+        if (prev.get(lineValue) === model) return prev
+        const next = new Map(prev)
+        next.set(lineValue, model)
+        return next
+      })
+    })
+    analyzer.analyze(cacheKey, lineValues).catch(() => undefined)
+    return unsubscribe
+  }, [analyzer, structuredLyric, furigana])
 
   setTimeout(() => {
     let newProgress = (playerRef?.currentTime || 0) * 1000
@@ -125,19 +206,26 @@ function SyncedLyrics({ lyrics }: LyricProps) {
         id="sync-lyrics-box"
         className={clsx('h-full overflow-y-auto', !isSafari && 'scroll-smooth')}
         verticalSpace={true}
-        lineRenderer={({ active, line }) => (
-          <p
-            onClick={() => skipToTime(line.startMillisecond)}
-            className={clsx(
-              'text-shadow-lg my-5 cursor-pointer hover:opacity-100 duration-500',
-              'transition-[opacity,transform] motion-reduce:transition-none',
-              active ? 'opacity-100 scale-125' : 'opacity-50',
-            )}
-            lang={resolvedLang}
-          >
-            {line.content}
-          </p>
-        )}
+        lineRenderer={({ active, line }) => {
+          const value = normalizeLrcContent(line.content)
+          return (
+            <p
+              onClick={() => skipToTime(line.startMillisecond)}
+              className={clsx(
+                'text-shadow-lg my-5 cursor-pointer hover:opacity-100 duration-500',
+                'transition-[opacity,transform] motion-reduce:transition-none',
+                active ? 'opacity-100 scale-125' : 'opacity-50',
+              )}
+              lang={resolvedLang}
+            >
+              {furiganaActive ? (
+                <LineRubyContent text={value} model={rubyModels.get(value)} />
+              ) : (
+                line.content
+              )}
+            </p>
+          )
+        }}
       />
     </div>
   )
