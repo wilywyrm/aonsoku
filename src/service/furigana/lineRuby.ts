@@ -1,4 +1,5 @@
 import type { RubyLineModel, RubyLineSegment } from '@/types/furigana'
+import { groupReadings } from './grouping'
 
 // Line-char coordinates below are JS string (code-unit) indices with an
 // INCLUSIVE end, matching alignLine (align.ts:124 emits
@@ -31,10 +32,17 @@ export function normalizeLrcContent(content: string): string {
   return content.startsWith(' ') ? content.slice(1) : content
 }
 
-// Tile a splittable segment's [start, end) slice into per-kanji cells: a
-// kana-bearing cell over each perKanji kanji plus a bare cell for every
-// okurigana / non-kanji gap (leading, internal, or trailing). Overlapping or
-// zero-width perKanji entries are dropped (keep first) so the invariant
+// Tile a splittable segment's [start, end) slice into ruby cells: a kana-bearing
+// cell over each reading group plus a bare cell for every okurigana / non-kanji
+// gap (leading, internal, or trailing). Adjacent per-kanji readings that would
+// overhang into each other are first merged into a single group-ruby cell via
+// groupReadings — the SAME collision model the word-level path uses (see
+// ruby-cue-content.tsx / grouping.ts) — so a wide reading like じょう over a
+// single-width 丈 no longer overlaps its neighbour's reading (大丈夫 →
+// {大丈: だいじょう} + {夫: ぶ} instead of three colliding cells). unitStart = 0
+// keeps the returned start/end in line-char space with the same inclusive end as
+// the perKanji spans align.ts emits. Overlapping or zero-width entries are
+// dropped (keep first) so the invariant
 // cells.map(c => c.text).join('') === text.slice(start, end) always holds.
 function buildCells(
   text: string,
@@ -42,17 +50,19 @@ function buildCells(
   end: number,
   perKanji: NonNullable<RubyLineSegment['perKanji']>,
 ): LineRubyCell[] {
-  const cells: LineRubyCell[] = []
   const sorted = [...perKanji].sort((a, b) => a.charStart - b.charStart)
+  const groups = groupReadings(sorted, 0)
+
+  const cells: LineRubyCell[] = []
   let local = start
-  for (const pk of sorted) {
-    const pkStart = Math.max(start, pk.charStart)
-    // pk.charEnd is inclusive (align.ts); convert to an exclusive slice end.
-    const pkEnd = Math.min(end, pk.charEnd + 1)
-    if (pkEnd <= pkStart || pkStart < local) continue
-    if (pkStart > local) cells.push({ text: text.slice(local, pkStart) })
-    cells.push({ text: text.slice(pkStart, pkEnd), kana: pk.kana })
-    local = pkEnd
+  for (const g of groups) {
+    const gStart = Math.max(start, g.start)
+    // g.end is inclusive (line-char); convert to an exclusive slice end.
+    const gEnd = Math.min(end, g.end + 1)
+    if (gEnd <= gStart || gStart < local) continue
+    if (gStart > local) cells.push({ text: text.slice(local, gStart) })
+    cells.push({ text: text.slice(gStart, gEnd), kana: g.kana })
+    local = gEnd
   }
   if (local < end) cells.push({ text: text.slice(local, end) })
   return cells
