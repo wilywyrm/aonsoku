@@ -1,4 +1,4 @@
-import type { RenderUnit } from '@/types/furigana'
+import type { RenderUnit, RubyLineSegment } from '@/types/furigana'
 
 // Furigana annotation size as a fraction of the base glyph (MUST match
 // .ruby-furi-rt font-size in index.css: 0.5em). CJK base glyphs are full-width
@@ -68,10 +68,21 @@ export function groupReadings(
   return groups
 }
 
-// The reading spans of a unit in LINE-char coords. A per-kanji unit contributes
-// one span per perKanji entry; a jukujikun (kana, no perKanji) contributes one
-// span over its whole kanji range; a bare unit contributes none.
-function readingSpans(u: RenderUnit): ReadingSpan[] {
+// Fields the collision gate reads: a char range plus its reading(s). Both
+// RenderUnit and RubyLineSegment satisfy this shape, so the unit- and
+// segment-level merges share readingSpans/synthPerKanji/boundaryReadingsCollide
+// rather than duplicating the geometry.
+interface ReadingBearing {
+  charStart: number
+  charEnd: number
+  kana?: string
+  perKanji?: Array<{ charStart: number; charEnd: number; kana: string }>
+}
+
+// The reading spans of a unit/segment in LINE-char coords. A per-kanji entry
+// contributes one span per perKanji item; a jukujikun (kana, no perKanji)
+// contributes one span over its whole kanji range; a bare one contributes none.
+function readingSpans(u: ReadingBearing): ReadingSpan[] {
   if (u.kana === undefined) return []
   if (u.perKanji && u.perKanji.length > 0) {
     return u.perKanji.map((pk) => ({
@@ -83,15 +94,17 @@ function readingSpans(u: RenderUnit): ReadingSpan[] {
   return [{ start: u.charStart, end: u.charEnd, kana: u.kana }]
 }
 
-function synthPerKanji(u: RenderUnit): NonNullable<RenderUnit['perKanji']> {
+function synthPerKanji(
+  u: ReadingBearing,
+): NonNullable<RubyLineSegment['perKanji']> {
   if (u.perKanji && u.perKanji.length > 0) return u.perKanji
   return [{ charStart: u.charStart, charEnd: u.charEnd, kana: u.kana ?? '' }]
 }
 
-// Two kanji-bearing units can merge when they are contiguous in line-char space
-// and the earlier unit's last reading would overhang into the later unit's first
-// reading. Bare units (no kana) never merge.
-function canMerge(a: RenderUnit, b: RenderUnit): boolean {
+// Two kanji-bearing runs can merge when they are contiguous in line-char space
+// and the earlier run's last reading would overhang into the later run's first
+// reading. Bare runs (no kana) never merge. Shared by both merge passes.
+function boundaryReadingsCollide(a: ReadingBearing, b: ReadingBearing): boolean {
   if (a.kana === undefined || b.kana === undefined) return false
   if (a.charEnd + 1 !== b.charStart) return false
   const aSpans = readingSpans(a)
@@ -137,8 +150,44 @@ export function mergeCollidingUnits(units: RenderUnit[]): RenderUnit[] {
   const out: RenderUnit[] = []
   for (const cur of units) {
     const prev = out[out.length - 1]
-    if (prev && canMerge(prev, cur)) {
+    if (prev && boundaryReadingsCollide(prev, cur)) {
       out[out.length - 1] = mergeTwo(prev, cur)
+    } else {
+      out.push(cur)
+    }
+  }
+  return out
+}
+
+// Segment-level analogue of mergeTwo: segments carry no cue bookkeeping or
+// kanjiText, so only the union range, concatenated reading, and per-kanji spans
+// remain (a jukujikun contributes one synthesized whole-span entry).
+function mergeTwoSegments(
+  a: RubyLineSegment,
+  b: RubyLineSegment,
+): RubyLineSegment {
+  return {
+    charStart: a.charStart,
+    charEnd: b.charEnd,
+    kana: (a.kana ?? '') + (b.kana ?? ''),
+    nonSplittable: false,
+    perKanji: [...synthPerKanji(a), ...synthPerKanji(b)],
+  }
+}
+
+// Line-model analogue of mergeCollidingUnits: fuse adjacent segments whose
+// boundary readings would overhang so a later groupReadings pass centres the
+// combined reading over the whole kanji group (group-ruby) instead of letting
+// two separately-tokenized words overlap. Callers pass segments pre-sorted by
+// charStart; overlapping (non-contiguous) segments never merge and pass through.
+export function mergeCollidingSegments(
+  segments: RubyLineSegment[],
+): RubyLineSegment[] {
+  const out: RubyLineSegment[] = []
+  for (const cur of segments) {
+    const prev = out[out.length - 1]
+    if (prev && boundaryReadingsCollide(prev, cur)) {
+      out[out.length - 1] = mergeTwoSegments(prev, cur)
     } else {
       out.push(cur)
     }

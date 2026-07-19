@@ -336,6 +336,37 @@ describe('buildLineRenderSpans', () => {
     expectConcatInvariant(spans, text)
   })
 
+  it('merges colliding readings across a SEPARATE-segment boundary', () => {
+    const text = '心技'
+    const model: RubyLineModel = {
+      segments: [
+        {
+          charStart: 0,
+          charEnd: 0,
+          kana: 'こころ',
+          nonSplittable: false,
+          perKanji: [{ charStart: 0, charEnd: 0, kana: 'こころ' }],
+        },
+        {
+          charStart: 1,
+          charEnd: 1,
+          kana: 'わざ',
+          nonSplittable: false,
+          perKanji: [{ charStart: 1, charEnd: 1, kana: 'わざ' }],
+        },
+      ],
+    }
+    const spans = buildLineRenderSpans(text, model)
+    expect(spans).toEqual([
+      {
+        text: '心技',
+        kana: 'こころわざ',
+        cells: [{ text: '心技', kana: 'こころわざ' }],
+      },
+    ])
+    expectConcatInvariant(spans, text)
+  })
+
   it('regression 泥の花: single-kanji {k,k} segments are NOT dropped', () => {
     const text = '泥の花'
     const model: RubyLineModel = {

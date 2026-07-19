@@ -1,5 +1,5 @@
 import type { RubyLineModel, RubyLineSegment } from '@/types/furigana'
-import { groupReadings } from './grouping'
+import { groupReadings, mergeCollidingSegments } from './grouping'
 
 // Line-char coordinates below are JS string (code-unit) indices with an
 // INCLUSIVE end, matching alignLine (align.ts:124 emits
@@ -70,10 +70,12 @@ function buildCells(
 
 // Cue-free analogue of reconcile(): flatten a line's ruby model into ordered
 // render spans over the raw line text. Splittable segments carry per-kanji
-// `cells`; jukujikun (nonSplittable) and kana-less runs carry none. Segments are
-// clamped to the line, overlapping ones drop (keep first), and gaps fill with
-// bare spans, so spans.map(s => s.text).join('') === text for non-empty input.
-// Pure — never mutates `model`.
+// `cells`; jukujikun (nonSplittable) and kana-less runs carry none. Adjacent
+// segments whose boundary readings would overhang are first merged
+// (mergeCollidingSegments) so a cross-word collision group-ruby's like a
+// within-word one. Segments are clamped to the line, overlapping ones drop (keep
+// first), and gaps fill with bare spans, so spans.map(s => s.text).join('') ===
+// text for non-empty input. Pure — never mutates `model`.
 export function buildLineRenderSpans(
   text: string,
   model: RubyLineModel | undefined,
@@ -81,7 +83,9 @@ export function buildLineRenderSpans(
   if (text === '') return []
   if (!model || model.segments.length === 0) return [{ text }]
 
-  const segments = [...model.segments].sort((a, b) => a.charStart - b.charStart)
+  const segments = mergeCollidingSegments(
+    [...model.segments].sort((a, b) => a.charStart - b.charStart),
+  )
   const spans: LineRenderSpan[] = []
   let cursor = 0
 

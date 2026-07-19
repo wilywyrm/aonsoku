@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import type { RenderUnit } from '@/types/furigana'
-import { groupReadings, mergeCollidingUnits, readingsCollide } from './grouping'
+import type { RenderUnit, RubyLineSegment } from '@/types/furigana'
+import {
+  groupReadings,
+  mergeCollidingSegments,
+  mergeCollidingUnits,
+  readingsCollide,
+} from './grouping'
 
 function unit(over: Partial<RenderUnit>): RenderUnit {
   return {
@@ -11,6 +16,16 @@ function unit(over: Partial<RenderUnit>): RenderUnit {
     nonSplittable: false,
     coveringCueIdx: [0],
     cueCharCounts: [1],
+    ...over,
+  }
+}
+
+function seg(over: Partial<RubyLineSegment>): RubyLineSegment {
+  return {
+    charStart: 0,
+    charEnd: 0,
+    kana: undefined,
+    nonSplittable: false,
     ...over,
   }
 }
@@ -192,5 +207,151 @@ describe('mergeCollidingUnits', () => {
       }),
     ])
     expect(units).toHaveLength(2)
+  })
+})
+
+describe('mergeCollidingSegments', () => {
+  it('fuses two adjacent separate segments whose readings collide', () => {
+    const segments = mergeCollidingSegments([
+      seg({
+        charStart: 0,
+        charEnd: 0,
+        kana: 'こころ',
+        perKanji: [{ charStart: 0, charEnd: 0, kana: 'こころ' }],
+      }),
+      seg({
+        charStart: 1,
+        charEnd: 1,
+        kana: 'がま',
+        perKanji: [{ charStart: 1, charEnd: 1, kana: 'がま' }],
+      }),
+    ])
+    expect(segments).toEqual([
+      {
+        charStart: 0,
+        charEnd: 1,
+        kana: 'こころがま',
+        nonSplittable: false,
+        perKanji: [
+          { charStart: 0, charEnd: 0, kana: 'こころ' },
+          { charStart: 1, charEnd: 1, kana: 'がま' },
+        ],
+      },
+    ])
+  })
+
+  it('keeps non-colliding adjacent segments separate', () => {
+    const segments = mergeCollidingSegments([
+      seg({
+        charStart: 0,
+        charEnd: 0,
+        kana: 'な',
+        perKanji: [{ charStart: 0, charEnd: 0, kana: 'な' }],
+      }),
+      seg({
+        charStart: 1,
+        charEnd: 1,
+        kana: 'まえ',
+        perKanji: [{ charStart: 1, charEnd: 1, kana: 'まえ' }],
+      }),
+    ])
+    expect(segments).toHaveLength(2)
+  })
+
+  it('does not merge across a bare (reading-less) segment', () => {
+    const segments = mergeCollidingSegments([
+      seg({
+        charStart: 0,
+        charEnd: 0,
+        kana: 'こころ',
+        perKanji: [{ charStart: 0, charEnd: 0, kana: 'こころ' }],
+      }),
+      seg({ charStart: 1, charEnd: 1 }),
+      seg({
+        charStart: 2,
+        charEnd: 2,
+        kana: 'がま',
+        perKanji: [{ charStart: 2, charEnd: 2, kana: 'がま' }],
+      }),
+    ])
+    expect(segments).toHaveLength(3)
+  })
+
+  it('does not merge non-contiguous segments', () => {
+    const segments = mergeCollidingSegments([
+      seg({
+        charStart: 0,
+        charEnd: 0,
+        kana: 'こころ',
+        perKanji: [{ charStart: 0, charEnd: 0, kana: 'こころ' }],
+      }),
+      seg({
+        charStart: 2,
+        charEnd: 2,
+        kana: 'わざ',
+        perKanji: [{ charStart: 2, charEnd: 2, kana: 'わざ' }],
+      }),
+    ])
+    expect(segments).toHaveLength(2)
+  })
+
+  it('is transitive (a widened segment absorbs the next)', () => {
+    const segments = mergeCollidingSegments([
+      seg({
+        charStart: 0,
+        charEnd: 0,
+        kana: 'こころ',
+        perKanji: [{ charStart: 0, charEnd: 0, kana: 'こころ' }],
+      }),
+      seg({
+        charStart: 1,
+        charEnd: 1,
+        kana: 'すがた',
+        perKanji: [{ charStart: 1, charEnd: 1, kana: 'すがた' }],
+      }),
+      seg({
+        charStart: 2,
+        charEnd: 2,
+        kana: 'ちから',
+        perKanji: [{ charStart: 2, charEnd: 2, kana: 'ちから' }],
+      }),
+    ])
+    expect(segments).toEqual([
+      {
+        charStart: 0,
+        charEnd: 2,
+        kana: 'こころすがたちから',
+        nonSplittable: false,
+        perKanji: [
+          { charStart: 0, charEnd: 0, kana: 'こころ' },
+          { charStart: 1, charEnd: 1, kana: 'すがた' },
+          { charStart: 2, charEnd: 2, kana: 'ちから' },
+        ],
+      },
+    ])
+  })
+
+  it('synthesizes a whole-span reading when merging a jukujikun', () => {
+    const segments = mergeCollidingSegments([
+      seg({ charStart: 0, charEnd: 0, kana: 'あいう', nonSplittable: true }),
+      seg({
+        charStart: 1,
+        charEnd: 1,
+        kana: 'かい',
+        perKanji: [{ charStart: 1, charEnd: 1, kana: 'かい' }],
+      }),
+    ])
+    expect(segments).toEqual([
+      {
+        charStart: 0,
+        charEnd: 1,
+        kana: 'あいうかい',
+        nonSplittable: false,
+        perKanji: [
+          { charStart: 0, charEnd: 0, kana: 'あいう' },
+          { charStart: 1, charEnd: 1, kana: 'かい' },
+        ],
+      },
+    ])
   })
 })
