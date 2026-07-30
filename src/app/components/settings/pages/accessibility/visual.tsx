@@ -12,9 +12,11 @@ import {
 } from '@/app/components/settings/section'
 import { SteppedSlider } from '@/app/components/ui/stepped-slider'
 import { shortcutKeys } from '@/shortcuts'
+import { useAppZoomLevel } from '@/store/app.store'
 
 export function Visual() {
   const { t } = useTranslation()
+  const { zoomLevel, setZoomLevel } = useAppZoomLevel()
 
   const infoText = t('settings.accessibility.visual.zoom.info', {
     key: shortcutKeys.META_TEXT,
@@ -36,8 +38,8 @@ export function Visual() {
           <ContentItemForm className="flex flex-col w-full max-w-full pb-4">
             <SteppedSlider
               steps={[50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200]}
-              defaultValue={100}
-              onStepChange={(step) => console.log(step)}
+              value={zoomLevel}
+              onStepChange={setZoomLevel}
             />
           </ContentItemForm>
         </ContentItem>

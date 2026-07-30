@@ -3,16 +3,16 @@ import { GenericSlider } from './generic-slider'
 
 interface SteppedSliderProps {
   steps: number[]
-  defaultValue: number
+  value: number
   onStepChange: (step: number) => void
 }
 
 export function SteppedSlider({
   steps,
-  defaultValue,
+  value,
   onStepChange,
 }: SteppedSliderProps) {
-  const [currentStep, setCurrentStep] = useState(defaultValue)
+  const [currentStep, setCurrentStep] = useState(value)
 
   const MIN = steps[0]
   const MAX = steps[steps.length - 1]
