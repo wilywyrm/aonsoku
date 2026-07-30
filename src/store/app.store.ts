@@ -148,6 +148,14 @@ export const useAppStore = createWithEqualityFn<IAppContext>()(
               },
             },
           },
+          accessibility: {
+            zoomLevel: 100,
+            setZoomLevel: (value) => {
+              set((state) => {
+                state.accessibility.zoomLevel = value
+              })
+            },
+          },
           pages: {
             showInfoPanel: true,
             toggleShowInfoPanel: () => {
@@ -565,6 +573,11 @@ export const useAppPodcastCollapsibleState = () =>
   useAppStore((state) => ({
     collapsibleState: state.podcasts.collapsibleState,
     setCollapsibleState: state.podcasts.setCollapsibleState,
+  }))
+export const useAppZoomLevel = () =>
+  useAppStore((state) => ({
+    zoomLevel: state.accessibility.zoomLevel,
+    setZoomLevel: state.accessibility.setZoomLevel,
   }))
 export const useAppPages = () => useAppStore((state) => state.pages)
 export const useAppDesktopData = () =>
