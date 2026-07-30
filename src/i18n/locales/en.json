@@ -628,7 +628,18 @@
       "content": "Content",
       "accounts": "Accounts",
       "desktop": "Desktop Application",
-      "privacy": "Privacy & Security"
+      "privacy": "Privacy & Security",
+      "accessibility": "Accessibility"
+    },
+    "accessibility": {
+      "visual": {
+        "group": "Visual",
+        "description": "Control how large and spaced out the interface appears.",
+        "zoom": {
+          "label": "Zoom level",
+          "info": "Adjust the size of the interface. You can also change this with {{key}} +/-."
+        }
+      }
     },
     "appearance": {
       "general": {

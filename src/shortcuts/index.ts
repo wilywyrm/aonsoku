@@ -4,9 +4,18 @@ import { IShortcut } from '@/types/shortcuts'
 const JOIN_SHORTCUTS_KEY = !isMacOs ? '+' : ''
 
 const META_KEY = isMacOs ? '⌘' : 'Ctrl'
+const META_TEXT = isMacOs ? 'cmd' : 'ctrl'
 const CTRL_KEY = isMacOs ? '⌃' : 'Ctrl'
 const SHIFT_KEY = isMacOs ? '⇧' : 'Shift'
-// const ALT_KEY = isMacOs ? '⌥' : 'Alt'
+const ALT_KEY = isMacOs ? '⌥' : 'Alt'
+
+export const shortcutKeys = {
+  META_KEY,
+  META_TEXT,
+  CTRL_KEY,
+  SHIFT_KEY,
+  ALT_KEY,
+}
 
 export const shortcutDialogKeys = [META_KEY, '/']
 export const logoutKeys = [SHIFT_KEY, CTRL_KEY, 'Q']
