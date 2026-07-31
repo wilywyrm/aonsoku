@@ -20,6 +20,10 @@ export function nextZoomLevel(current: number, action: ZoomAction) {
   return zoomLevels[Math.min(Math.max(next, 0), zoomLevels.length - 1)]
 }
 
+export function zoomScale(level: number) {
+  return closestZoomLevel(level) / 100
+}
+
 // CSS zoom scales the page but not the viewport, so `100vh` and `100vw` would
 // keep returning the unscaled window size and break the app layout.
 // These vars hold the window size in the scaled coordinate space and are used
@@ -42,7 +46,7 @@ function attachResizeListener() {
 }
 
 export function applyZoomLevel(level: number) {
-  currentScale = closestZoomLevel(level) / 100
+  currentScale = zoomScale(level)
 
   // The desktop app uses Chromium's own zoom, which resizes the layout
   // viewport, so no CSS is needed there.
