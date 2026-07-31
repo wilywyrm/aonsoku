@@ -7,6 +7,7 @@ import { setupDownloads } from './core/downloads'
 import { setupEvents, setupIpcEvents } from './core/events'
 import { appIcon } from './core/icon'
 import { titleBarOverlay } from './core/titleBarOverlay'
+import { defaultTrafficLightPosition } from './core/trafficLight'
 import { setUpdaterWindow } from './core/updater'
 import { StatefulBrowserWindow } from './core/windowPosition'
 import { updateDockMenu } from './core/dockMenu'
@@ -34,7 +35,7 @@ export function createWindow(): void {
     roundedCorners: true,
     frame: false,
     ...(platform.isWindows ? { titleBarOverlay } : {}),
-    trafficLightPosition: { x: 15, y: 14 },
+    trafficLightPosition: defaultTrafficLightPosition,
     icon: appIcon(),
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),

@@ -89,6 +89,7 @@ const api: IAonsokuAPI = {
   },
   setZoomFactor: (factor) => {
     webFrame.setZoomFactor(factor)
+    ipcRenderer.send(IpcChannels.SetZoomFactor, factor)
   },
   zoomActionListener: (func) => {
     ipcRenderer.on(IpcChannels.ZoomAction, (_, action: ZoomAction) =>

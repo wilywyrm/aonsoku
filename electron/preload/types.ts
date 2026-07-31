@@ -36,6 +36,7 @@ export enum IpcChannels {
   DownloadProgress = 'download-progress',
   UpdateDownloaded = 'update-downloaded',
   ZoomAction = 'zoom-action',
+  SetZoomFactor = 'set-zoom-factor',
 }
 
 export type ZoomAction = 'in' | 'out' | 'reset'
