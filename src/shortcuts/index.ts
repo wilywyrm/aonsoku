@@ -66,6 +66,21 @@ const navigationShortcuts: IShortcut[] = [
   },
 ]
 
+const zoomShortcuts: IShortcut[] = [
+  {
+    label: 'shortcuts.zoom.in',
+    shortcuts: [META_KEY, '+'],
+  },
+  {
+    label: 'shortcuts.zoom.out',
+    shortcuts: [META_KEY, '-'],
+  },
+  {
+    label: 'shortcuts.zoom.reset',
+    shortcuts: [META_KEY, '0'],
+  },
+]
+
 export const allShortcuts = [
   {
     id: 'playback',
@@ -76,5 +91,10 @@ export const allShortcuts = [
     id: 'navigation',
     label: 'shortcuts.navigation.label',
     shortcuts: navigationShortcuts,
+  },
+  {
+    id: 'zoom',
+    label: 'shortcuts.zoom.label',
+    shortcuts: zoomShortcuts,
   },
 ]

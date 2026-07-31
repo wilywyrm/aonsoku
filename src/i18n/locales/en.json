@@ -582,6 +582,12 @@
     },
     "sidebar": {
       "toggle": "Toggle sidebar"
+    },
+    "zoom": {
+      "label": "Zoom",
+      "in": "Zoom in",
+      "out": "Zoom out",
+      "reset": "Reset zoom"
     }
   },
   "songInfo": {
