@@ -43,7 +43,12 @@ export function createWindow(): void {
   })
 
   // set initial state
-  playerState.setAll({ isPlaying: false, hasSonglist: false, hasPrevious: false, hasNext: false })
+  playerState.setAll({
+    isPlaying: false,
+    hasSonglist: false,
+    hasPrevious: false,
+    hasNext: false,
+  })
 
   createTray()
   updateDockMenu()
