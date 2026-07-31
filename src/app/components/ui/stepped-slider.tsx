@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { GenericSlider } from './generic-slider'
 
 interface SteppedSliderProps {
@@ -14,6 +14,11 @@ export function SteppedSlider({
 }: SteppedSliderProps) {
   const [currentStep, setCurrentStep] = useState(value)
 
+  // Keeps up with changes made outside of the slider
+  useEffect(() => {
+    setCurrentStep(value)
+  }, [value])
+
   const MIN = steps[0]
   const MAX = steps[steps.length - 1]
 
@@ -24,9 +29,14 @@ export function SteppedSlider({
       Math.abs(step - value) < Math.abs(closest - value) ? step : closest,
     )
 
+  const changeStep = (step: number) => {
+    setCurrentStep(step)
+    onStepChange(step)
+  }
+
   const setByIndex = (index: number) => {
     const clamped = Math.min(Math.max(index, 0), steps.length - 1)
-    setCurrentStep(steps[clamped])
+    changeStep(steps[clamped])
   }
 
   // Without this, the slider stops responding to keyboard input
@@ -73,7 +83,7 @@ export function SteppedSlider({
             type="button"
             tabIndex={-1}
             data-status={step === currentStep ? 'active' : 'inactive'}
-            onClick={() => setCurrentStep(step)}
+            onClick={() => changeStep(step)}
             className="group absolute top-0 flex flex-col items-center gap-1 -translate-x-1/2 outline-none focus-visible:outline-none"
             style={{
               left: `calc(var(--thumb) / 2 + (100% - var(--thumb)) * ${percentOf(step)})`,

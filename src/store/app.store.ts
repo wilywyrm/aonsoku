@@ -10,6 +10,7 @@ import { AuthType, IAppContext, IServerConfig } from '@/types/serverConfig'
 import { isDesktop } from '@/utils/desktop'
 import { discordRpc } from '@/utils/discordRpc'
 import { logger } from '@/utils/logger'
+import { applyZoomLevel, defaultZoomLevel } from '@/utils/zoom'
 import {
   genEncodedPassword,
   genPassword,
@@ -149,7 +150,7 @@ export const useAppStore = createWithEqualityFn<IAppContext>()(
             },
           },
           accessibility: {
-            zoomLevel: 100,
+            zoomLevel: defaultZoomLevel,
             setZoomLevel: (value) => {
               set((state) => {
                 state.accessibility.zoomLevel = value
@@ -562,6 +563,14 @@ useAppStore.subscribe(
   },
   {
     equalityFn: shallow,
+  },
+)
+
+useAppStore.subscribe(
+  (state) => state.accessibility.zoomLevel,
+  (zoomLevel) => applyZoomLevel(zoomLevel),
+  {
+    fireImmediately: true,
   },
 )
 

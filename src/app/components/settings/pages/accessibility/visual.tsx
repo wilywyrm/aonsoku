@@ -13,6 +13,7 @@ import {
 import { SteppedSlider } from '@/app/components/ui/stepped-slider'
 import { shortcutKeys } from '@/shortcuts'
 import { useAppZoomLevel } from '@/store/app.store'
+import { zoomLevels } from '@/utils/zoom'
 
 export function Visual() {
   const { t } = useTranslation()
@@ -37,7 +38,7 @@ export function Visual() {
           </ContentItemTitle>
           <ContentItemForm className="flex flex-col w-full max-w-full pb-4">
             <SteppedSlider
-              steps={[50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200]}
+              steps={zoomLevels}
               value={zoomLevel}
               onStepChange={setZoomLevel}
             />
