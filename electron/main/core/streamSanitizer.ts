@@ -16,6 +16,16 @@ import {
  * The proxy forwards Range headers upstream and returns the upstream
  * status and headers untouched, so seeking and Content-Length behave
  * exactly as they would when streaming directly from the server.
+ *
+ * Upstream lifetime management matters more than it looks: Chromium aborts
+ * the media request on every seek and track change, but Electron does not
+ * reliably propagate that abort to the Response body returned from
+ * protocol.handle (electron#47097), and net.fetch here is limited to ~6
+ * connections per host. A leaked upstream body therefore permanently eats
+ * a socket, and a few seeks are enough to starve every later request to
+ * the server. Three defenses below: request.signal is wired to abort the
+ * upstream fetch, the response body cancels the upstream reader from its
+ * cancel() callback, and a hard cap evicts the oldest active upstream.
  */
 export const STREAM_SANITIZER_SCHEME = 'aonsoku-stream'
 
@@ -33,6 +43,28 @@ function rememberStream(key: string, entry: StreamCacheEntry): void {
     if (oldest !== undefined) streamCache.delete(oldest)
   }
   streamCache.set(key, entry)
+}
+
+interface ActiveUpstream {
+  startedAt: number
+  release: () => void
+  abort: () => void
+}
+
+const MAX_ACTIVE_UPSTREAMS = 4
+const activeUpstreams = new Set<ActiveUpstream>()
+
+function evictOldestUpstreams(): void {
+  while (activeUpstreams.size >= MAX_ACTIVE_UPSTREAMS) {
+    let oldest: ActiveUpstream | null = null
+    for (const upstream of activeUpstreams) {
+      if (oldest === null || upstream.startedAt < oldest.startedAt) {
+        oldest = upstream
+      }
+    }
+    if (oldest === null) return
+    oldest.abort()
+  }
 }
 
 /** Must be called before app 'ready'. */
@@ -62,14 +94,31 @@ async function handleStreamRequest(request: Request): Promise<Response> {
     return new Response('Invalid stream source', { status: 400 })
   }
 
+  const upstreamController = new AbortController()
+  const abortUpstream = () => upstreamController.abort()
+  if (request.signal.aborted) {
+    abortUpstream()
+  } else {
+    request.signal.addEventListener('abort', abortUpstream)
+  }
+
   const upstreamHeaders = new Headers()
   const range = request.headers.get('range')
   if (range) upstreamHeaders.set('range', range)
 
+  evictOldestUpstreams()
+
   let upstream: Response
   try {
-    upstream = await net.fetch(source, { headers: upstreamHeaders })
+    upstream = await net.fetch(source, {
+      headers: upstreamHeaders,
+      signal: upstreamController.signal,
+    })
   } catch (error) {
+    request.signal.removeEventListener('abort', abortUpstream)
+    if (upstreamController.signal.aborted) {
+      return new Response(null, { status: 499 })
+    }
     console.error('[streamSanitizer] upstream fetch failed', error)
     return new Response('Upstream fetch failed', { status: 502 })
   }
@@ -77,27 +126,98 @@ async function handleStreamRequest(request: Request): Promise<Response> {
   const responseHeaders = new Headers(upstream.headers)
   responseHeaders.set('access-control-allow-origin', '*')
 
-  const passthrough = () =>
+  const upstreamResponse = () =>
     new Response(upstream.body, {
       status: upstream.status,
       statusText: upstream.statusText,
       headers: responseHeaders,
     })
 
-  if (!upstream.ok || !upstream.body) return passthrough()
+  if (!upstream.ok || !upstream.body) {
+    request.signal.removeEventListener('abort', abortUpstream)
+    return upstreamResponse()
+  }
 
+  const sanitizer = await createSanitizer(source, upstream)
+  if (sanitizer === 'unsupported-range') {
+    request.signal.removeEventListener('abort', abortUpstream)
+    return upstreamResponse()
+  }
+
+  const reader = upstream.body.getReader()
+  let released = false
+  const entry: ActiveUpstream = {
+    startedAt: Date.now(),
+    release: () => {
+      if (released) return
+      released = true
+      activeUpstreams.delete(entry)
+      request.signal.removeEventListener('abort', abortUpstream)
+    },
+    abort: () => {
+      entry.release()
+      reader.cancel().catch(() => undefined)
+      upstreamController.abort()
+    },
+  }
+  activeUpstreams.add(entry)
+
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        for (;;) {
+          const { done, value } = await reader.read()
+          if (done) {
+            const rest = sanitizer ? sanitizer.flush() : []
+            for (const buffer of rest) controller.enqueue(buffer)
+            entry.release()
+            controller.close()
+            return
+          }
+          const buffers = sanitizer ? sanitizer.push(value) : [value]
+          if (buffers.length > 0) {
+            for (const buffer of buffers) controller.enqueue(buffer)
+            return
+          }
+        }
+      } catch (error) {
+        entry.abort()
+        controller.error(error)
+      }
+    },
+    cancel() {
+      entry.abort()
+    },
+  })
+
+  return new Response(body, {
+    status: upstream.status,
+    statusText: upstream.statusText,
+    headers: responseHeaders,
+  })
+}
+
+/**
+ * Builds the sanitizer for a stream response, or null for content that
+ * should pass through untouched. Returns 'unsupported-range' for 206
+ * responses whose byte offset cannot be determined.
+ */
+async function createSanitizer(
+  source: string,
+  upstream: Response,
+): Promise<FlacTailSanitizer | null | 'unsupported-range'> {
   const contentType = (upstream.headers.get('content-type') ?? '').toLowerCase()
   const mayBeFlac =
     contentType === '' ||
     contentType.includes('flac') ||
     contentType.includes('octet-stream')
-  if (!mayBeFlac) return passthrough()
+  if (!mayBeFlac) return null
 
   let baseOffset = 0
   if (upstream.status === 206) {
     const contentRange = upstream.headers.get('content-range')
     const match = contentRange?.match(/bytes\s+(\d+)-/)
-    if (!match) return passthrough()
+    if (!match) return 'unsupported-range'
     baseOffset = Number(match[1])
   }
 
@@ -111,7 +231,7 @@ async function handleStreamRequest(request: Request): Promise<Response> {
   }
 
   const cacheEntry = entry
-  const sanitizer = new FlacTailSanitizer({
+  return new FlacTailSanitizer({
     baseOffset,
     meta: cacheEntry.meta,
     zeroFrom: cacheEntry.zeroFrom,
@@ -124,27 +244,6 @@ async function handleStreamRequest(request: Request): Promise<Response> {
         `[streamSanitizer] junk after end of FLAC stream at byte ${zeroFrom}, zero-filling remainder`,
       )
     },
-  })
-
-  const sanitized = upstream.body.pipeThrough(
-    new TransformStream<Uint8Array, Uint8Array>({
-      transform(chunk, controller) {
-        for (const buffer of sanitizer.push(chunk)) {
-          controller.enqueue(buffer)
-        }
-      },
-      flush(controller) {
-        for (const buffer of sanitizer.flush()) {
-          controller.enqueue(buffer)
-        }
-      },
-    }),
-  )
-
-  return new Response(sanitized, {
-    status: upstream.status,
-    statusText: upstream.statusText,
-    headers: responseHeaders,
   })
 }
 
@@ -177,6 +276,7 @@ async function fetchStreamMeta(source: string): Promise<StreamCacheEntry> {
   try {
     const response = await net.fetch(source, {
       headers: { range: `bytes=0-${STREAM_META_HEADER_BYTES - 1}` },
+      signal: AbortSignal.timeout(10_000),
     })
     if (!response.ok || !response.body) return empty
 

@@ -25,6 +25,10 @@ type AudioPlayerProps = ComponentPropsWithoutRef<'audio'> & {
   replayGain?: ReplayGainParams
 }
 
+function isBenignPlayInterruption(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError'
+}
+
 export function AudioPlayer({
   audioRef,
   replayGain,
@@ -111,6 +115,7 @@ export function AudioPlayer({
           audio.pause()
         }
       } catch (error) {
+        if (isBenignPlayInterruption(error)) return
         logger.error('Audio playback failed', error)
         handleSongError()
       }
