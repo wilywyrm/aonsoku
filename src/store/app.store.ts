@@ -10,6 +10,7 @@ import { AuthType, IAppContext, IServerConfig } from '@/types/serverConfig'
 import { isDesktop } from '@/utils/desktop'
 import { discordRpc } from '@/utils/discordRpc'
 import { logger } from '@/utils/logger'
+import { applyZoomLevel, defaultZoomLevel } from '@/utils/zoom'
 import {
   genEncodedPassword,
   genPassword,
@@ -146,6 +147,14 @@ export const useAppStore = createWithEqualityFn<IAppContext>()(
                   state.artwork.screens.drawer = value
                 })
               },
+            },
+          },
+          accessibility: {
+            zoomLevel: defaultZoomLevel,
+            setZoomLevel: (value) => {
+              set((state) => {
+                state.accessibility.zoomLevel = value
+              })
             },
           },
           pages: {
@@ -557,6 +566,14 @@ useAppStore.subscribe(
   },
 )
 
+useAppStore.subscribe(
+  (state) => state.accessibility.zoomLevel,
+  (zoomLevel) => applyZoomLevel(zoomLevel),
+  {
+    fireImmediately: true,
+  },
+)
+
 export const useAppData = () => useAppStore((state) => state.data)
 export const useAppAccounts = () => useAppStore((state) => state.accounts)
 export const useAppPodcasts = () => useAppStore((state) => state.podcasts)
@@ -565,6 +582,11 @@ export const useAppPodcastCollapsibleState = () =>
   useAppStore((state) => ({
     collapsibleState: state.podcasts.collapsibleState,
     setCollapsibleState: state.podcasts.setCollapsibleState,
+  }))
+export const useAppZoomLevel = () =>
+  useAppStore((state) => ({
+    zoomLevel: state.accessibility.zoomLevel,
+    setZoomLevel: state.accessibility.setZoomLevel,
   }))
 export const useAppPages = () => useAppStore((state) => state.pages)
 export const useAppDesktopData = () =>

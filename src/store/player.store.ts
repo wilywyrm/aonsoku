@@ -512,7 +512,10 @@ export const usePlayerStore = createWithEqualityFn<IPlayerContext>()(
                   (song) => song.id === currentSong.id,
                 )
 
-                const shuffledList = shuffleSongList(originalList, currentSongIndex)
+                const shuffledList = shuffleSongList(
+                  originalList,
+                  currentSongIndex,
+                )
 
                 set((state) => {
                   state.songlist.shuffledList = shuffledList
