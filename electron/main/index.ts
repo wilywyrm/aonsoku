@@ -1,6 +1,10 @@
 import { electronApp, optimizer, platform } from '@electron-toolkit/utils'
 import { app } from 'electron'
 import { createAppMenu } from './core/menu'
+import {
+  registerStreamSanitizerScheme,
+  setupStreamSanitizer,
+} from './core/streamSanitizer'
 import { initAutoUpdater } from './core/updater'
 import { createWindow, mainWindow } from './window'
 
@@ -11,6 +15,8 @@ const currentDesktop = process.env.XDG_CURRENT_DESKTOP ?? ''
 if (platform.isLinux && currentDesktop.toLowerCase().includes('gnome')) {
   process.env.XDG_CURRENT_DESKTOP = 'Unity'
 }
+
+registerStreamSanitizerScheme()
 
 const instanceLock = app.requestSingleInstanceLock()
 
@@ -34,6 +40,7 @@ if (!instanceLock) {
   app.whenReady().then(() => {
     electronApp.setAppUserModelId('com.victoralvesf.aonsoku')
 
+    setupStreamSanitizer()
     initAutoUpdater()
     createWindow()
   })
