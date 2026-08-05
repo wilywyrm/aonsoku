@@ -126,6 +126,14 @@ async function handleStreamRequest(request: Request): Promise<Response> {
   const responseHeaders = new Headers(upstream.headers)
   responseHeaders.set('access-control-allow-origin', '*')
 
+  // net.fetch already decoded the body, so a forwarded content-encoding
+  // would make Chromium decompress plain bytes (and the length no longer
+  // matches the encoded size the server declared).
+  if (responseHeaders.has('content-encoding')) {
+    responseHeaders.delete('content-encoding')
+    responseHeaders.delete('content-length')
+  }
+
   const upstreamResponse = () =>
     new Response(upstream.body, {
       status: upstream.status,
@@ -221,13 +229,14 @@ async function createSanitizer(
     baseOffset = Number(match[1])
   }
 
-  let entry = streamCache.get(source)
+  const cacheKey = streamCacheKey(source)
+  let entry = streamCache.get(cacheKey)
   if (!entry) {
     entry =
       baseOffset > 0
         ? await fetchStreamMeta(source)
         : { meta: null, zeroFrom: null }
-    rememberStream(source, entry)
+    rememberStream(cacheKey, entry)
   }
 
   const cacheEntry = entry
@@ -245,6 +254,21 @@ async function createSanitizer(
       )
     },
   })
+}
+
+/**
+ * The renderer appends a `_cb` cache-bust token to stream URLs when the
+ * media cache is disabled, which would otherwise make every play of the
+ * same song a fresh cache entry.
+ */
+function streamCacheKey(source: string): string {
+  try {
+    const url = new URL(source)
+    url.searchParams.delete('_cb')
+    return url.toString()
+  } catch {
+    return source
+  }
 }
 
 function extractSourceUrl(requestUrl: string): string | null {
