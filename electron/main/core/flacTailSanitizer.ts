@@ -16,6 +16,10 @@
  * FLAC sync pattern, so ffmpeg binds the final frame to EOF and parses the
  * stream cleanly. The output has exactly the same length as the input,
  * which keeps Content-Length and HTTP range semantics intact.
+ *
+ * All field layouts, lookup tables and bit masks below follow the FLAC
+ * specification, RFC 9639 (https://www.rfc-editor.org/rfc/rfc9639);
+ * section numbers are cited inline.
  */
 
 export interface FlacStreamMeta {
@@ -27,25 +31,38 @@ export interface FlacStreamMeta {
   fixedBlockSize: number | null
 }
 
-const FLAC_MAGIC = 0x664c6143 // 'fLaC'
+// 'fLaC' stream marker (RFC 9639 §6).
+const FLAC_MAGIC = 0x664c6143
+// Metadata block type 0 = STREAMINFO, always first, always 34 bytes
+// (RFC 9639 §8.1-8.2).
 const STREAMINFO_BLOCK_TYPE = 0
 const STREAMINFO_BLOCK_LENGTH = 34
 
 /** 'fLaC' magic + metadata block header + STREAMINFO body. */
 export const STREAM_META_HEADER_BYTES = 8 + STREAMINFO_BLOCK_LENGTH
 
+// Block size in samples per 4-bit code (RFC 9639 §9.1.1, Table 15).
+// Codes 6 and 7 (zeroed here) read an 8/16-bit "uncommon block size"
+// from the end of the header instead (§9.1.6).
 const BLOCK_SIZES = [
   0, 192, 576, 1152, 2304, 4608, 0, 0, 256, 512, 1024, 2048, 4096, 8192, 16384,
   32768,
 ]
 
+// Sample rate in Hz per 4-bit code (RFC 9639 §9.1.2, Table 16). Code 0
+// defers to STREAMINFO; codes 12-14 read an "uncommon sample rate" from
+// the header (§9.1.7); code 15 is forbidden.
 const SAMPLE_RATES = [
   0, 88200, 176400, 192000, 8000, 16000, 22050, 24000, 32000, 44100, 48000,
   96000,
 ]
 
+// Bit depth per 3-bit code (RFC 9639 §9.1.4, Table 18). Code 0 defers to
+// STREAMINFO; code 3 is reserved.
 const BITS_PER_SAMPLE = [0, 8, 12, 0, 16, 20, 24, 32]
 
+// Frame header checksum: CRC-8 with polynomial x^8 + x^2 + x + 1 (0x07),
+// initialized to 0 (RFC 9639 §9.1.8).
 const CRC8_TABLE = (() => {
   const table = new Uint8Array(256)
   for (let i = 0; i < 256; i++) {
@@ -77,17 +94,25 @@ export function parseStreamInfo(buffer: Uint8Array): FlacStreamMeta | null {
     (buffer[0] << 24) | (buffer[1] << 16) | (buffer[2] << 8) | buffer[3]
   if (magic !== FLAC_MAGIC) return null
 
+  // Metadata block header: 1 bit "is last" flag, 7 bits type, 24 bits
+  // length (RFC 9639 §8.1).
   const blockType = buffer[4] & 0x7f
   const blockLength = (buffer[5] << 16) | (buffer[6] << 8) | buffer[7]
   if (blockType !== STREAMINFO_BLOCK_TYPE) return null
   if (blockLength !== STREAMINFO_BLOCK_LENGTH) return null
 
+  // STREAMINFO layout (RFC 9639 §8.2): u16 min block size, u16 max block
+  // size, u24 min frame size, u24 max frame size, then a packed group of
+  // u20 sample rate, u3 channels-1, u5 bit depth-1, u36 total samples
+  // spanning bytes 10-17, then a 16-byte MD5 of the decoded audio.
   const body = buffer.subarray(8, STREAM_META_HEADER_BYTES)
   const minBlockSize = (body[0] << 8) | body[1]
   const maxBlockSize = (body[2] << 8) | body[3]
   const sampleRate = (body[10] << 12) | (body[11] << 4) | (body[12] >> 4)
   const channels = ((body[12] >> 1) & 0x07) + 1
   const bitsPerSample = (((body[12] & 0x01) << 4) | (body[13] >> 4)) + 1
+  // 36-bit value; JavaScript bitwise operators truncate to 32 bits, so
+  // the high nibble and top byte are combined with arithmetic instead.
   const totalSamples =
     (body[13] & 0x0f) * 0x100000000 +
     body[14] * 0x1000000 +
@@ -119,8 +144,9 @@ const INVALID: FrameHeaderResult = { status: 'invalid' }
 const INCOMPLETE: FrameHeaderResult = { status: 'incomplete' }
 
 /**
- * Attempts to parse a FLAC frame header at `offset`, validating reserved
- * bits, field consistency against STREAMINFO and the header CRC-8.
+ * Attempts to parse a FLAC frame header (RFC 9639 §9.1) at `offset`,
+ * validating reserved bits, field consistency against STREAMINFO and the
+ * header CRC-8.
  */
 export function parseFrameHeader(
   buffer: Uint8Array,
@@ -129,19 +155,28 @@ export function parseFrameHeader(
 ): FrameHeaderResult {
   const available = buffer.length - offset
   if (available < 2) return INCOMPLETE
+  // Bytes 0-1: 15-bit sync code 0b111111111111100 followed by the
+  // blocking strategy bit, i.e. 0xff then 0xf8 (fixed block size) or
+  // 0xf9 (variable block size) (RFC 9639 §9.1).
   if (buffer[offset] !== 0xff || (buffer[offset + 1] & 0xfe) !== 0xf8) {
     return INVALID
   }
   if (available < 5) return INCOMPLETE
 
   const variableBlockSize = (buffer[offset + 1] & 0x01) === 1
+  // Byte 2: 4-bit block size code, 4-bit sample rate code (§9.1.1-9.1.2).
   const blockSizeCode = buffer[offset + 2] >> 4
   const sampleRateCode = buffer[offset + 2] & 0x0f
   if (blockSizeCode === 0 || sampleRateCode === 15) return INVALID
 
+  // Byte 3: 4-bit channel code, 3-bit bit depth code, 1 reserved bit
+  // that must be 0 (§9.1.3-9.1.4).
   const channelCode = buffer[offset + 3] >> 4
   const bpsCode = (buffer[offset + 3] >> 1) & 0x07
   if ((buffer[offset + 3] & 0x01) !== 0) return INVALID
+  // Channel codes 0-7 mean (code + 1) independent channels; 8-10 are the
+  // three stereo decorrelation modes (left/side, right/side, mid/side);
+  // 11-15 are reserved (§9.1.3, Table 17).
   if (channelCode > 10) return INVALID
 
   const channels = channelCode <= 7 ? channelCode + 1 : 2
@@ -153,7 +188,10 @@ export function parseFrameHeader(
     return INVALID
   }
 
-  // Frame/sample number, encoded like extended UTF-8 (up to 7 bytes).
+  // Byte 4 onward: the coded number - frame number for fixed block size
+  // streams, first sample number for variable block size streams - stored
+  // in an extended UTF-8-style encoding of 1-7 bytes, where the leading
+  // byte's high bits give the length exactly like UTF-8 (RFC 9639 §9.1.5).
   const first = buffer[offset + 4]
   let extraBytes: number
   if ((first & 0x80) === 0) extraBytes = 0
@@ -164,7 +202,8 @@ export function parseFrameHeader(
   else if ((first & 0xfe) === 0xfc) extraBytes = 5
   else if (first === 0xfe) extraBytes = 6
   else return INVALID
-  // Frame numbers (fixed blocksize) are at most 31 bits => 6 encoded bytes.
+  // Frame numbers are at most 31 bits => 6 encoded bytes; only sample
+  // numbers (36 bits) may use the 7-byte form (§9.1.5).
   if (!variableBlockSize && extraBytes > 5) return INVALID
 
   let headerLength = 4 + 1 + extraBytes
@@ -172,9 +211,11 @@ export function parseFrameHeader(
   else if (blockSizeCode === 7) headerLength += 2
   if (sampleRateCode === 12) headerLength += 1
   else if (sampleRateCode === 13 || sampleRateCode === 14) headerLength += 2
-  headerLength += 1 // trailing CRC-8
+  headerLength += 1 // trailing CRC-8 (§9.1.8)
   if (available < headerLength) return INCOMPLETE
 
+  // Decode the coded number: mask the length prefix out of the leading
+  // byte, then take 6 payload bits from each 0b10xxxxxx continuation byte.
   let codedNumber =
     extraBytes === 0 ? first : first & (0x7f >> (extraBytes + 1))
   for (let i = 1; i <= extraBytes; i++) {
@@ -183,6 +224,8 @@ export function parseFrameHeader(
     codedNumber = codedNumber * 64 + (byte & 0x3f)
   }
 
+  // Uncommon block size: code 6 = 8-bit value minus one, code 7 = 16-bit
+  // value minus one, stored after the coded number (§9.1.6).
   let cursor = offset + 5 + extraBytes
   let blockSize: number
   if (blockSizeCode === 6) {
@@ -195,6 +238,8 @@ export function parseFrameHeader(
     blockSize = BLOCK_SIZES[blockSizeCode]
   }
 
+  // Uncommon sample rate: code 12 = 8-bit kHz, code 13 = 16-bit Hz,
+  // code 14 = 16-bit tens of Hz (§9.1.7).
   let sampleRate: number
   if (sampleRateCode === 0) {
     sampleRate = meta.sampleRate
@@ -212,6 +257,9 @@ export function parseFrameHeader(
 
   if (crc8(buffer, offset, cursor) !== buffer[cursor]) return INVALID
 
+  // Fixed block size streams code a frame index, so the starting sample
+  // is frameNumber x streamBlockSize; variable block size streams code
+  // the starting sample directly (§9.1.5).
   let startSample: number | null
   if (variableBlockSize) {
     startSample = codedNumber
