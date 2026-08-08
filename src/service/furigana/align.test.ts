@@ -32,6 +32,12 @@ const FIX_SURFACE: Record<string, RubyPart[][]> = {
     [{ ruby: '大', rt: 'だい' }, { ruby: '人', rt: 'にん' }],
   ],
   識る: [[{ ruby: '識', rt: 'し' }, { ruby: 'る' }]],
+  頑: [[{ ruby: '頑', rt: 'かたくな' }]],
+  頑な: [[{ ruby: '頑', rt: 'かたく' }, { ruby: 'な' }]],
+  頑なた: [
+    [{ ruby: '頑', rt: 'がん' }, { ruby: 'なた' }],
+    [{ ruby: '頑', rt: 'かたく' }, { ruby: 'な' }, { ruby: 'た' }],
+  ],
 }
 const fixtureLookupBySurface = (s: string): RubyPart[][] | undefined =>
   FIX_SURFACE[s]
@@ -350,6 +356,90 @@ describe('alignLine', () => {
         nonSplittable: false,
         perKanji: [{ charStart: 0, charEnd: 0, kana: 'し' }],
       },
+    ])
+  })
+
+  it('recovers okurigana the tokenizer fused into a particle (頑 + なに -> 頑な, not 頑=かたくな)', () => {
+    const m = alignLine(
+      '頑なに',
+      fakeTokenizer([
+        { surface_form: '頑' },
+        { surface_form: 'なに', reading: 'ナニ' },
+      ]),
+      deps,
+    )
+    expect(m.segments).toEqual([
+      {
+        charStart: 0,
+        charEnd: 1,
+        kana: 'かたく',
+        nonSplittable: false,
+        perKanji: [{ charStart: 0, charEnd: 0, kana: 'かたく' }],
+      },
+      { charStart: 2, charEnd: 2, nonSplittable: false },
+    ])
+  })
+
+  it('recovers a fused を-particle tail the same way (頑 + なを -> 頑な, を bare)', () => {
+    const m = alignLine(
+      '頑なを',
+      fakeTokenizer([
+        { surface_form: '頑' },
+        { surface_form: 'なを', reading: 'ナヲ' },
+      ]),
+      deps,
+    )
+    expect(m.segments).toEqual([
+      {
+        charStart: 0,
+        charEnd: 1,
+        kana: 'かたく',
+        nonSplittable: false,
+        perKanji: [{ charStart: 0, charEnd: 0, kana: 'かたく' }],
+      },
+      { charStart: 2, charEnd: 2, nonSplittable: false },
+    ])
+  })
+
+  it('leaves a MULTI-char kana tail bare after a mid-token recovery (頑 + なにか -> 頑な + にか bare)', () => {
+    const m = alignLine(
+      '頑なにか',
+      fakeTokenizer([
+        { surface_form: '頑' },
+        { surface_form: 'なにか', reading: 'ナニカ' },
+      ]),
+      deps,
+    )
+    expect(m.segments).toEqual([
+      {
+        charStart: 0,
+        charEnd: 1,
+        kana: 'かたく',
+        nonSplittable: false,
+        perKanji: [{ charStart: 0, charEnd: 0, kana: 'かたく' }],
+      },
+      { charStart: 2, charEnd: 3, nonSplittable: false },
+    ])
+  })
+
+  it('skips an ambiguous longer span and falls back to the unambiguous shorter word (頑なた -> 頑な)', () => {
+    const m = alignLine(
+      '頑なた',
+      fakeTokenizer([
+        { surface_form: '頑' },
+        { surface_form: 'なた', reading: 'ナタ' },
+      ]),
+      deps,
+    )
+    expect(m.segments).toEqual([
+      {
+        charStart: 0,
+        charEnd: 1,
+        kana: 'かたく',
+        nonSplittable: false,
+        perKanji: [{ charStart: 0, charEnd: 0, kana: 'かたく' }],
+      },
+      { charStart: 2, charEnd: 2, nonSplittable: false },
     ])
   })
 })

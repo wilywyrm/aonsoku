@@ -403,9 +403,17 @@ function tryRecompound(
 
 // Recover a reading when the tokenizer left a kanji token UNREAD (reading '*',
 // e.g. IPADIC doesn't know the literary verb 識る): look the kanji up in jmdict
-// by SURFACE together with its following kana, longest span first, and use an
-// UNAMBIGUOUS entry (識 + る -> 識る -> 識[し]る). Gating on the no-reading failure
-// keeps over-merging low — it fires only once the tokenizer has already given up.
+// by SURFACE together with its following kana, LONGEST span first, and use an
+// UNAMBIGUOUS entry (識 + る -> 識る -> 識[し]る). Spans are tried at CHARACTER
+// granularity, not just whole-token boundaries, so a span may end INSIDE a
+// following pure-kana token — recovering okurigana the tokenizer fused into a
+// particle: 頑 + なに resolves to 頑な (頑[かたく] + bare な) instead of the
+// single-kanji entry 頑[かたくな]. A boundary falling inside a kanji-bearing token
+// is skipped so kanji never split; a partially consumed kana token's unmatched
+// tail needs no ruby and is filled bare downstream. Preferring the longest span
+// lets a real word (頑な) win over the bare single kanji (頑). Gating on the
+// no-reading failure keeps over-merging low — it fires only once the tokenizer
+// has already given up.
 function tryNoReadingRecovery(
   toks: AlignedToken[],
   start: number,
@@ -414,14 +422,27 @@ function tryNoReadingRecovery(
 ): { segments: RubyLineSegment[]; nextIndex: number } | null {
   const first = toks[start]
   if (first.readingHira !== undefined || !hasKanji(first.surface)) return null
+
   const maxEnd = Math.min(start + 3, toks.length - 1)
-  for (let end = maxEnd; end >= start; end--) {
-    let surface = ''
-    for (let k = start; k <= end; k++) surface += toks[k].surface
+  let text = ''
+  const tokEnd: number[] = []
+  for (let k = start; k <= maxEnd; k++) {
+    text += toks[k].surface
+    tokEnd.push(text.length)
+  }
+
+  for (let len = text.length; len >= first.surface.length; len--) {
+    let tokIdx = 0
+    while (tokIdx < tokEnd.length && tokEnd[tokIdx] < len) tokIdx++
+    const endsAtTokenBoundary = tokEnd[tokIdx] === len
+    if (!endsAtTokenBoundary && hasKanji(toks[start + tokIdx].surface)) continue
+
+    const surface = text.slice(0, len)
     const candidates = lookupBySurface(surface)
     // No tokenizer reading is available to disambiguate, so accept only a single
     // (unambiguous) decomposition rather than guessing a homograph.
     if (!candidates || candidates.length !== 1) continue
+
     return {
       segments: segmentsFromParts(
         candidates[0],
@@ -429,7 +450,7 @@ function tryNoReadingRecovery(
         surface.length,
         isNonSplittable,
       ),
-      nextIndex: end + 1,
+      nextIndex: start + tokIdx + (endsAtTokenBoundary ? 1 : 0),
     }
   }
   return null

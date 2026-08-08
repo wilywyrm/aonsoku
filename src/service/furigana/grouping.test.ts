@@ -208,6 +208,50 @@ describe('mergeCollidingUnits', () => {
     ])
     expect(units).toHaveLength(2)
   })
+
+  it('merges when a GROUPED multi-kanji reading overhangs the next unit (少々 + 出来)', () => {
+    const units = mergeCollidingUnits([
+      unit({
+        charStart: 0,
+        charEnd: 1,
+        kanjiText: '少々',
+        kana: 'しょうしょう',
+        coveringCueIdx: [0],
+        cueCharCounts: [2],
+        perKanji: [
+          { charStart: 0, charEnd: 0, kana: 'しょう' },
+          { charStart: 1, charEnd: 1, kana: 'しょう' },
+        ],
+      }),
+      unit({
+        charStart: 2,
+        charEnd: 3,
+        kanjiText: '出来',
+        kana: 'でき',
+        coveringCueIdx: [1],
+        cueCharCounts: [2],
+        perKanji: [
+          { charStart: 2, charEnd: 2, kana: 'で' },
+          { charStart: 3, charEnd: 3, kana: 'き' },
+        ],
+      }),
+    ])
+    expect(units).toHaveLength(1)
+    expect(units[0]).toMatchObject({
+      charStart: 0,
+      charEnd: 3,
+      kanjiText: '少々出来',
+      kana: 'しょうしょうでき',
+      coveringCueIdx: [0, 1],
+      cueCharCounts: [2, 2],
+      perKanji: [
+        { charStart: 0, charEnd: 0, kana: 'しょう' },
+        { charStart: 1, charEnd: 1, kana: 'しょう' },
+        { charStart: 2, charEnd: 2, kana: 'で' },
+        { charStart: 3, charEnd: 3, kana: 'き' },
+      ],
+    })
+  })
 })
 
 describe('mergeCollidingSegments', () => {

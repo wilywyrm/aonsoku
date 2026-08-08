@@ -42,6 +42,23 @@ export interface ReadingGroup {
   kana: string // combined reading, centred over the whole group
 }
 
+// Fuse adjacent overhanging reading spans into one centred group-ruby span
+// (transitive). Shared by groupReadings and the boundary collision test so
+// detection measures the same fused width the renderer draws.
+function groupSpans(spans: ReadingSpan[]): ReadingSpan[] {
+  const groups: ReadingSpan[] = []
+  for (const s of spans) {
+    const prev = groups[groups.length - 1]
+    if (prev && readingsCollide(prev, s)) {
+      prev.end = s.end
+      prev.kana += s.kana
+    } else {
+      groups.push({ start: s.start, end: s.end, kana: s.kana })
+    }
+  }
+  return groups
+}
+
 // Group a unit's per-kanji readings: any run whose readings would overhang into
 // each other is merged so the combined reading centres over the whole kanji
 // group (group-ruby) instead of overlapping. Merging is transitive — a widened
@@ -50,22 +67,13 @@ export function groupReadings(
   perKanji: NonNullable<RenderUnit['perKanji']>,
   unitStart: number,
 ): ReadingGroup[] {
-  const groups: ReadingGroup[] = []
-  for (const pk of perKanji) {
-    const next: ReadingGroup = {
+  return groupSpans(
+    perKanji.map((pk) => ({
       start: pk.charStart - unitStart,
       end: pk.charEnd - unitStart,
       kana: pk.kana,
-    }
-    const prev = groups[groups.length - 1]
-    if (prev && readingsCollide(prev, next)) {
-      prev.end = next.end
-      prev.kana += next.kana
-    } else {
-      groups.push(next)
-    }
-  }
-  return groups
+    })),
+  )
 }
 
 // Fields the collision gate reads: a char range plus its reading(s). Both
@@ -107,8 +115,8 @@ function synthPerKanji(
 function boundaryReadingsCollide(a: ReadingBearing, b: ReadingBearing): boolean {
   if (a.kana === undefined || b.kana === undefined) return false
   if (a.charEnd + 1 !== b.charStart) return false
-  const aSpans = readingSpans(a)
-  const bSpans = readingSpans(b)
+  const aSpans = groupSpans(readingSpans(a))
+  const bSpans = groupSpans(readingSpans(b))
   if (aSpans.length === 0 || bSpans.length === 0) return false
   return readingsCollide(aSpans[aSpans.length - 1], bSpans[0])
 }

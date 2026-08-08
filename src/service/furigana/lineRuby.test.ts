@@ -367,6 +367,47 @@ describe('buildLineRenderSpans', () => {
     expectConcatInvariant(spans, text)
   })
 
+  it('merges a long GROUPED reading across a segment boundary so it no longer overlaps (少々 + 出来)', () => {
+    const text = '少々出来すぎ'
+    const model: RubyLineModel = {
+      segments: [
+        {
+          charStart: 0,
+          charEnd: 1,
+          kana: 'しょうしょう',
+          nonSplittable: false,
+          perKanji: [
+            { charStart: 0, charEnd: 0, kana: 'しょう' },
+            { charStart: 1, charEnd: 1, kana: 'しょう' },
+          ],
+        },
+        {
+          charStart: 2,
+          charEnd: 3,
+          kana: 'でき',
+          nonSplittable: false,
+          perKanji: [
+            { charStart: 2, charEnd: 2, kana: 'で' },
+            { charStart: 3, charEnd: 3, kana: 'き' },
+          ],
+        },
+      ],
+    }
+    const spans = buildLineRenderSpans(text, model)
+    expect(spans).toEqual([
+      {
+        text: '少々出来',
+        kana: 'しょうしょうでき',
+        cells: [
+          { text: '少々出', kana: 'しょうしょうで' },
+          { text: '来', kana: 'き' },
+        ],
+      },
+      { text: 'すぎ' },
+    ])
+    expectConcatInvariant(spans, text)
+  })
+
   it('regression 泥の花: single-kanji {k,k} segments are NOT dropped', () => {
     const text = '泥の花'
     const model: RubyLineModel = {
