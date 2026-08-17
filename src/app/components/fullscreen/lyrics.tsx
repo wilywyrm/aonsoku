@@ -1,6 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
-import { ComponentPropsWithoutRef, useEffect, useRef, useState } from 'react'
+import {
+  ComponentPropsWithoutRef,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import { isSafari } from 'react-device-detect'
 import { useTranslation } from 'react-i18next'
 import { Lrc } from 'react-lrc'
@@ -8,6 +14,7 @@ import {
   ScrollArea,
   scrollAreaViewportSelector,
 } from '@/app/components/ui/scroll-area'
+import { normalizeLrcContent } from '@/service/furigana/lineRuby'
 import { subsonic } from '@/service/subsonic'
 import { useLang } from '@/store/lang.store'
 import {
@@ -15,8 +22,12 @@ import {
   usePlayerRef,
   usePlayerSonglist,
 } from '@/store/player.store'
+import type { RubyLineModel } from '@/types/furigana'
+import type { IStructuredLyric } from '@/types/responses/song'
 import { ILyric } from '@/types/responses/song'
 import { getServerExtensions } from '@/utils/servers'
+import { LineRubyContent } from './line-ruby-content'
+import { LyricsOptions } from './lyrics-options'
 import { WordLevelLyricsContainer } from './word-level-lyrics'
 
 // disambiguates chinese language code to the user's locale if set
@@ -31,6 +42,18 @@ export function resolveLyricsLang(
 
 interface LyricProps {
   lyrics: ILyric
+}
+
+interface SyncedLyricsProps {
+  lyrics: ILyric
+  /**
+   * Explicit, pre-computed ruby line models keyed by react-lrc's parsed line
+   * `index`. Supplied by the caller — this component does NO inference. When
+   * absent or a line has no entry, that line renders as plain text. The caller
+   * owns the decision of whether to build models (language / settings) and must
+   * key the map to match react-lrc's line order.
+   */
+  rubyModels?: Map<number, RubyLineModel>
 }
 
 export function LyricsTab() {
@@ -65,36 +88,53 @@ export function LyricsTab() {
       !!lyrics.structuredLyric?.cueLine?.some((cl) =>
         cl.cue.some((c) => c.start != null),
       )
+    const shellProps = {
+      lang: lyrics.lang,
+      songId: id,
+      pronunciationLyrics: lyrics.pronunciationLyrics,
+    }
     if (hasWordData && lyrics.structuredLyric) {
       return (
-        <div
-          data-testid="lyrics-mode"
-          data-mode="word"
-          className="w-full h-full"
-        >
-          <WordLevelLyricsContainer structuredLyric={lyrics.structuredLyric} />
-        </div>
+        <LyricsTabShell {...shellProps}>
+          <div
+            data-testid="lyrics-mode"
+            data-mode="word"
+            className="w-full h-full"
+          >
+            <WordLevelLyricsContainer
+              structuredLyric={lyrics.structuredLyric}
+            />
+          </div>
+        </LyricsTabShell>
       )
     }
     return areLyricsSynced(lyrics) ? (
-      <div data-testid="lyrics-mode" data-mode="line" className="w-full h-full">
-        <SyncedLyrics lyrics={lyrics} />
-      </div>
+      <LyricsTabShell {...shellProps}>
+        <div
+          data-testid="lyrics-mode"
+          data-mode="line"
+          className="w-full h-full"
+        >
+          <SyncedLyrics lyrics={lyrics} />
+        </div>
+      </LyricsTabShell>
     ) : (
-      <div
-        data-testid="lyrics-mode"
-        data-mode="plain"
-        className="w-full h-full"
-      >
-        <UnsyncedLyrics lyrics={lyrics} />
-      </div>
+      <LyricsTabShell {...shellProps}>
+        <div
+          data-testid="lyrics-mode"
+          data-mode="plain"
+          className="w-full h-full"
+        >
+          <UnsyncedLyrics lyrics={lyrics} />
+        </div>
+      </LyricsTabShell>
     )
   } else {
     return <CenteredMessage>{noLyricsFound}</CenteredMessage>
   }
 }
 
-function SyncedLyrics({ lyrics }: LyricProps) {
+function SyncedLyrics({ lyrics, rubyModels }: SyncedLyricsProps) {
   const playerRef = usePlayerRef()
   const { langCode } = useLang()
   const [progress, setProgress] = useState(0)
@@ -119,25 +159,39 @@ function SyncedLyrics({ lyrics }: LyricProps) {
   return (
     <div className="w-full h-full text-center font-semibold text-2xl 2xl:text-3xl px-2 lrc-box maskImage-big-player-lyrics">
       <Lrc
+        // react-lrc measures each line's offsetTop once at mount and its
+        // ResizeObserver only watches the root box, so ruby height changes go
+        // unmeasured; remount when the ruby model count changes to re-measure.
+        key={`ruby:${rubyModels?.size ?? 0}`}
         lrc={lyrics.value!}
         recoverAutoScrollInterval={1500}
         currentMillisecond={progress}
         id="sync-lyrics-box"
         className={clsx('h-full overflow-y-auto', !isSafari && 'scroll-smooth')}
         verticalSpace={true}
-        lineRenderer={({ active, line }) => (
-          <p
-            onClick={() => skipToTime(line.startMillisecond)}
-            className={clsx(
-              'text-shadow-lg my-5 cursor-pointer hover:opacity-100 duration-500',
-              'transition-[opacity,transform] motion-reduce:transition-none',
-              active ? 'opacity-100 scale-125' : 'opacity-50',
-            )}
-            lang={resolvedLang}
-          >
-            {line.content}
-          </p>
-        )}
+        lineRenderer={({ active, line, index }) => {
+          const model = rubyModels?.get(index)
+          return (
+            <p
+              onClick={() => skipToTime(line.startMillisecond)}
+              className={clsx(
+                'text-shadow-lg my-5 cursor-pointer hover:opacity-100 duration-500',
+                'transition-[opacity,transform] motion-reduce:transition-none',
+                active ? 'opacity-100 scale-125' : 'opacity-50',
+              )}
+              lang={resolvedLang}
+            >
+              {model ? (
+                <LineRubyContent
+                  text={normalizeLrcContent(line.content)}
+                  model={model}
+                />
+              ) : (
+                line.content
+              )}
+            </p>
+          )
+        }}
       />
     </div>
   )
@@ -197,6 +251,33 @@ function CenteredMessage({ children }: CenteredMessageProps) {
       <p className="leading-10 text-shadow-lg text-center font-semibold text-xl 2xl:text-2xl">
         {children}
       </p>
+    </div>
+  )
+}
+
+interface LyricsTabShellProps {
+  lang?: string
+  songId?: string
+  pronunciationLyrics?: IStructuredLyric[]
+  children: ReactNode
+}
+
+function LyricsTabShell({
+  lang,
+  songId,
+  pronunciationLyrics,
+  children,
+}: LyricsTabShellProps) {
+  return (
+    <div className="relative w-full h-full">
+      <div className="absolute right-2 top-2 z-10">
+        <LyricsOptions
+          lang={lang}
+          songId={songId}
+          pronunciationLyrics={pronunciationLyrics}
+        />
+      </div>
+      {children}
     </div>
   )
 }

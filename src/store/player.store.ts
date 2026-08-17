@@ -20,6 +20,7 @@ import { isDesktop } from '@/utils/desktop'
 import { discordRpc } from '@/utils/discordRpc'
 import { addNextSongList, shuffleSongList } from '@/utils/songListFunctions'
 import { idbStorage } from './idb'
+import { migratePlayerState } from './playerStoreMigrations'
 
 const miniStores = {
   songlist: 'player_songlist',
@@ -136,6 +137,41 @@ export const usePlayerStore = createWithEqualityFn<IPlayerContext>()(
               setPreferWordLevelLyrics: (value) => {
                 set((state) => {
                   state.settings.lyrics.preferWordLevelLyrics = value
+                })
+              },
+              rubyPreference: 'auto',
+              setRubyPreference: (value) => {
+                set((state) => {
+                  state.settings.lyrics.rubyPreference = value
+                })
+              },
+              linePreference: 'off',
+              setLinePreference: (value) => {
+                set((state) => {
+                  state.settings.lyrics.linePreference = value
+                })
+              },
+              preferredRubyScript: ['Hrkt', 'Hira', 'Kana'],
+              preferredLineScript: ['Latn'],
+              perTrackTransliteration: {},
+              setPerTrackTransliteration: (songId, override) => {
+                set((state) => {
+                  const map = state.settings.lyrics.perTrackTransliteration
+                  const next = { ...(map[songId] ?? {}), ...override }
+                  if ('ruby' in override && override.ruby === undefined)
+                    delete next.ruby
+                  if ('line' in override && override.line === undefined)
+                    delete next.line
+                  if (next.ruby === undefined && next.line === undefined) {
+                    delete map[songId]
+                  } else {
+                    map[songId] = next
+                  }
+                })
+              },
+              clearPerTrackTransliteration: (songId) => {
+                set((state) => {
+                  delete state.settings.lyrics.perTrackTransliteration[songId]
                 })
               },
             },
@@ -965,7 +1001,8 @@ export const usePlayerStore = createWithEqualityFn<IPlayerContext>()(
       ),
       {
         name: 'player_store',
-        version: 1,
+        version: 2,
+        migrate: migratePlayerState,
         merge: (persistedState, currentState) => {
           let merged = merge(currentState, persistedState)
 

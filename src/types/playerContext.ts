@@ -101,11 +101,32 @@ interface IFullscreen {
   setAutoFullscreenEnabled: (value: boolean) => void
 }
 
+export type TransliterationIntent = 'off' | 'auto'
+
+// A missing axis means "follow the global preference"; 'off' is an explicit
+// per-track suppression; any other string is a concrete track `lang`.
+export interface PerTrackTransliteration {
+  ruby?: 'off' | string
+  line?: 'off' | string
+}
+
 interface ILyrics {
   preferSyncedLyrics: boolean
   setPreferSyncedLyrics: (value: boolean) => void
   preferWordLevelLyrics: boolean
   setPreferWordLevelLyrics: (value: boolean) => void
+  rubyPreference: TransliterationIntent
+  setRubyPreference: (value: TransliterationIntent) => void
+  linePreference: TransliterationIntent
+  setLinePreference: (value: TransliterationIntent) => void
+  preferredRubyScript: string[]
+  preferredLineScript: string[]
+  perTrackTransliteration: Record<string, PerTrackTransliteration>
+  setPerTrackTransliteration: (
+    songId: string,
+    override: PerTrackTransliteration,
+  ) => void
+  clearPerTrackTransliteration: (songId: string) => void
 }
 
 interface LrcLib {

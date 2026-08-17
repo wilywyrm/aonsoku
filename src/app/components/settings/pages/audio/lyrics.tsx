@@ -20,6 +20,10 @@ export function LyricsSettings() {
     setPreferSyncedLyrics,
     preferWordLevelLyrics,
     setPreferWordLevelLyrics,
+    rubyPreference,
+    setRubyPreference,
+    linePreference,
+    setLinePreference,
   } = useLyricsSettings()
 
   const handleWordLevelToggle = (value: boolean) => {
@@ -58,6 +62,32 @@ export function LyricsSettings() {
             <Switch
               checked={preferWordLevelLyrics}
               onCheckedChange={handleWordLevelToggle}
+            />
+          </ContentItemForm>
+        </ContentItem>
+        <ContentItem>
+          <ContentItemTitle info={t('settings.audio.lyrics.ruby.info')}>
+            {t('settings.audio.lyrics.ruby.label')}
+          </ContentItemTitle>
+          <ContentItemForm>
+            <Switch
+              checked={rubyPreference === 'auto'}
+              onCheckedChange={(value) =>
+                setRubyPreference(value ? 'auto' : 'off')
+              }
+            />
+          </ContentItemForm>
+        </ContentItem>
+        <ContentItem>
+          <ContentItemTitle info={t('settings.audio.lyrics.romaji.info')}>
+            {t('settings.audio.lyrics.romaji.label')}
+          </ContentItemTitle>
+          <ContentItemForm>
+            <Switch
+              checked={linePreference === 'auto'}
+              onCheckedChange={(value) =>
+                setLinePreference(value ? 'auto' : 'off')
+              }
             />
           </ContentItemForm>
         </ContentItem>

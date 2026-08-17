@@ -372,7 +372,15 @@
     "queue": "Queue",
     "playing": "Playing now",
     "lyrics": "Lyrics",
-    "switchButton": "Switch to Big Player"
+    "switchButton": "Switch to Big Player",
+    "lyricsOptions": {
+      "title": "Transliteration",
+      "ruby": "Ruby",
+      "romaji": "Romaji",
+      "default": "Default",
+      "off": "Off",
+      "overridden": "Custom for this track"
+    }
   },
   "logout": {
     "dialog": {
@@ -682,6 +690,14 @@
         "preferWordLevel": {
           "label": "Prefer word-level synced lyrics",
           "info": "When enabled, word-by-word highlighting is used when the server supports providing word-level timing data."
+        },
+        "ruby": {
+          "label": "Ruby annotations",
+          "info": "Automatically show ruby (furigana) above kanji when the track provides a suitable pronunciation."
+        },
+        "romaji": {
+          "label": "Romaji line",
+          "info": "Automatically show a romanized line under Japanese lyrics when the track provides one."
         }
       }
     },
