@@ -1,0 +1,95 @@
+version: '1.0'
+
+metadata:
+  title: '翻訳テスト'
+  artist: 'テストアーティスト'
+  language: 'ja'
+  transliterations:
+    - id: hira
+      system: 'ja-Hrkt'
+    - id: romaji
+      system: 'ja-Latn'
+
+lines:
+  - text: '今日は天気がいい'
+    start_ms: 1000
+    end_ms: 5000
+    transliteration:
+      hira: 'きょうはてんきがいい'
+      romaji: 'kyō wa tenki ga ii'
+    words:
+      - text: '今日'
+        start_ms: 1000
+        end_ms: 2000
+        transliteration:
+          hira: 'きょう'
+          romaji: 'kyō'
+      - text: 'は'
+        start_ms: 2000
+        end_ms: 2500
+        transliteration:
+          romaji: 'wa'
+      - text: '天気'
+        start_ms: 2500
+        end_ms: 3500
+        transliteration:
+          hira: 'てんき'
+          romaji: 'tenki'
+      - text: 'が'
+        start_ms: 3500
+        end_ms: 4000
+        transliteration:
+          romaji: 'ga'
+      - text: 'いい'
+        start_ms: 4000
+        end_ms: 5000
+        transliteration:
+          romaji: 'ii'
+  - text: '食べるコーヒーはOK'
+    start_ms: 5500
+    end_ms: 9000
+    words:
+      - text: '食べる'
+        start_ms: 5500
+        end_ms: 6500
+        transliteration:
+          hira: 'たべる'
+          romaji: 'taberu'
+      - text: 'コーヒー'
+        start_ms: 6500
+        end_ms: 7500
+        transliteration:
+          romaji: 'kōhī'
+      - text: 'は'
+        start_ms: 7500
+        end_ms: 8000
+        transliteration:
+          romaji: 'wa'
+      - text: 'OK'
+        start_ms: 8000
+        end_ms: 9000
+  - text: '空を飛ぶ'
+    start_ms: 9500
+    end_ms: 12000
+    words:
+      - text: '空'
+        start_ms: 9500
+        end_ms: 10500
+        transliteration:
+          hira: 'そら'
+          romaji: 'sora'
+      - text: 'を'
+        start_ms: 10500
+        end_ms: 11000
+        transliteration:
+          romaji: 'o'
+      - text: '飛ぶ'
+        start_ms: 11000
+        end_ms: 12000
+
+plain: |
+  翻訳テスト
+
+  今日は天気がいい
+  食べるコーヒーはOK
+  空を飛ぶ

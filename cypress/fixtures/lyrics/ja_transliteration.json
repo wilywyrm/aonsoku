@@ -1,0 +1,296 @@
+{
+  "subsonic-response": {
+    "status": "ok",
+    "version": "1.16.1",
+    "lyricsList": {
+      "structuredLyrics": [
+        {
+          "displayArtist": "テストアーティスト",
+          "displayTitle": "翻訳テスト",
+          "kind": "main",
+          "lang": "ja",
+          "synced": true,
+          "line": [
+            {
+              "start": 1000,
+              "end": 5000,
+              "value": "今日は天気がいい",
+              "cue": [
+                {
+                  "start": 1000,
+                  "end": 2000,
+                  "value": "今日",
+                  "byteStart": 0,
+                  "byteEnd": 5
+                },
+                {
+                  "start": 2000,
+                  "end": 2500,
+                  "value": "は",
+                  "byteStart": 6,
+                  "byteEnd": 7
+                },
+                {
+                  "start": 2500,
+                  "end": 3500,
+                  "value": "天気",
+                  "byteStart": 9,
+                  "byteEnd": 14
+                },
+                {
+                  "start": 3500,
+                  "end": 4000,
+                  "value": "が",
+                  "byteStart": 15,
+                  "byteEnd": 16
+                },
+                {
+                  "start": 4000,
+                  "end": 5000,
+                  "value": "いい",
+                  "byteStart": 18,
+                  "byteEnd": 23
+                }
+              ]
+            },
+            {
+              "start": 5500,
+              "end": 9000,
+              "value": "食べるコーヒーはOK",
+              "cue": [
+                {
+                  "start": 5500,
+                  "end": 6500,
+                  "value": "食べる",
+                  "byteStart": 0,
+                  "byteEnd": 8
+                },
+                {
+                  "start": 6500,
+                  "end": 7500,
+                  "value": "コーヒー",
+                  "byteStart": 9,
+                  "byteEnd": 17
+                },
+                {
+                  "start": 7500,
+                  "end": 8000,
+                  "value": "は",
+                  "byteStart": 18,
+                  "byteEnd": 19
+                },
+                {
+                  "start": 8000,
+                  "end": 9000,
+                  "value": "OK",
+                  "byteStart": 21,
+                  "byteEnd": 22
+                }
+              ]
+            },
+            {
+              "start": 9500,
+              "end": 12000,
+              "value": "空を飛ぶ",
+              "cue": [
+                {
+                  "start": 9500,
+                  "end": 10500,
+                  "value": "空",
+                  "byteStart": 0,
+                  "byteEnd": 2
+                },
+                {
+                  "start": 10500,
+                  "end": 11000,
+                  "value": "を",
+                  "byteStart": 3,
+                  "byteEnd": 4
+                },
+                {
+                  "start": 11000,
+                  "end": 12000,
+                  "value": "飛ぶ",
+                  "byteStart": 6,
+                  "byteEnd": 11
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "displayArtist": "テストアーティスト",
+          "displayTitle": "翻訳テスト",
+          "kind": "pronunciation",
+          "lang": "ja-hrkt",
+          "synced": true,
+          "line": [
+            {
+              "start": 1000,
+              "end": 5000,
+              "value": "きょうはてんきがいい",
+              "cue": [
+                {
+                  "start": 1000,
+                  "end": 2000,
+                  "value": "きょう",
+                  "byteStart": 0,
+                  "byteEnd": 8
+                },
+                {
+                  "start": 2500,
+                  "end": 3500,
+                  "value": "てんき",
+                  "byteStart": 12,
+                  "byteEnd": 19
+                }
+              ]
+            },
+            {
+              "start": 5500,
+              "end": 9000,
+              "value": "たべるこーひー",
+              "cue": [
+                {
+                  "start": 5500,
+                  "end": 6500,
+                  "value": "たべる",
+                  "byteStart": 0,
+                  "byteEnd": 8
+                }
+              ]
+            },
+            {
+              "start": 9500,
+              "end": 12000,
+              "value": "そら",
+              "cue": [
+                {
+                  "start": 9500,
+                  "end": 10500,
+                  "value": "そら",
+                  "byteStart": 0,
+                  "byteEnd": 5
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "displayArtist": "テストアーティスト",
+          "displayTitle": "翻訳テスト",
+          "kind": "pronunciation",
+          "lang": "ja-latn",
+          "synced": true,
+          "line": [
+            {
+              "start": 1000,
+              "end": 5000,
+              "value": "kyō wa tenki ga ii",
+              "cue": [
+                {
+                  "start": 1000,
+                  "end": 2000,
+                  "value": "kyō",
+                  "byteStart": 0,
+                  "byteEnd": 2
+                },
+                {
+                  "start": 2000,
+                  "end": 2500,
+                  "value": "wa",
+                  "byteStart": 4,
+                  "byteEnd": 5
+                },
+                {
+                  "start": 2500,
+                  "end": 3500,
+                  "value": "tenki",
+                  "byteStart": 7,
+                  "byteEnd": 11
+                },
+                {
+                  "start": 3500,
+                  "end": 4000,
+                  "value": "ga",
+                  "byteStart": 13,
+                  "byteEnd": 14
+                },
+                {
+                  "start": 4000,
+                  "end": 5000,
+                  "value": "ii",
+                  "byteStart": 16,
+                  "byteEnd": 17
+                }
+              ]
+            },
+            {
+              "start": 5500,
+              "end": 9000,
+              "value": "taberu kōhī wa OK",
+              "cue": [
+                {
+                  "start": 5500,
+                  "end": 6500,
+                  "value": "taberu",
+                  "byteStart": 0,
+                  "byteEnd": 5
+                },
+                {
+                  "start": 6500,
+                  "end": 7500,
+                  "value": "kōhī",
+                  "byteStart": 7,
+                  "byteEnd": 11
+                },
+                {
+                  "start": 7500,
+                  "end": 8000,
+                  "value": "wa",
+                  "byteStart": 13,
+                  "byteEnd": 14
+                },
+                {
+                  "start": 8000,
+                  "end": 9000,
+                  "value": "OK",
+                  "byteStart": 16,
+                  "byteEnd": 17
+                }
+              ]
+            },
+            {
+              "start": 9500,
+              "end": 12000,
+              "value": "sora o tobu",
+              "cue": [
+                {
+                  "start": 9500,
+                  "end": 10500,
+                  "value": "sora",
+                  "byteStart": 0,
+                  "byteEnd": 3
+                },
+                {
+                  "start": 10500,
+                  "end": 11000,
+                  "value": "o",
+                  "byteStart": 5,
+                  "byteEnd": 5
+                },
+                {
+                  "start": 11000,
+                  "end": 12000,
+                  "value": "tobu",
+                  "byteStart": 7,
+                  "byteEnd": 10
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
