@@ -14,6 +14,8 @@ import {
   ScrollArea,
   scrollAreaViewportSelector,
 } from '@/app/components/ui/scroll-area'
+import { useRubyModels } from '@/hooks/use-ruby-models'
+import { useTransliterationResolver } from '@/hooks/use-transliteration-resolver'
 import { normalizeLrcContent } from '@/service/furigana/lineRuby'
 import { subsonic } from '@/service/subsonic'
 import { useLang } from '@/store/lang.store'
@@ -26,6 +28,7 @@ import type { RubyLineModel } from '@/types/furigana'
 import type { IStructuredLyric } from '@/types/responses/song'
 import { ILyric } from '@/types/responses/song'
 import { getServerExtensions } from '@/utils/servers'
+import { findPronunciationByLang } from '@/utils/wordTiming'
 import { LineRubyContent } from './line-ruby-content'
 import { LyricsOptions } from './lyrics-options'
 import { WordLevelLyricsContainer } from './word-level-lyrics'
@@ -54,6 +57,8 @@ interface SyncedLyricsProps {
    * key the map to match react-lrc's line order.
    */
   rubyModels?: Map<number, RubyLineModel>
+  resolvedLineSystem?: string
+  romajiTrack?: IStructuredLyric
 }
 
 export function LyricsTab() {
@@ -75,6 +80,20 @@ export function LyricsTab() {
       }),
     enabled: !!id,
   })
+
+  const rubyModels = useRubyModels(
+    lyrics?.structuredLyric,
+    lyrics?.pronunciationLyrics,
+    id,
+  )
+
+  const { resolvedLineSystem } = useTransliterationResolver(
+    lyrics?.pronunciationLyrics,
+    id,
+  )
+  const romajiTrack = resolvedLineSystem
+    ? findPronunciationByLang(lyrics?.pronunciationLyrics, resolvedLineSystem)
+    : undefined
 
   const noLyricsFound = t('fullscreen.noLyrics')
   const loadingLyrics = t('fullscreen.loadingLyrics')
@@ -103,6 +122,9 @@ export function LyricsTab() {
           >
             <WordLevelLyricsContainer
               structuredLyric={lyrics.structuredLyric}
+              rubyModels={rubyModels}
+              romajiLyric={romajiTrack}
+              resolvedLineSystem={resolvedLineSystem}
             />
           </div>
         </LyricsTabShell>
@@ -115,7 +137,12 @@ export function LyricsTab() {
           data-mode="line"
           className="w-full h-full"
         >
-          <SyncedLyrics lyrics={lyrics} />
+          <SyncedLyrics
+            lyrics={lyrics}
+            rubyModels={rubyModels}
+            resolvedLineSystem={resolvedLineSystem}
+            romajiTrack={romajiTrack}
+          />
         </div>
       </LyricsTabShell>
     ) : (
@@ -134,7 +161,12 @@ export function LyricsTab() {
   }
 }
 
-function SyncedLyrics({ lyrics, rubyModels }: SyncedLyricsProps) {
+function SyncedLyrics({
+  lyrics,
+  rubyModels,
+  resolvedLineSystem,
+  romajiTrack,
+}: SyncedLyricsProps) {
   const playerRef = usePlayerRef()
   const { langCode } = useLang()
   const [progress, setProgress] = useState(0)
@@ -160,9 +192,9 @@ function SyncedLyrics({ lyrics, rubyModels }: SyncedLyricsProps) {
     <div className="w-full h-full text-center font-semibold text-2xl 2xl:text-3xl px-2 lrc-box maskImage-big-player-lyrics">
       <Lrc
         // react-lrc measures each line's offsetTop once at mount and its
-        // ResizeObserver only watches the root box, so ruby height changes go
-        // unmeasured; remount when the ruby model count changes to re-measure.
-        key={`ruby:${rubyModels?.size ?? 0}`}
+        // ResizeObserver only watches the root box, so ruby/romaji height changes
+        // go unmeasured; remount when the ruby count or romaji toggle changes.
+        key={`ruby:${rubyModels?.size ?? 0}:romaji:${resolvedLineSystem ? 1 : 0}`}
         lrc={lyrics.value!}
         recoverAutoScrollInterval={1500}
         currentMillisecond={progress}
@@ -171,25 +203,23 @@ function SyncedLyrics({ lyrics, rubyModels }: SyncedLyricsProps) {
         verticalSpace={true}
         lineRenderer={({ active, line, index }) => {
           const model = rubyModels?.get(index)
+          const romajiLine = resolvedLineSystem
+            ? romajiTrack?.line[index]?.value
+            : undefined
           return (
-            <p
+            <LineRubyContent
+              text={normalizeLrcContent(line.content)}
+              model={model}
+              lang={resolvedLang}
               onClick={() => skipToTime(line.startMillisecond)}
               className={clsx(
                 'text-shadow-lg my-5 cursor-pointer hover:opacity-100 duration-500',
                 'transition-[opacity,transform] motion-reduce:transition-none',
                 active ? 'opacity-100 scale-125' : 'opacity-50',
               )}
-              lang={resolvedLang}
-            >
-              {model ? (
-                <LineRubyContent
-                  text={normalizeLrcContent(line.content)}
-                  model={model}
-                />
-              ) : (
-                line.content
-              )}
-            </p>
+              resolvedLineSystem={resolvedLineSystem}
+              romajiLine={romajiLine}
+            />
           )
         }}
       />

@@ -2,8 +2,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { isSafari } from 'react-device-detect'
 import { type RafTickInfo, useRafActiveCue } from '@/hooks/use-raf-active-cue'
 import { useWordSeek } from '@/hooks/use-word-seek'
+import { mergeCollidingUnits } from '@/service/furigana/grouping'
+import { reconcile } from '@/service/furigana/reconcile'
+import {
+  computeWipeLayout,
+  unitWipePct,
+  type WipeLayout,
+  wipeFrontChar,
+} from '@/service/furigana/wipeFront'
 import { useLang } from '@/store/lang.store'
 import { usePlayerRef } from '@/store/player.store'
+import {
+  type RenderUnit,
+  type RubyLineModel,
+  rubyUnitKey,
+} from '@/types/furigana'
 import type { IStructuredLyric } from '@/types/responses/song'
 import { normalizeStructuredLyric } from '@/utils/wordTiming'
 import { resolveLyricsLang } from '../lyrics'
@@ -56,11 +69,26 @@ export interface WordLevelLyricsContainerProps {
   structuredLyric: IStructuredLyric
   /** When false, disables rAF polling (e.g. component not visible). Defaults to true. */
   enabled?: boolean
+  /**
+   * Explicit, pre-computed ruby line models keyed by LINE INDEX (matching
+   * `normalized.lines`). Supplied by the caller — this container does NO
+   * inference. When absent or a line has no entry, that cueLine renders bare
+   * (legacy per-cue wipe, no ruby). The model's line-char coordinates must
+   * match each cueLine's `value`; `reconcile()` intersects it with the cues.
+   */
+  rubyModels?: Map<number, RubyLineModel>
+  /** Resolved line-system (romaji) id; forwarded to gate romaji rendering. */
+  resolvedLineSystem?: string
+  /** Pronunciation track whose per-line `value` renders as a parallel romaji line. */
+  romajiLyric?: IStructuredLyric
 }
 
 export function WordLevelLyricsContainer({
   structuredLyric,
   enabled = true,
+  rubyModels,
+  resolvedLineSystem,
+  romajiLyric,
 }: WordLevelLyricsContainerProps) {
   // Normalise once; re-normalise only when the raw data reference changes.
   const normalized = useMemo(
@@ -68,11 +96,59 @@ export function WordLevelLyricsContainer({
     [structuredLyric],
   )
 
+  // Romaji per-line text keyed by line index, aligned positionally to the main
+  // lyric's lines (text only, no timing → no normalization; graceful on mismatch).
+  const romajiByLine = useMemo(() => {
+    const map = new Map<number, string>()
+    if (!romajiLyric) return map
+    romajiLyric.line.forEach((line, i) => {
+      if (line.value?.trim()) map.set(i, line.value)
+    })
+    return map
+  }, [romajiLyric])
+
   const { langCode } = useLang()
   const resolvedLang = useMemo(
     () => resolveLyricsLang(normalized.lang, langCode),
     [normalized.lang, langCode],
   )
+
+  // Reconcile the supplied per-line models against each cueLine's cues into
+  // render units + a shared-front wipe layout. Keyed by
+  // `${lineIdx}|${cueLine.key}` to mirror view.tsx. When no model exists for a
+  // line, its cueLines are skipped here and fall back to the legacy per-cue
+  // render/wipe path in view.tsx (bare text, no ruby).
+  const { rubyUnitsByLineCue, wipeLayoutsByLineCue } = useMemo(() => {
+    const units = new Map<string, RenderUnit[]>()
+    const layouts = new Map<string, WipeLayout>()
+    if (!rubyModels || rubyModels.size === 0) {
+      return { rubyUnitsByLineCue: units, wipeLayoutsByLineCue: layouts }
+    }
+    normalized.lines.forEach((line, i) => {
+      const model = rubyModels.get(i)
+      if (!model) return
+      for (const cueLine of line.cueLines) {
+        const key = `${i}|${cueLine.key}`
+        // Merge adjacent kanji units whose readings would overhang into each
+        // other (e.g. 心構えても → 心 + 構え split across cues) so the shared
+        // wipe layout and the render agree on one group-ruby unit.
+        const u = mergeCollidingUnits(
+          reconcile(model, cueLine.cues, cueLine.value),
+        )
+        units.set(key, u)
+        // Precompute the shared-front char layout once per cueLine, not per frame.
+        layouts.set(key, computeWipeLayout(u, cueLine.cues.length))
+      }
+    })
+    return { rubyUnitsByLineCue: units, wipeLayoutsByLineCue: layouts }
+  }, [normalized, rubyModels])
+
+  // Mirror into refs so the rAF tick reads current units + layout without
+  // re-subscribing.
+  const rubyUnitsRef = useRef(rubyUnitsByLineCue)
+  rubyUnitsRef.current = rubyUnitsByLineCue
+  const wipeLayoutsRef = useRef(wipeLayoutsByLineCue)
+  wipeLayoutsRef.current = wipeLayoutsByLineCue
 
   // Audio time getter — passed to the rAF hook so the hook stays store-agnostic.
   const playerRef = usePlayerRef()
@@ -136,6 +212,39 @@ export function WordLevelLyricsContainer({
         for (const cueLine of line.cueLines) {
           const cueIdx = cueByKey[cueLine.key]
           if (cueIdx == null || cueIdx < 0) continue
+
+          // Furigana cueLines wipe as ONE shared front per cue: every unit in
+          // the active cue (kanji group, bare okurigana, paren, particle) fills
+          // only as the front crosses its own char slice, so a cue never shows
+          // parallel wipes. Non-furigana cueLines keep the legacy per-cue --fill.
+          const units = rubyUnitsRef.current.get(`${lineIdx}|${cueLine.key}`)
+          const layout = wipeLayoutsRef.current.get(`${lineIdx}|${cueLine.key}`)
+          if (units && layout) {
+            const activeCue = cueLine.cues[cueIdx]
+            const front = wipeFrontChar(
+              t,
+              cueIdx,
+              activeCue?.start ?? 0,
+              activeCue?.end ?? 0,
+              layout,
+            )
+            for (let unitIdx = 0; unitIdx < units.length; unitIdx++) {
+              const unit = units[unitIdx]
+              if (!unit.coveringCueIdx.includes(cueIdx)) continue
+              const unitPct = unitWipePct(front, unitIdx, layout)
+              const unitEl = wordRefs.current.get(
+                rubyUnitKey(
+                  lineIdx,
+                  cueLine.key,
+                  unit.coveringCueIdx[0] ?? 0,
+                  unitIdx,
+                ),
+              )
+              if (unitEl) unitEl.style.setProperty('--fill', `${unitPct}%`)
+            }
+            continue
+          }
+
           const cue = cueLine.cues[cueIdx]
           if (!cue) continue
           const duration = Math.max(1, cue.end - cue.start)
@@ -263,6 +372,9 @@ export function WordLevelLyricsContainer({
       breakContainerRefs={breakContainerRefs}
       registerWordRef={registerWordRef}
       registerDotRef={registerDotRef}
+      rubyUnitsByLineCue={rubyUnitsByLineCue}
+      resolvedLineSystem={resolvedLineSystem}
+      romajiByLine={romajiByLine}
     />
   )
 }
