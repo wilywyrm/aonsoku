@@ -12,10 +12,14 @@ import {
 } from '@/types/responses/song'
 import { lrclibClient } from '@/utils/appName'
 import { checkServerType, getServerExtensions } from '@/utils/servers'
-import { pickPrimarySyncedStructuredLyric } from '@/utils/wordTiming'
+import {
+  pickPrimarySyncedStructuredLyric,
+  pickPronunciationTracks,
+} from '@/utils/wordTiming'
 
 type LyricsResult = ILyric & {
   structuredLyric?: IStructuredLyric
+  pronunciationLyrics?: IStructuredLyric[]
 }
 
 // normalizes the ISO 639 code returned by the server to the BCP 47 language tag recognized by the html lang selector
@@ -108,6 +112,7 @@ async function getLyrics(
           const serverSyncedLyrics: LyricsResult = {
             ...osStructuredLyricsToILyric(syncedLyrics),
             structuredLyric: syncedLyrics,
+            pronunciationLyrics: pickPronunciationTracks(structuredLyrics),
           }
 
           writeCache(cacheKey, serverSyncedLyrics)

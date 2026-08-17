@@ -71,10 +71,31 @@ export function pickPrimarySyncedStructuredLyric(
   let firstSynced: IStructuredLyric | undefined
   for (const l of list) {
     if (!l.synced) continue
-    if (l.kind === 'main') return l
+    // Exclude pronunciation and translation tracks from main selection
+    if (l.kind === 'pronunciation' || l.kind === 'translation') continue
+    if (l.kind === 'main' || !l.kind) return l // explicit main or blank (= main)
     if (firstSynced === undefined) firstSynced = l
   }
   return firstSynced
+}
+
+/** Returns all synced kind:'pronunciation' entries from the list. */
+export function pickPronunciationTracks(
+  list: IStructuredLyric[] | undefined,
+): IStructuredLyric[] {
+  if (!list) return []
+  return list.filter((l) => l.synced && l.kind === 'pronunciation')
+}
+
+/** Case-insensitive lookup of a pronunciation track by system/lang. */
+export function findPronunciationByLang(
+  list: IStructuredLyric[] | undefined,
+  system: string,
+): IStructuredLyric | undefined {
+  const target = system.toLowerCase()
+  return pickPronunciationTracks(list).find(
+    (l) => (l.lang ?? '').toLowerCase() === target,
+  )
 }
 
 export function normalizeStructuredLyric(
