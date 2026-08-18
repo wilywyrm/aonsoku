@@ -45,6 +45,15 @@ export function isKanji(cp: number): boolean {
 }
 
 /**
+ * Returns true if the code point is a sokuon (small tsu): っ (U+3063, hiragana)
+ * or ッ (U+30C3, katakana). A geminate marker with no standalone reading, so it
+ * must never be absorbed into a ruby annotation's centring area.
+ */
+export function isSokuon(cp: number): boolean {
+  return cp === 0x3063 || cp === 0x30c3
+}
+
+/**
  * Segment a line into maximal runs of kanji vs other characters.
  * Returns an array of {kind, charStart, charEnd} (charStart/charEnd are
  * JS string indices, inclusive of the start of each code-point).

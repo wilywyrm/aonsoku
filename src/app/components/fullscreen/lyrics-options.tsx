@@ -112,6 +112,72 @@ export function LyricsOptions({
   )
 }
 
+interface LyricsTransliterationRowsProps {
+  lang?: string
+  songId?: string
+  pronunciationLyrics?: IStructuredLyric[]
+}
+
+export function LyricsTransliterationRows({
+  lang,
+  songId,
+  pronunciationLyrics,
+}: LyricsTransliterationRowsProps) {
+  const { t } = useTranslation()
+  const { perTrackTransliteration, setPerTrackTransliteration } =
+    useLyricsSettings()
+
+  const { rubySystems, lineSystems } =
+    listTransliterationOptions(pronunciationLyrics)
+
+  const hasTracks = rubySystems.length > 0 || lineSystems.length > 0
+  if (!songId || !isJapaneseLang(lang) || !hasTracks) return null
+
+  const override = perTrackTransliteration[songId]
+  const isOverridden =
+    override != null &&
+    (override.ruby !== undefined || override.line !== undefined)
+
+  const axisValue = (axis: 'ruby' | 'line') => override?.[axis] ?? DEFAULT_VALUE
+
+  const setAxis = (axis: 'ruby' | 'line', value: string) => {
+    setPerTrackTransliteration(songId, {
+      [axis]: value === DEFAULT_VALUE ? undefined : value,
+    })
+  }
+
+  return (
+    <>
+      <div className="flex items-center justify-between px-3 pt-2 pb-1">
+        <span className="text-sm font-medium">
+          {t('fullscreen.lyricsOptions.title')}
+        </span>
+        {isOverridden && (
+          <span className="text-xs text-muted-foreground">
+            {t('fullscreen.lyricsOptions.overridden')}
+          </span>
+        )}
+      </div>
+      {rubySystems.length > 0 && (
+        <AxisRow
+          label={t('fullscreen.lyricsOptions.ruby')}
+          value={axisValue('ruby')}
+          systems={rubySystems}
+          onValueChange={(value) => setAxis('ruby', value)}
+        />
+      )}
+      {lineSystems.length > 0 && (
+        <AxisRow
+          label={t('fullscreen.lyricsOptions.romaji')}
+          value={axisValue('line')}
+          systems={lineSystems}
+          onValueChange={(value) => setAxis('line', value)}
+        />
+      )}
+    </>
+  )
+}
+
 interface AxisRowProps {
   label: string
   value: string

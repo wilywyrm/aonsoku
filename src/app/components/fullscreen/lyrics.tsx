@@ -23,6 +23,7 @@ import {
   useLyricsSettings,
   usePlayerRef,
   usePlayerSonglist,
+  usePlayerStore,
 } from '@/store/player.store'
 import type { RubyLineModel } from '@/types/furigana'
 import type { IStructuredLyric } from '@/types/responses/song'
@@ -30,7 +31,6 @@ import { ILyric } from '@/types/responses/song'
 import { getServerExtensions } from '@/utils/servers'
 import { findPronunciationByLang } from '@/utils/wordTiming'
 import { LineRubyContent } from './line-ruby-content'
-import { LyricsOptions } from './lyrics-options'
 import { WordLevelLyricsContainer } from './word-level-lyrics'
 
 // disambiguates chinese language code to the user's locale if set
@@ -80,6 +80,13 @@ export function LyricsTab() {
       }),
     enabled: !!id,
   })
+
+  const setCurrentLyricsContext = usePlayerStore(
+    (s) => s.settings.lyrics.setCurrentLyricsContext,
+  )
+  useEffect(() => {
+    setCurrentLyricsContext(lyrics?.lang, lyrics?.pronunciationLyrics)
+  }, [lyrics?.lang, lyrics?.pronunciationLyrics, setCurrentLyricsContext])
 
   const rubyModels = useRubyModels(
     lyrics?.structuredLyric,
@@ -292,24 +299,8 @@ interface LyricsTabShellProps {
   children: ReactNode
 }
 
-function LyricsTabShell({
-  lang,
-  songId,
-  pronunciationLyrics,
-  children,
-}: LyricsTabShellProps) {
-  return (
-    <div className="relative w-full h-full">
-      <div className="absolute right-2 top-2 z-10">
-        <LyricsOptions
-          lang={lang}
-          songId={songId}
-          pronunciationLyrics={pronunciationLyrics}
-        />
-      </div>
-      {children}
-    </div>
-  )
+function LyricsTabShell({ children }: LyricsTabShellProps) {
+  return <div className="relative w-full h-full">{children}</div>
 }
 
 function areLyricsSynced(lyrics: ILyric) {

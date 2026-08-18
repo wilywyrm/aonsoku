@@ -75,6 +75,24 @@ describe('alignPronunciation', () => {
     expect(result[0].segments[0].nonSplittable).toBe(false)
   })
 
+  it('焦っ/じれ → ruby じれ over 焦 only (trailing っ bare)', () => {
+    const main = makeTrack([
+      { value: '焦っ', cues: [{ start: 0, value: '焦っ', byteStart: 0, byteEnd: 5 }] },
+    ])
+    const pron = makeTrack([
+      { value: 'じれ', cues: [{ start: 0, value: 'じれ', byteStart: 0, byteEnd: 5 }] },
+    ])
+
+    const result = alignPronunciation(main, pron)
+
+    expect(result[0].segments).toHaveLength(1)
+    expect(result[0].segments[0].kana).toBe('じれ')
+    // charStart/charEnd covers only 焦 (char 0); the trailing っ is left bare.
+    expect(result[0].segments[0].charStart).toBe(0)
+    expect(result[0].segments[0].charEnd).toBe(0)
+    expect(result[0].segments[0].nonSplittable).toBe(false)
+  })
+
   it('今日/きょう → group ruby (nonSplittable)', () => {
     const main = makeTrack([
       { value: '今日', cues: [{ start: 0, value: '今日', byteStart: 0, byteEnd: 5 }] },
