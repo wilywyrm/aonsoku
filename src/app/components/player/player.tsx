@@ -22,6 +22,7 @@ import { ensureSupportForAlac } from '@/utils/alac'
 import { hasPiPSupport } from '@/utils/browser'
 import { logger } from '@/utils/logger'
 import { ReplayGainParams } from '@/utils/replayGain'
+import { wrapFlacStreamUrl } from '@/utils/streamSanitizer'
 import { AudioPlayer } from './audio'
 import { PlayerClearQueueButton } from './clear-queue-button'
 import { PlayerControls } from './controls'
@@ -84,12 +85,14 @@ export function Player() {
 
     const cacheBustToken = mediaCacheEnabled ? undefined : Date.now().toString()
 
-    return getSongStreamUrl(
+    const streamUrl = getSongStreamUrl(
       songId,
       undefined,
       ensureSupportForAlac(song.suffix),
       cacheBustToken,
     )
+
+    return wrapFlacStreamUrl(streamUrl, song.suffix)
   }, [songId, song, mediaCacheEnabled])
 
   const getAudioRef = useCallback(() => {
