@@ -1,5 +1,5 @@
 import type { RubyLineModel, RubyLineSegment } from '@/types/furigana'
-import { hasKanji, isKanji, katakanaToHiragana } from '@/utils/kana'
+import { hasKanji, isKanji, isSokuon, katakanaToHiragana } from '@/utils/kana'
 import type {
   NormalizedCue,
   NormalizedStructuredLyric,
@@ -128,6 +128,14 @@ function stripAffixes(base: string, reading: string): StrippedReading | null {
   ) {
     baseEnd--
     readEnd--
+  }
+
+  // Peel a trailing sokuon (小さいっ) the reading doesn't account for (焦っ+じれ):
+  // a geminate marker has no standalone reading, so it stays bare beside the
+  // kanji like okurigana instead of widening the ruby span. The shared-trailing
+  // loop already consumed any っ the reading matches, so this only fires unmatched.
+  while (baseEnd >= leadStart && isSokuon(base.codePointAt(baseEnd)!)) {
+    baseEnd--
   }
 
   const kanjiCore = base.slice(leadStart, baseEnd + 1)
