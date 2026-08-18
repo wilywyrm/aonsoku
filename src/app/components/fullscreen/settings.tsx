@@ -54,6 +54,8 @@ export function FullscreenSettings() {
 
 export function QueueSettings() {
   const { useSongColorOnQueue } = useSongColor()
+  const { currentSong } = usePlayerSonglist()
+  const { currentLyricsLang, currentPronunciationLyrics } = useLyricsSettings()
 
   return (
     <Popover>
@@ -70,6 +72,11 @@ export function QueueSettings() {
         <div className="flex flex-col">
           <QueueDynamicColorOption showSeparator={false} />
           {useSongColorOnQueue && <ColorIntensityOption />}
+          <LyricsTransliterationRows
+            lang={currentLyricsLang}
+            songId={currentSong?.id}
+            pronunciationLyrics={currentPronunciationLyrics}
+          />
         </div>
       </PopoverContent>
     </Popover>
