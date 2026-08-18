@@ -692,12 +692,12 @@
           "info": "When enabled, word-by-word highlighting is used when the server supports providing word-level timing data."
         },
         "ruby": {
-          "label": "Ruby annotations",
-          "info": "Automatically show ruby (furigana) above kanji when the track provides a suitable pronunciation."
+          "label": "Show ruby annotations",
+          "info": "Automatically show ruby text when the server provides it for the file."
         },
         "romaji": {
-          "label": "Romaji line",
-          "info": "Automatically show a romanized line under Japanese lyrics when the track provides one."
+          "label": "Show romanization",
+          "info": "Automatically show separate romanized lines under the main line when the server provides one for the file."
         }
       }
     },
