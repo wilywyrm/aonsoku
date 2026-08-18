@@ -153,6 +153,14 @@ export const usePlayerStore = createWithEqualityFn<IPlayerContext>()(
               },
               preferredRubyScript: ['Hrkt', 'Hira', 'Kana'],
               preferredLineScript: ['Latn'],
+              currentLyricsLang: undefined as string | undefined,
+              currentPronunciationLyrics: undefined as import('@/types/responses/song').IStructuredLyric[] | undefined,
+              setCurrentLyricsContext: (lang: string | undefined, pronunciationLyrics: import('@/types/responses/song').IStructuredLyric[] | undefined) => {
+                set((state) => {
+                  state.settings.lyrics.currentLyricsLang = lang
+                  state.settings.lyrics.currentPronunciationLyrics = pronunciationLyrics
+                })
+              },
               perTrackTransliteration: {},
               setPerTrackTransliteration: (songId, override) => {
                 set((state) => {
