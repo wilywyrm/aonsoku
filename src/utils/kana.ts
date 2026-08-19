@@ -54,14 +54,18 @@ export function isSokuon(cp: number): boolean {
 }
 
 /**
- * Returns true for bracket or quotation punctuation that ruby must not centre
- * over: CJK brackets/quotes (〈〉《》「」『』【】〔〕〖〗〘〙〚〛 and 〝〞〟), fullwidth
- * （）［］｛｝｟｠ and halfwidth ｢｣, plus ASCII, smart, and angle quotes. Such marks
- * wrap or abut a word but carry no reading, so they are peeled off the ruby base
- * like okurigana so the annotation centres on the kanji, not the punctuation.
+ * Returns true for punctuation that ruby must not centre over — it wraps or abuts
+ * a word but carries no reading, so it is peeled off the ruby base like okurigana
+ * and the annotation centres on the kanji. Covers brackets/quotes (CJK 〈〉《》「」
+ * 『』【】〔〕〖〗〘〙〚〛〝〞〟, fullwidth （）［］｛｝｟｠, halfwidth ｢｣, plus ASCII/smart/
+ * angle quotes), sentence & clause marks (! ? 。 、 : ; … and their fullwidth/
+ * halfwidth forms), dashes/hyphens (‐‑‒–—―), the interpunct ・･, and the wave dash
+ * 〜～. Deliberately EXCLUDES the prolonged sound mark ー (U+30FC), which is part of
+ * a reading, and the ideographic iteration marks (which isKanji already claims).
  */
 export function isRubyExcludedPunctuation(cp: number): boolean {
   return (
+    // Brackets & quotation
     (cp >= 0x3008 && cp <= 0x3011) || // 〈〉《》「」『』【】
     (cp >= 0x3014 && cp <= 0x301b) || // 〔〕〖〗〘〙〚〛
     (cp >= 0x301d && cp <= 0x301f) || // 〝〞〟
@@ -81,7 +85,30 @@ export function isRubyExcludedPunctuation(cp: number): boolean {
     cp === 0x00ab || // «
     cp === 0x00bb || // »
     cp === 0x2039 || // ‹
-    cp === 0x203a // ›
+    cp === 0x203a || // ›
+    // Sentence & clause punctuation
+    cp === 0x0021 || // !
+    cp === 0x003f || // ?
+    cp === 0xff01 || // ！
+    cp === 0xff1f || // ？
+    cp === 0x203c || // ‼
+    (cp >= 0x2047 && cp <= 0x2049) || // ⁇ ⁈ ⁉
+    cp === 0x3001 || // 、
+    cp === 0x3002 || // 。
+    (cp >= 0x002c && cp <= 0x002e) || // , - .
+    cp === 0xff0c || // ，
+    cp === 0xff0e || // ．
+    cp === 0xff61 || // ｡
+    cp === 0xff64 || // ､
+    (cp >= 0x003a && cp <= 0x003b) || // : ;
+    (cp >= 0xff1a && cp <= 0xff1b) || // ： ；
+    (cp >= 0x2025 && cp <= 0x2026) || // ‥ …
+    // Separators, dashes, elongation
+    cp === 0x30fb || // ・  (NOT ー U+30FC, a reading mark)
+    cp === 0xff65 || // ･
+    cp === 0x301c || // 〜
+    cp === 0xff5e || // ～
+    (cp >= 0x2010 && cp <= 0x2015) // ‐ ‑ ‒ – — ―
   )
 }
 
