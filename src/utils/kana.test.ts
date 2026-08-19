@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   hasKanji,
+  isHiragana,
   isKanji,
   isRubyExcludedPunctuation,
   katakanaToHiragana,
@@ -177,6 +178,22 @@ describe('kana utilities', () => {
     it('does NOT exclude ー, iteration marks, kana, kanji, or letters', () => {
       for (const ch of ['ー', '々', 'あ', 'ア', '本', 'a', '0']) {
         expect(isRubyExcludedPunctuation(cp(ch))).toBe(false)
+      }
+    })
+  })
+
+  describe('isHiragana', () => {
+    const cp = (ch: string): number => ch.codePointAt(0) ?? -1
+
+    it('returns true for hiragana incl. small kana and sokuon', () => {
+      for (const ch of ['あ', 'ん', 'っ', 'ゃ', 'を', 'ゔ']) {
+        expect(isHiragana(cp(ch))).toBe(true)
+      }
+    })
+
+    it('returns false for katakana, the prolonged mark ー, kanji, letters', () => {
+      for (const ch of ['ア', 'ッ', 'ー', '本', 'a', '0']) {
+        expect(isHiragana(cp(ch))).toBe(false)
       }
     })
   })

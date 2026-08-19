@@ -1,9 +1,9 @@
 import type { RubyLineModel, RubyLineSegment } from '@/types/furigana'
 import {
   hasKanji,
+  isHiragana,
   isKanji,
   isRubyExcludedPunctuation,
-  isSokuon,
 } from '@/utils/kana'
 import type {
   NormalizedCue,
@@ -143,40 +143,42 @@ function stripAffixes(base: string, reading: string): StrippedReading | null {
   const contentStart = baseStart
   const contentEnd = baseEnd
 
-  // Strip shared leading kana (prefix okurigana such as お in お茶). Matching is
-  // SCRIPT-EXACT: a katakana reading char never equals a hiragana base char, so an
-  // author's embedded katakana reading is trusted whole and never scraped (folding
-  // カ→か would visibly rewrite the author's intent). Base and reading advance on
-  // independent cursors because peeled punctuation shifted only the base.
+  // Peel okurigana off each edge to isolate the kanji the reading annotates.
+  // Three cases per edge: (1) the base kana equals the reading's edge char → the
+  // SAME kana the reading spells out (shared okurigana), peel from both; (2) the
+  // reading's edge char is NOT hiragana → a cross-script reading the author chose
+  // to spell whole (食べる/タベル), so stop and keep it verbatim; (3) otherwise the
+  // base kana is okurigana the same-script reading omitted (好き/す, お茶/ちゃ,
+  // 焦っ/じれ) → peel the base kana only, leaving the reading over the kanji. Base
+  // and reading advance on independent cursors because peeled punctuation shifted
+  // only the base.
   let readStart = 0
   let readEnd = reading.length - 1
-  while (
-    baseStart <= baseEnd &&
-    readStart <= readEnd &&
-    !isKanji(base.codePointAt(baseStart)!) &&
-    base[baseStart] === reading[readStart]
-  ) {
-    baseStart++
-    readStart++
+  while (baseStart <= baseEnd && !isKanji(base.codePointAt(baseStart)!)) {
+    if (readStart <= readEnd && base[baseStart] === reading[readStart]) {
+      baseStart++
+      readStart++
+    } else if (
+      readStart <= readEnd &&
+      !isHiragana(reading.codePointAt(readStart)!)
+    ) {
+      break
+    } else {
+      baseStart++
+    }
   }
-
-  // Strip shared trailing kana (suffix okurigana such as べる in 食べる).
-  while (
-    baseEnd >= baseStart &&
-    readEnd >= readStart &&
-    !isKanji(base.codePointAt(baseEnd)!) &&
-    base[baseEnd] === reading[readEnd]
-  ) {
-    baseEnd--
-    readEnd--
-  }
-
-  // Peel a trailing sokuon (小さいっ) the reading doesn't account for (焦っ+じれ):
-  // a geminate marker has no standalone reading, so it stays bare beside the
-  // kanji like okurigana instead of widening the ruby span. The shared-trailing
-  // loop already consumed any っ the reading matches, so this only fires unmatched.
-  while (baseEnd >= baseStart && isSokuon(base.codePointAt(baseEnd)!)) {
-    baseEnd--
+  while (baseEnd >= baseStart && !isKanji(base.codePointAt(baseEnd)!)) {
+    if (readEnd >= readStart && base[baseEnd] === reading[readEnd]) {
+      baseEnd--
+      readEnd--
+    } else if (
+      readEnd >= readStart &&
+      !isHiragana(reading.codePointAt(readEnd)!)
+    ) {
+      break
+    } else {
+      baseEnd--
+    }
   }
 
   const kanjiCore = base.slice(baseStart, baseEnd + 1)
