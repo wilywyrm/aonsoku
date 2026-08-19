@@ -460,7 +460,7 @@ svg#bars .eq-bar--4 {
   position: absolute;
   bottom: 100%;
   left: 50%;
-  transform: translate(-50%, var(--furi-offset, -0.05em));
+  transform: translate(-50%, var(--furi-offset, -0.2em));
   font-size: 0.5em;
   font-weight: normal;
   line-height: 1;
