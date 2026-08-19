@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { hasKanji, isKanji, katakanaToHiragana, segmentScriptRuns } from './kana'
+import {
+  hasKanji,
+  isKanji,
+  isRubyExcludedPunctuation,
+  katakanaToHiragana,
+  segmentScriptRuns,
+} from './kana'
 
 describe('kana utilities', () => {
   describe('katakanaToHiragana', () => {
@@ -130,6 +136,48 @@ describe('kana utilities', () => {
 
     it('handles empty string', () => {
       expect(hasKanji('')).toBe(false)
+    })
+  })
+
+  describe('isRubyExcludedPunctuation', () => {
+    const cp = (ch: string): number => ch.codePointAt(0) ?? -1
+
+    it('excludes brackets and quotation marks', () => {
+      for (const ch of ['「', '」', '（', '）', '"', '\u2018']) {
+        expect(isRubyExcludedPunctuation(cp(ch))).toBe(true)
+      }
+    })
+
+    it('excludes sentence and clause punctuation', () => {
+      for (const ch of [
+        '!',
+        '?',
+        '！',
+        '？',
+        '‼',
+        '、',
+        '。',
+        ',',
+        '.',
+        ':',
+        ';',
+        '…',
+        '‥',
+      ]) {
+        expect(isRubyExcludedPunctuation(cp(ch))).toBe(true)
+      }
+    })
+
+    it('excludes interpunct, wave dash, and dashes', () => {
+      for (const ch of ['・', '･', '〜', '～', '‐', '—', '―']) {
+        expect(isRubyExcludedPunctuation(cp(ch))).toBe(true)
+      }
+    })
+
+    it('does NOT exclude ー, iteration marks, kana, kanji, or letters', () => {
+      for (const ch of ['ー', '々', 'あ', 'ア', '本', 'a', '0']) {
+        expect(isRubyExcludedPunctuation(cp(ch))).toBe(false)
+      }
     })
   })
 })

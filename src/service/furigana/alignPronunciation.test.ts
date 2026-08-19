@@ -284,6 +284,40 @@ describe('alignPronunciation', () => {
     expect(result[0].segments[0].nonSplittable).toBe(true)
   })
 
+  it('恋!/こい → ruby over 恋 only (trailing ! bare)', () => {
+    const main = makeTrack([
+      { value: '恋!', cues: [{ start: 0, value: '恋!', byteStart: 0, byteEnd: 3 }] },
+    ])
+    const pron = makeTrack([
+      { value: 'こい', cues: [{ start: 0, value: 'こい', byteStart: 0, byteEnd: 5 }] },
+    ])
+
+    const result = alignPronunciation(main, pron)
+
+    expect(result[0].segments).toHaveLength(1)
+    expect(result[0].segments[0].kana).toBe('こい')
+    expect(result[0].segments[0].charStart).toBe(0)
+    expect(result[0].segments[0].charEnd).toBe(0)
+    expect(result[0].segments[0].nonSplittable).toBe(true)
+  })
+
+  it('愛。/あい → ruby over 愛 only (trailing 。 bare)', () => {
+    const main = makeTrack([
+      { value: '愛。', cues: [{ start: 0, value: '愛。', byteStart: 0, byteEnd: 5 }] },
+    ])
+    const pron = makeTrack([
+      { value: 'あい', cues: [{ start: 0, value: 'あい', byteStart: 0, byteEnd: 5 }] },
+    ])
+
+    const result = alignPronunciation(main, pron)
+
+    expect(result[0].segments).toHaveLength(1)
+    expect(result[0].segments[0].kana).toBe('あい')
+    expect(result[0].segments[0].charStart).toBe(0)
+    expect(result[0].segments[0].charEnd).toBe(0)
+    expect(result[0].segments[0].nonSplittable).toBe(true)
+  })
+
   it('spans several main cues under one pron cue → ONE group segment over union', () => {
     // Provider split 今 and 日 into separately-timed main cues, but the pron
     // track gives a single きょう cue covering both — one group ruby, no dup.
