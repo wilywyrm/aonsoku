@@ -75,6 +75,40 @@ describe('alignPronunciation', () => {
     expect(result[0].segments[0].nonSplittable).toBe(false)
   })
 
+  it('猫/ネコ → ruby ネコ over 猫 (katakana reading kept as-authored, not folded)', () => {
+    const main = makeTrack([
+      { value: '猫', cues: [{ start: 0, value: '猫', byteStart: 0, byteEnd: 2 }] },
+    ])
+    const pron = makeTrack([
+      { value: 'ネコ', cues: [{ start: 0, value: 'ネコ', byteStart: 0, byteEnd: 5 }] },
+    ])
+
+    const result = alignPronunciation(main, pron)
+
+    expect(result[0].segments).toHaveLength(1)
+    expect(result[0].segments[0].kana).toBe('ネコ')
+    expect(result[0].segments[0].charStart).toBe(0)
+    expect(result[0].segments[0].charEnd).toBe(0)
+    expect(result[0].segments[0].nonSplittable).toBe(true)
+  })
+
+  it('食べる/タベル → whole katakana reading kept (script-differing okurigana not scraped)', () => {
+    const main = makeTrack([
+      { value: '食べる', cues: [{ start: 0, value: '食べる', byteStart: 0, byteEnd: 8 }] },
+    ])
+    const pron = makeTrack([
+      { value: 'タベル', cues: [{ start: 0, value: 'タベル', byteStart: 0, byteEnd: 8 }] },
+    ])
+
+    const result = alignPronunciation(main, pron)
+
+    expect(result[0].segments).toHaveLength(1)
+    expect(result[0].segments[0].kana).toBe('タベル')
+    expect(result[0].segments[0].charStart).toBe(0)
+    expect(result[0].segments[0].charEnd).toBe(2)
+    expect(result[0].segments[0].nonSplittable).toBe(true)
+  })
+
   it('焦っ/じれ → ruby じれ over 焦 only (trailing っ bare)', () => {
     const main = makeTrack([
       { value: '焦っ', cues: [{ start: 0, value: '焦っ', byteStart: 0, byteEnd: 5 }] },
