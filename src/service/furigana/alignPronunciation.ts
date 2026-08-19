@@ -1,5 +1,11 @@
 import type { RubyLineModel, RubyLineSegment } from '@/types/furigana'
-import { hasKanji, isKanji, isSokuon, katakanaToHiragana } from '@/utils/kana'
+import {
+  hasKanji,
+  isKanji,
+  isRubyExcludedPunctuation,
+  isSokuon,
+  katakanaToHiragana,
+} from '@/utils/kana'
 import type {
   NormalizedCue,
   NormalizedStructuredLyric,
@@ -118,23 +124,48 @@ function stripAffixes(base: string, reading: string): StrippedReading | null {
   // Reading identical to the base → pure passthrough, no ruby.
   if (base === hiraReading) return null
 
-  // Strip shared leading kana (prefix okurigana such as お in お茶).
-  let leadStart = 0
+  // Peel wrapping punctuation (brackets/quotes such as 「」『』（）"") off the base
+  // ONLY: it carries no reading, so the ruby must centre over the kanji inside,
+  // never the punctuation. Reading indices stay put since nothing matched, which
+  // is why base and reading positions are tracked separately from here on.
+  let baseStart = 0
+  let baseEnd = base.length - 1
   while (
-    leadStart < base.length &&
-    leadStart < hiraReading.length &&
-    !isKanji(base.codePointAt(leadStart)!) &&
-    base[leadStart] === hiraReading[leadStart]
+    baseStart <= baseEnd &&
+    isRubyExcludedPunctuation(base.codePointAt(baseStart)!)
   ) {
-    leadStart++
+    baseStart++
+  }
+  while (
+    baseEnd >= baseStart &&
+    isRubyExcludedPunctuation(base.codePointAt(baseEnd)!)
+  ) {
+    baseEnd--
+  }
+  // Content bounds excluding wrapping punctuation: nonSplittable below is measured
+  // against these so a bracketed jukujikun (「今日」) is not mistaken for splittable.
+  const contentStart = baseStart
+  const contentEnd = baseEnd
+
+  // Strip shared leading kana (prefix okurigana such as お in お茶). Base and
+  // reading advance on independent cursors because peeled punctuation shifted
+  // only the base.
+  let readStart = 0
+  let readEnd = hiraReading.length - 1
+  while (
+    baseStart <= baseEnd &&
+    readStart <= readEnd &&
+    !isKanji(base.codePointAt(baseStart)!) &&
+    base[baseStart] === hiraReading[readStart]
+  ) {
+    baseStart++
+    readStart++
   }
 
   // Strip shared trailing kana (suffix okurigana such as べる in 食べる).
-  let baseEnd = base.length - 1
-  let readEnd = hiraReading.length - 1
   while (
-    baseEnd >= leadStart &&
-    readEnd >= leadStart &&
+    baseEnd >= baseStart &&
+    readEnd >= readStart &&
     !isKanji(base.codePointAt(baseEnd)!) &&
     base[baseEnd] === hiraReading[readEnd]
   ) {
@@ -146,24 +177,24 @@ function stripAffixes(base: string, reading: string): StrippedReading | null {
   // a geminate marker has no standalone reading, so it stays bare beside the
   // kanji like okurigana instead of widening the ruby span. The shared-trailing
   // loop already consumed any っ the reading matches, so this only fires unmatched.
-  while (baseEnd >= leadStart && isSokuon(base.codePointAt(baseEnd)!)) {
+  while (baseEnd >= baseStart && isSokuon(base.codePointAt(baseEnd)!)) {
     baseEnd--
   }
 
-  const kanjiCore = base.slice(leadStart, baseEnd + 1)
-  const readingCore = hiraReading.slice(leadStart, readEnd + 1)
+  const kanjiCore = base.slice(baseStart, baseEnd + 1)
+  const readingCore = hiraReading.slice(readStart, readEnd + 1)
 
   // Core must still contain kanji and carry a reading, else there is no ruby.
   if (!kanjiCore || !hasKanji(kanjiCore)) return null
   if (!readingCore) return null
 
-  // A core that spans the entire base had no okurigana peeled off either end, so
-  // it reads as one indivisible group (jukujikun like 今日/きょう). A core that
-  // was trimmed has bare okurigana beside it and stays splittable; reconcile
-  // handles any per-kanji placement downstream.
-  const nonSplittable = leadStart === 0 && baseEnd === base.length - 1
+  // A core that spans the whole CONTENT (wrapping punctuation aside) had no
+  // okurigana peeled off either end, so it reads as one indivisible group
+  // (jukujikun like 今日/きょう). A trimmed core has bare okurigana beside it and
+  // stays splittable; reconcile handles any per-kanji placement downstream.
+  const nonSplittable = baseStart === contentStart && baseEnd === contentEnd
 
-  return { kana: readingCore, leadStart, coreEnd: baseEnd, nonSplittable }
+  return { kana: readingCore, leadStart: baseStart, coreEnd: baseEnd, nonSplittable }
 }
 
 // True when a main cue's start falls inside this pron cue's span. A pron cue

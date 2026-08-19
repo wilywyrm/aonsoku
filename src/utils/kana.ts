@@ -54,6 +54,38 @@ export function isSokuon(cp: number): boolean {
 }
 
 /**
+ * Returns true for bracket or quotation punctuation that ruby must not centre
+ * over: CJK brackets/quotes (〈〉《》「」『』【】〔〕〖〗〘〙〚〛 and 〝〞〟), fullwidth
+ * （）［］｛｝｟｠ and halfwidth ｢｣, plus ASCII, smart, and angle quotes. Such marks
+ * wrap or abut a word but carry no reading, so they are peeled off the ruby base
+ * like okurigana so the annotation centres on the kanji, not the punctuation.
+ */
+export function isRubyExcludedPunctuation(cp: number): boolean {
+  return (
+    (cp >= 0x3008 && cp <= 0x3011) || // 〈〉《》「」『』【】
+    (cp >= 0x3014 && cp <= 0x301b) || // 〔〕〖〗〘〙〚〛
+    (cp >= 0x301d && cp <= 0x301f) || // 〝〞〟
+    cp === 0xff08 || // （
+    cp === 0xff09 || // ）
+    cp === 0xff3b || // ［
+    cp === 0xff3d || // ］
+    cp === 0xff5b || // ｛
+    cp === 0xff5d || // ｝
+    cp === 0xff5f || // ｟
+    cp === 0xff60 || // ｠
+    cp === 0xff62 || // ｢
+    cp === 0xff63 || // ｣
+    cp === 0x0022 || // "
+    cp === 0x0027 || // '
+    (cp >= 0x2018 && cp <= 0x201f) || // ‘ ’ ‚ ‛ “ ” „ ‟
+    cp === 0x00ab || // «
+    cp === 0x00bb || // »
+    cp === 0x2039 || // ‹
+    cp === 0x203a // ›
+  )
+}
+
+/**
  * Segment a line into maximal runs of kanji vs other characters.
  * Returns an array of {kind, charStart, charEnd} (charStart/charEnd are
  * JS string indices, inclusive of the start of each code-point).

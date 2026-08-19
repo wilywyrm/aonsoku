@@ -199,6 +199,57 @@ describe('alignPronunciation', () => {
     expect(result[0].segments[0].nonSplittable).toBe(false)
   })
 
+  it('「本」/ほん → ruby over 本 only (CJK brackets bare, not centred over)', () => {
+    const main = makeTrack([
+      { value: '「本」', cues: [{ start: 0, value: '「本」', byteStart: 0, byteEnd: 8 }] },
+    ])
+    const pron = makeTrack([
+      { value: 'ほん', cues: [{ start: 0, value: 'ほん', byteStart: 0, byteEnd: 5 }] },
+    ])
+
+    const result = alignPronunciation(main, pron)
+
+    expect(result[0].segments).toHaveLength(1)
+    expect(result[0].segments[0].kana).toBe('ほん')
+    expect(result[0].segments[0].charStart).toBe(1)
+    expect(result[0].segments[0].charEnd).toBe(1)
+    expect(result[0].segments[0].nonSplittable).toBe(true)
+  })
+
+  it('「食べる」/たべる → ruby た over 食 only (brackets + okurigana bare)', () => {
+    const main = makeTrack([
+      { value: '「食べる」', cues: [{ start: 0, value: '「食べる」', byteStart: 0, byteEnd: 14 }] },
+    ])
+    const pron = makeTrack([
+      { value: 'たべる', cues: [{ start: 0, value: 'たべる', byteStart: 0, byteEnd: 8 }] },
+    ])
+
+    const result = alignPronunciation(main, pron)
+
+    expect(result[0].segments).toHaveLength(1)
+    expect(result[0].segments[0].kana).toBe('た')
+    expect(result[0].segments[0].charStart).toBe(1)
+    expect(result[0].segments[0].charEnd).toBe(1)
+    expect(result[0].segments[0].nonSplittable).toBe(false)
+  })
+
+  it('"本"/ほん → ruby over 本 only (ASCII quotes bare)', () => {
+    const main = makeTrack([
+      { value: '"本"', cues: [{ start: 0, value: '"本"', byteStart: 0, byteEnd: 4 }] },
+    ])
+    const pron = makeTrack([
+      { value: 'ほん', cues: [{ start: 0, value: 'ほん', byteStart: 0, byteEnd: 5 }] },
+    ])
+
+    const result = alignPronunciation(main, pron)
+
+    expect(result[0].segments).toHaveLength(1)
+    expect(result[0].segments[0].kana).toBe('ほん')
+    expect(result[0].segments[0].charStart).toBe(1)
+    expect(result[0].segments[0].charEnd).toBe(1)
+    expect(result[0].segments[0].nonSplittable).toBe(true)
+  })
+
   it('spans several main cues under one pron cue → ONE group segment over union', () => {
     // Provider split 今 and 日 into separately-timed main cues, but the pron
     // track gives a single きょう cue covering both — one group ruby, no dup.
