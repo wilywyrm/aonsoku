@@ -92,6 +92,74 @@ describe('alignPronunciation', () => {
     expect(result[0].segments[0].nonSplittable).toBe(true)
   })
 
+  it('好き/す → ruby す over 好 only (kanji-only reading, okurigana き peeled)', () => {
+    const main = makeTrack([
+      { value: '好き', cues: [{ start: 0, value: '好き', byteStart: 0, byteEnd: 5 }] },
+    ])
+    const pron = makeTrack([
+      { value: 'す', cues: [{ start: 0, value: 'す', byteStart: 0, byteEnd: 2 }] },
+    ])
+
+    const result = alignPronunciation(main, pron)
+
+    expect(result[0].segments).toHaveLength(1)
+    expect(result[0].segments[0].kana).toBe('す')
+    expect(result[0].segments[0].charStart).toBe(0)
+    expect(result[0].segments[0].charEnd).toBe(0)
+    expect(result[0].segments[0].nonSplittable).toBe(false)
+  })
+
+  it('見る/み → ruby み over 見 only (kanji-only reading, okurigana る peeled)', () => {
+    const main = makeTrack([
+      { value: '見る', cues: [{ start: 0, value: '見る', byteStart: 0, byteEnd: 5 }] },
+    ])
+    const pron = makeTrack([
+      { value: 'み', cues: [{ start: 0, value: 'み', byteStart: 0, byteEnd: 2 }] },
+    ])
+
+    const result = alignPronunciation(main, pron)
+
+    expect(result[0].segments).toHaveLength(1)
+    expect(result[0].segments[0].kana).toBe('み')
+    expect(result[0].segments[0].charStart).toBe(0)
+    expect(result[0].segments[0].charEnd).toBe(0)
+    expect(result[0].segments[0].nonSplittable).toBe(false)
+  })
+
+  it('お茶/ちゃ → ruby ちゃ over 茶 only (leading okurigana お peeled)', () => {
+    const main = makeTrack([
+      { value: 'お茶', cues: [{ start: 0, value: 'お茶', byteStart: 0, byteEnd: 5 }] },
+    ])
+    const pron = makeTrack([
+      { value: 'ちゃ', cues: [{ start: 0, value: 'ちゃ', byteStart: 0, byteEnd: 5 }] },
+    ])
+
+    const result = alignPronunciation(main, pron)
+
+    expect(result[0].segments).toHaveLength(1)
+    expect(result[0].segments[0].kana).toBe('ちゃ')
+    expect(result[0].segments[0].charStart).toBe(1)
+    expect(result[0].segments[0].charEnd).toBe(1)
+    expect(result[0].segments[0].nonSplittable).toBe(false)
+  })
+
+  it('好き/スキ → whole katakana reading kept (cross-script, okurigana not peeled)', () => {
+    const main = makeTrack([
+      { value: '好き', cues: [{ start: 0, value: '好き', byteStart: 0, byteEnd: 5 }] },
+    ])
+    const pron = makeTrack([
+      { value: 'スキ', cues: [{ start: 0, value: 'スキ', byteStart: 0, byteEnd: 5 }] },
+    ])
+
+    const result = alignPronunciation(main, pron)
+
+    expect(result[0].segments).toHaveLength(1)
+    expect(result[0].segments[0].kana).toBe('スキ')
+    expect(result[0].segments[0].charStart).toBe(0)
+    expect(result[0].segments[0].charEnd).toBe(1)
+    expect(result[0].segments[0].nonSplittable).toBe(true)
+  })
+
   it('食べる/タベル → whole katakana reading kept (script-differing okurigana not scraped)', () => {
     const main = makeTrack([
       { value: '食べる', cues: [{ start: 0, value: '食べる', byteStart: 0, byteEnd: 8 }] },

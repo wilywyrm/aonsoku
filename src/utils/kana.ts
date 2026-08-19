@@ -54,6 +54,16 @@ export function isSokuon(cp: number): boolean {
 }
 
 /**
+ * Returns true for a hiragana code point (U+3041 ぁ – U+3096 ゖ, covering every
+ * standard and small kana plus っ and ゔ). Used to tell an author's same-script
+ * okurigana apart from a cross-script (katakana) reading at a ruby edge; the
+ * prolonged sound mark ー (U+30FC) is intentionally NOT hiragana.
+ */
+export function isHiragana(cp: number): boolean {
+  return cp >= 0x3041 && cp <= 0x3096
+}
+
+/**
  * Returns true for punctuation that ruby must not centre over — it wraps or abuts
  * a word but carries no reading, so it is peeled off the ruby base like okurigana
  * and the annotation centres on the kanji. Covers brackets/quotes (CJK 〈〉《》「」
