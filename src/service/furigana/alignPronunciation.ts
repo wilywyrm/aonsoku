@@ -4,7 +4,6 @@ import {
   isKanji,
   isRubyExcludedPunctuation,
   isSokuon,
-  katakanaToHiragana,
 } from '@/utils/kana'
 import type {
   NormalizedCue,
@@ -103,9 +102,6 @@ interface StrippedReading {
 // Returns null when there is nothing to annotate (no kanji, or a pure-kana /
 // pure-katakana passthrough where base already equals its reading).
 function stripAffixes(base: string, reading: string): StrippedReading | null {
-  // Compare in one script: katakana readings (コーヒー) collapse to hiragana.
-  const hiraReading = katakanaToHiragana(reading)
-
   // Non-kanji base (Latin such as "A"/"yeah", or bare kana): there is no
   // okurigana to peel, so an explicit reading annotates the whole base. Emit it
   // AS-AUTHORED (never folded to hiragana) whenever it differs from the base;
@@ -122,7 +118,7 @@ function stripAffixes(base: string, reading: string): StrippedReading | null {
   }
 
   // Reading identical to the base → pure passthrough, no ruby.
-  if (base === hiraReading) return null
+  if (base === reading) return null
 
   // Peel wrapping punctuation (brackets/quotes such as 「」『』（）"") off the base
   // ONLY: it carries no reading, so the ruby must centre over the kanji inside,
@@ -147,16 +143,18 @@ function stripAffixes(base: string, reading: string): StrippedReading | null {
   const contentStart = baseStart
   const contentEnd = baseEnd
 
-  // Strip shared leading kana (prefix okurigana such as お in お茶). Base and
-  // reading advance on independent cursors because peeled punctuation shifted
-  // only the base.
+  // Strip shared leading kana (prefix okurigana such as お in お茶). Matching is
+  // SCRIPT-EXACT: a katakana reading char never equals a hiragana base char, so an
+  // author's embedded katakana reading is trusted whole and never scraped (folding
+  // カ→か would visibly rewrite the author's intent). Base and reading advance on
+  // independent cursors because peeled punctuation shifted only the base.
   let readStart = 0
-  let readEnd = hiraReading.length - 1
+  let readEnd = reading.length - 1
   while (
     baseStart <= baseEnd &&
     readStart <= readEnd &&
     !isKanji(base.codePointAt(baseStart)!) &&
-    base[baseStart] === hiraReading[readStart]
+    base[baseStart] === reading[readStart]
   ) {
     baseStart++
     readStart++
@@ -167,7 +165,7 @@ function stripAffixes(base: string, reading: string): StrippedReading | null {
     baseEnd >= baseStart &&
     readEnd >= readStart &&
     !isKanji(base.codePointAt(baseEnd)!) &&
-    base[baseEnd] === hiraReading[readEnd]
+    base[baseEnd] === reading[readEnd]
   ) {
     baseEnd--
     readEnd--
@@ -182,7 +180,7 @@ function stripAffixes(base: string, reading: string): StrippedReading | null {
   }
 
   const kanjiCore = base.slice(baseStart, baseEnd + 1)
-  const readingCore = hiraReading.slice(readStart, readEnd + 1)
+  const readingCore = reading.slice(readStart, readEnd + 1)
 
   // Core must still contain kanji and carry a reading, else there is no ruby.
   if (!kanjiCore || !hasKanji(kanjiCore)) return null
