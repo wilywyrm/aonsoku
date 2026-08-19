@@ -142,6 +142,46 @@ describe('alignPronunciation', () => {
     expect(result[0].segments).toHaveLength(0)
   })
 
+  it('A/エー → whole-base ruby エー (Latin base, reading as-authored)', () => {
+    const main = makeTrack([
+      { value: 'A', cues: [{ start: 0, value: 'A', byteStart: 0, byteEnd: 0 }] },
+    ])
+    const pron = makeTrack([
+      { value: 'エー', cues: [{ start: 0, value: 'エー', byteStart: 0, byteEnd: 5 }] },
+    ])
+
+    const result = alignPronunciation(main, pron)
+
+    expect(result[0].segments).toHaveLength(1)
+    expect(result[0].segments[0].kana).toBe('エー')
+    expect(result[0].segments[0].charStart).toBe(0)
+    expect(result[0].segments[0].charEnd).toBe(0)
+    expect(result[0].segments[0].nonSplittable).toBe(true)
+  })
+
+  it('コーヒー/こーひー → whole-base ruby (katakana base, reading differs)', () => {
+    const main = makeTrack([
+      {
+        value: 'コーヒー',
+        cues: [{ start: 0, value: 'コーヒー', byteStart: 0, byteEnd: 11 }],
+      },
+    ])
+    const pron = makeTrack([
+      {
+        value: 'こーひー',
+        cues: [{ start: 0, value: 'こーひー', byteStart: 0, byteEnd: 11 }],
+      },
+    ])
+
+    const result = alignPronunciation(main, pron)
+
+    expect(result[0].segments).toHaveLength(1)
+    expect(result[0].segments[0].kana).toBe('こーひー')
+    expect(result[0].segments[0].charStart).toBe(0)
+    expect(result[0].segments[0].charEnd).toBe(3)
+    expect(result[0].segments[0].nonSplittable).toBe(true)
+  })
+
   it('お茶/おちゃ → ruby ちゃ over 茶 only (お bare, leading kana stripped)', () => {
     const main = makeTrack([
       { value: 'お茶', cues: [{ start: 0, value: 'お茶', byteStart: 0, byteEnd: 5 }] },

@@ -100,8 +100,20 @@ function stripAffixes(base: string, reading: string): StrippedReading | null {
   // Compare in one script: katakana readings (コーヒー) collapse to hiragana.
   const hiraReading = katakanaToHiragana(reading)
 
-  // No kanji anywhere → nothing to annotate (kana / katakana passthrough).
-  if (!hasKanji(base)) return null
+  // Non-kanji base (Latin such as "A"/"yeah", or bare kana): there is no
+  // okurigana to peel, so an explicit reading annotates the whole base. Emit it
+  // AS-AUTHORED (never folded to hiragana) whenever it differs from the base;
+  // suppress only an exact passthrough (は/は, コーヒー/コーヒー). A katakana base
+  // whose reading differs (コーヒー/coffee) still gets ruby.
+  if (!hasKanji(base)) {
+    if (reading === base) return null
+    return {
+      kana: reading,
+      leadStart: 0,
+      coreEnd: base.length - 1,
+      nonSplittable: true,
+    }
+  }
 
   // Reading identical to the base → pure passthrough, no ruby.
   if (base === hiraReading) return null
