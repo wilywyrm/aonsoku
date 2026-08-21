@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import type { RomajiItem } from '@/utils/romajiCue'
+import type { LinkedCue, RomajiItem } from '@/utils/romajiCue'
 
 export interface RomajiCueContentProps {
   items: RomajiItem[]
@@ -11,6 +11,8 @@ export interface RomajiCueContentProps {
   lastVisitedCueIdx: number
   onWordClick: (cueStartMs: number) => void
   registerRomajiRef?: (key: string, el: HTMLSpanElement | null) => void
+  hoveredCue?: LinkedCue | null
+  onHoverCue?: (cue: LinkedCue | null) => void
 }
 
 export function RomajiCueContent({
@@ -23,6 +25,8 @@ export function RomajiCueContent({
   lastVisitedCueIdx,
   onWordClick,
   registerRomajiRef,
+  hoveredCue,
+  onHoverCue,
 }: RomajiCueContentProps) {
   return (
     <>
@@ -49,6 +53,10 @@ export function RomajiCueContent({
         const isDim =
           cueState === 'past' ||
           (cueState === 'future' && lineIdx > activeLineIdx)
+        const isLinked =
+          hoveredCue?.lineIdx === lineIdx &&
+          hoveredCue.cueLineKey === cueLineKey &&
+          hoveredCue.cueIdx === item.mainCueIdx
         const refKey = `${lineIdx}|${cueLineKey}|${item.mainCueIdx}`
 
         return (
@@ -61,6 +69,7 @@ export function RomajiCueContent({
               'romaji-word cursor-pointer hover:opacity-100 [word-break:keep-all]',
               'scale-100 transition-[transform] duration-500 motion-reduce:transition-none',
               isDim && 'opacity-50',
+              isLinked && 'opacity-100',
               cueState === 'active' && 'font-semibold karaoke-fill scale-110',
             )}
             onClick={(e) => {
@@ -73,6 +82,10 @@ export function RomajiCueContent({
                 onWordClick(item.startMs)
               }
             }}
+            onMouseEnter={() =>
+              onHoverCue?.({ lineIdx, cueLineKey, cueIdx: item.mainCueIdx })
+            }
+            onMouseLeave={() => onHoverCue?.(null)}
             tabIndex={0}
           >
             {item.text}

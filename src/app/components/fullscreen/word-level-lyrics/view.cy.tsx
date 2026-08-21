@@ -902,4 +902,30 @@ describe('WordLevelLyricsView Romaji (word-level)', () => {
       .and('have.text', 'kyo wa tenki')
     cy.get('[data-testid="romaji-row-0-0:pos0"]').should('not.exist')
   })
+
+  it('hovering a romaji word cross-highlights its corresponding main cue', () => {
+    const { data, rows } = romajiScenario()
+    cy.mount(
+      <WordLevelLyricsView
+        data={data}
+        activeLineIdx={-1}
+        activeCueByKey={{}}
+        lastVisitedCueByKey={{}}
+        onWordClick={cy.stub()}
+        resolvedLang="ja"
+        resolvedLineSystem="ja-Latn"
+        romajiRowsByLineCue={rows}
+      />,
+    )
+    // main cue starts dim (no active line)
+    cy.get('[data-testid="word-0-0:pos0-1"]').should('have.class', 'opacity-50')
+    // hovering romaji word 1 (wa) links its main cue 1 (は)
+    cy.get('[data-testid="romaji-word-0-0:pos0-1"]').trigger('mouseover')
+    cy.get('[data-testid="word-0-0:pos0-1"]').should('have.class', 'opacity-100')
+    cy.get('[data-testid="romaji-word-0-0:pos0-1"]').trigger('mouseout')
+    cy.get('[data-testid="word-0-0:pos0-1"]').should(
+      'not.have.class',
+      'opacity-100',
+    )
+  })
 })
