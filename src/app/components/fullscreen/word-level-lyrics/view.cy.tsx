@@ -1,3 +1,5 @@
+import type { IStructuredLyric } from '@/types/responses/song'
+import { buildRomajiRow, type RomajiItem } from '@/utils/romajiCue'
 import {
   normalizeStructuredLyric,
   type NormalizedStructuredLyric,
@@ -709,5 +711,195 @@ describe('WordLevelLyricsView Component', () => {
       cy.get('[data-testid="word-line-2"]').should('exist')
       cy.get('[data-testid^="instrumental-break-"]').should('not.exist')
     })
+  })
+})
+
+function romajiScenario() {
+  const rawMain: IStructuredLyric = {
+    lang: 'ja',
+    kind: 'main',
+    synced: true,
+    line: [{ start: 1000, value: '今日は天気' }],
+    cueLine: [
+      {
+        index: 0,
+        value: '今日は天気',
+        start: 1000,
+        end: 3500,
+        cue: [
+          { start: 1000, end: 2000, value: '今日', byteStart: 0, byteEnd: 5 },
+          { start: 2000, end: 2500, value: 'は', byteStart: 6, byteEnd: 8 },
+          { start: 2500, end: 3500, value: '天気', byteStart: 9, byteEnd: 14 },
+        ],
+      },
+    ],
+  }
+  const rawRomaji: IStructuredLyric = {
+    lang: 'ja-Latn',
+    kind: 'pronunciation',
+    synced: true,
+    line: [{ start: 1000, value: 'kyo wa tenki' }],
+    cueLine: [
+      {
+        index: 0,
+        value: 'kyo wa tenki',
+        start: 1000,
+        end: 3500,
+        cue: [
+          { start: 1000, end: 2000, value: 'kyo', byteStart: 0, byteEnd: 2 },
+          { start: 2000, end: 2500, value: 'wa', byteStart: 4, byteEnd: 5 },
+          { start: 2500, end: 3500, value: 'tenki', byteStart: 7, byteEnd: 11 },
+        ],
+      },
+    ],
+  }
+  const data = normalizeStructuredLyric(rawMain)
+  const romaji = normalizeStructuredLyric(rawRomaji)
+  const rows = new Map<string, RomajiItem[]>()
+  data.lines.forEach((line, i) => {
+    const mainCueLine = line.cueLines[0]
+    if (!mainCueLine) return
+    const romajiCueLine = romaji.lines[i]?.cueLines[0]
+    const row = buildRomajiRow(mainCueLine.cues, romajiCueLine)
+    if (row.length > 0) rows.set(`${i}|${mainCueLine.key}`, row)
+  })
+  return { data, rows }
+}
+
+describe('WordLevelLyricsView Romaji (word-level)', () => {
+  it('renders a romaji row with per-word tokens', () => {
+    const { data, rows } = romajiScenario()
+    cy.mount(
+      <WordLevelLyricsView
+        data={data}
+        activeLineIdx={-1}
+        activeCueByKey={{}}
+        lastVisitedCueByKey={{}}
+        onWordClick={cy.stub()}
+        resolvedLang="ja"
+        resolvedLineSystem="ja-Latn"
+        romajiRowsByLineCue={rows}
+      />,
+    )
+    cy.get('[data-testid="romaji-row-0-0:pos0"]').should('exist')
+    cy.get('[data-testid="romaji-word-0-0:pos0-0"]').should('have.text', 'kyo')
+    cy.get('[data-testid="romaji-word-0-0:pos0-2"]').should('have.text', 'tenki')
+  })
+
+  it('reconstructs the romaji line verbatim ("kyo wa tenki")', () => {
+    const { data, rows } = romajiScenario()
+    cy.mount(
+      <WordLevelLyricsView
+        data={data}
+        activeLineIdx={-1}
+        activeCueByKey={{}}
+        lastVisitedCueByKey={{}}
+        onWordClick={cy.stub()}
+        resolvedLang="ja"
+        resolvedLineSystem="ja-Latn"
+        romajiRowsByLineCue={rows}
+      />,
+    )
+    cy.get('[data-testid="romaji-row-0-0:pos0"]').should(
+      'have.text',
+      'kyo wa tenki',
+    )
+  })
+
+  it('active romaji word gets karaoke-fill + scale-110 + data-state="active"', () => {
+    const { data, rows } = romajiScenario()
+    cy.mount(
+      <WordLevelLyricsView
+        data={data}
+        activeLineIdx={0}
+        activeCueByKey={{ '0:pos0': 1 }}
+        lastVisitedCueByKey={{ '0:pos0': 1 }}
+        onWordClick={cy.stub()}
+        resolvedLang="ja"
+        resolvedLineSystem="ja-Latn"
+        romajiRowsByLineCue={rows}
+      />,
+    )
+    cy.get('[data-testid="romaji-word-0-0:pos0-1"]')
+      .should('have.class', 'karaoke-fill')
+      .and('have.class', 'scale-110')
+      .and('have.attr', 'data-state', 'active')
+  })
+
+  it('past romaji word gets opacity-50 + data-state="past"', () => {
+    const { data, rows } = romajiScenario()
+    cy.mount(
+      <WordLevelLyricsView
+        data={data}
+        activeLineIdx={0}
+        activeCueByKey={{ '0:pos0': 1 }}
+        lastVisitedCueByKey={{ '0:pos0': 1 }}
+        onWordClick={cy.stub()}
+        resolvedLang="ja"
+        resolvedLineSystem="ja-Latn"
+        romajiRowsByLineCue={rows}
+      />,
+    )
+    cy.get('[data-testid="romaji-word-0-0:pos0-0"]')
+      .should('have.class', 'opacity-50')
+      .and('have.attr', 'data-state', 'past')
+  })
+
+  it('clicking a romaji word invokes onWordClick with its cue start (ms)', () => {
+    const { data, rows } = romajiScenario()
+    const onWordClick = cy.stub().as('onWordClick')
+    cy.mount(
+      <WordLevelLyricsView
+        data={data}
+        activeLineIdx={0}
+        activeCueByKey={{ '0:pos0': 0 }}
+        lastVisitedCueByKey={{ '0:pos0': 0 }}
+        onWordClick={onWordClick}
+        resolvedLang="ja"
+        resolvedLineSystem="ja-Latn"
+        romajiRowsByLineCue={rows}
+      />,
+    )
+    cy.get('[data-testid="romaji-word-0-0:pos0-1"]').click()
+    cy.get('@onWordClick').should('have.been.calledWith', 2000)
+  })
+
+  it('romaji row carries the same transition classes as the main line', () => {
+    const { data, rows } = romajiScenario()
+    cy.mount(
+      <WordLevelLyricsView
+        data={data}
+        activeLineIdx={-1}
+        activeCueByKey={{}}
+        lastVisitedCueByKey={{}}
+        onWordClick={cy.stub()}
+        resolvedLang="ja"
+        resolvedLineSystem="ja-Latn"
+        romajiRowsByLineCue={rows}
+      />,
+    )
+    cy.get('[data-testid="romaji-row-0-0:pos0"]')
+      .should('have.class', 'duration-500')
+      .and('have.class', 'motion-reduce:transition-none')
+  })
+
+  it('falls back to the static .romaji-cue line when no word-level row exists', () => {
+    const { data } = romajiScenario()
+    cy.mount(
+      <WordLevelLyricsView
+        data={data}
+        activeLineIdx={-1}
+        activeCueByKey={{}}
+        lastVisitedCueByKey={{}}
+        onWordClick={cy.stub()}
+        resolvedLang="ja"
+        resolvedLineSystem="ja-Latn"
+        romajiByLine={new Map([[0, 'kyo wa tenki']])}
+      />,
+    )
+    cy.get('[data-testid="romaji-cue-0-0:pos0"]')
+      .should('exist')
+      .and('have.text', 'kyo wa tenki')
+    cy.get('[data-testid="romaji-row-0-0:pos0"]').should('not.exist')
   })
 })
