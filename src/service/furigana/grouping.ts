@@ -167,6 +167,69 @@ export function mergeCollidingUnits(units: RenderUnit[]): RenderUnit[] {
   return out
 }
 
+// A bare unit carrying real text (okurigana / particle), not whitespace.
+function isBareText(u: RenderUnit): boolean {
+  return u.kana === undefined && u.kanjiText.trim() !== ''
+}
+
+// Both units occupy exactly one, identical cue — so folding them cannot change
+// any cue's total char count, leaving the shared wipe front untouched.
+function sameSingleCue(a: RenderUnit, b: RenderUnit): boolean {
+  return (
+    a.coveringCueIdx.length === 1 &&
+    b.coveringCueIdx.length === 1 &&
+    a.coveringCueIdx[0] === b.coveringCueIdx[0]
+  )
+}
+
+// A ruby unit directly abutting bare okurigana (either order) inside one cue.
+function canAbsorb(prev: RenderUnit, cur: RenderUnit): boolean {
+  if (prev.charEnd + 1 !== cur.charStart) return false
+  if (!sameSingleCue(prev, cur)) return false
+  const prevRuby = prev.kana !== undefined
+  const curRuby = cur.kana !== undefined
+  return (prevRuby && isBareText(cur)) || (isBareText(prev) && curRuby)
+}
+
+// Fold prev+cur (already in char order) into one unit: kanjiText spans both, the
+// reading stays over the kanji via the ruby unit's perKanji (synthesized from its
+// own span when absent, so the okurigana renders as a trailing/leading gap cell),
+// and cueCharCounts collapses to the single shared cue's span.
+function foldOkurigana(prev: RenderUnit, cur: RenderUnit): RenderUnit {
+  const ruby = prev.kana !== undefined ? prev : cur
+  const charStart = prev.charStart
+  const charEnd = cur.charEnd
+  return {
+    charStart,
+    charEnd,
+    kanjiText: prev.kanjiText + cur.kanjiText,
+    kana: ruby.kana,
+    nonSplittable: false,
+    coveringCueIdx: ruby.coveringCueIdx,
+    cueCharCounts: [charEnd - charStart + 1],
+    perKanji: synthPerKanji(ruby),
+  }
+}
+
+// Reconcile emits a ruby kanji unit and its bare okurigana (a trailing っ or
+// particle, a leading お) as SEPARATE units within a single cue, so each becomes
+// its own hover/wipe <span>. Fold that okurigana back into the ruby unit it abuts
+// (same single cue only) so the word highlights and wipes as one span while the
+// reading still sits over just the kanji. Multi-cue units (a jukujikun straddling
+// cues) are left untouched.
+export function absorbOkurigana(units: RenderUnit[]): RenderUnit[] {
+  const out: RenderUnit[] = []
+  for (const cur of units) {
+    const prev = out[out.length - 1]
+    if (prev && canAbsorb(prev, cur)) {
+      out[out.length - 1] = foldOkurigana(prev, cur)
+    } else {
+      out.push(cur)
+    }
+  }
+  return out
+}
+
 // Segment-level analogue of mergeTwo: segments carry no cue bookkeeping or
 // kanjiText, so only the union range, concatenated reading, and per-kanji spans
 // remain (a jukujikun contributes one synthesized whole-span entry).

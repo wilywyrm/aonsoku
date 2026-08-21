@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { isSafari } from 'react-device-detect'
 import { type RafTickInfo, useRafActiveCue } from '@/hooks/use-raf-active-cue'
 import { useWordSeek } from '@/hooks/use-word-seek'
-import { mergeCollidingUnits } from '@/service/furigana/grouping'
+import { absorbOkurigana, mergeCollidingUnits } from '@/service/furigana/grouping'
 import { reconcile } from '@/service/furigana/reconcile'
 import {
   computeWipeLayout,
@@ -132,8 +132,8 @@ export function WordLevelLyricsContainer({
         // Merge adjacent kanji units whose readings would overhang into each
         // other (e.g. 心構えても → 心 + 構え split across cues) so the shared
         // wipe layout and the render agree on one group-ruby unit.
-        const u = mergeCollidingUnits(
-          reconcile(model, cueLine.cues, cueLine.value),
+        const u = absorbOkurigana(
+          mergeCollidingUnits(reconcile(model, cueLine.cues, cueLine.value)),
         )
         units.set(key, u)
         // Precompute the shared-front char layout once per cueLine, not per frame.
