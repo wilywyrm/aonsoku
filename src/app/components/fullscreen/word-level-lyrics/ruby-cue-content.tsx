@@ -2,6 +2,7 @@ import clsx from 'clsx'
 import type { CSSProperties, ReactNode } from 'react'
 import { groupReadings } from '@/service/furigana/grouping'
 import { type RenderUnit, rubyUnitKey, rubyUnitTestId } from '@/types/furigana'
+import type { LinkedCue } from '@/utils/romajiCue'
 import type { NormalizedCueLine } from '@/utils/wordTiming'
 
 const SECONDARY_AGENT_HUE_ROTATIONS = [180, 90, 270, 45, 135, 225, 315] as const
@@ -84,6 +85,8 @@ export interface RubyCueContentProps {
   lastVisitedCueIdx: number
   onWordClick: (cueStartMs: number) => void
   registerWordRef?: (key: string, el: HTMLSpanElement | null) => void
+  hoveredCue?: LinkedCue | null
+  onHoverCue?: (cue: LinkedCue | null) => void
 }
 
 export function RubyCueContent({
@@ -96,6 +99,8 @@ export function RubyCueContent({
   lastVisitedCueIdx,
   onWordClick,
   registerWordRef,
+  hoveredCue,
+  onHoverCue,
 }: RubyCueContentProps) {
   return (
     <>
@@ -129,6 +134,10 @@ export function RubyCueContent({
 
         const key = rubyUnitKey(lineIdx, cueLine.key, firstCue, unitIdx)
         const cueStart = cueLine.cues[firstCue]?.start ?? 0
+        const isLinked =
+          hoveredCue?.lineIdx === lineIdx &&
+          hoveredCue.cueLineKey === cueLine.key &&
+          covering.includes(hoveredCue.cueIdx)
 
         return (
           <span
@@ -146,6 +155,7 @@ export function RubyCueContent({
               !isWhitespaceOnly &&
                 'cursor-pointer hover:opacity-100 [word-break:keep-all]',
               isDim && 'opacity-50',
+              isLinked && !isWhitespaceOnly && 'opacity-100',
               unitState === 'active' && 'font-semibold',
               unitState === 'active' &&
                 !unit.kana &&
@@ -167,6 +177,19 @@ export function RubyCueContent({
                 onWordClick(cueStart)
               }
             }}
+            onMouseEnter={
+              isWhitespaceOnly
+                ? undefined
+                : () =>
+                    onHoverCue?.({
+                      lineIdx,
+                      cueLineKey: cueLine.key,
+                      cueIdx: firstCue,
+                    })
+            }
+            onMouseLeave={
+              isWhitespaceOnly ? undefined : () => onHoverCue?.(null)
+            }
             tabIndex={isWhitespaceOnly ? -1 : 0}
           >
             {unit.kana ? (

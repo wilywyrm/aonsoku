@@ -1,9 +1,9 @@
 import clsx from 'clsx'
-import { Fragment, useMemo } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { isSafari } from 'react-device-detect'
 import type { RenderUnit } from '@/types/furigana'
 import { byteSliceFallback } from '@/utils/byteSlice'
-import type { RomajiItem } from '@/utils/romajiCue'
+import type { LinkedCue, RomajiItem } from '@/utils/romajiCue'
 import type {
   NormalizedBreak,
   NormalizedStructuredLyric,
@@ -99,6 +99,7 @@ export function WordLevelLyricsView({
   registerRomajiRef,
   registerRomajiRowRef,
 }: WordLevelLyricsViewProps) {
+  const [hoveredCue, setHoveredCue] = useState<LinkedCue | null>(null)
   const breaksByLine = new Map<number, NormalizedBreak>()
   for (const brk of data.breaks) {
     breaksByLine.set(brk.beforeLineIndex, brk)
@@ -218,6 +219,8 @@ export function WordLevelLyricsView({
                             lastVisitedCueIdx={lastVisitedCueIdxForThisCueLine}
                             onWordClick={onWordClick}
                             registerWordRef={registerWordRef}
+                            hoveredCue={hoveredCue}
+                            onHoverCue={setHoveredCue}
                           />
                         ) : (
                           cueLine.cues.map((cue, cueIdx) => {
@@ -256,10 +259,16 @@ export function WordLevelLyricsView({
                             const isDim =
                               cueState === 'past' ||
                               (cueState === 'future' && i > activeLineIdx)
+                            const isCueLinked =
+                              !isWhitespaceOnly &&
+                              hoveredCue?.lineIdx === i &&
+                              hoveredCue.cueLineKey === cueLine.key &&
+                              hoveredCue.cueIdx === cueIdx
                             const cueClassName = clsx(
                               !isWhitespaceOnly &&
                                 'cursor-pointer hover:opacity-100 [word-break:keep-all]',
                               isDim && 'opacity-50',
+                              isCueLinked && 'opacity-100',
                               cueState === 'active' && 'font-semibold',
                               cueState === 'active' &&
                                 !isWhitespaceOnly &&
@@ -294,6 +303,21 @@ export function WordLevelLyricsView({
                                     onWordClick(cue.start)
                                   }
                                 }}
+                                onMouseEnter={
+                                  isWhitespaceOnly
+                                    ? undefined
+                                    : () =>
+                                        setHoveredCue({
+                                          lineIdx: i,
+                                          cueLineKey: cueLine.key,
+                                          cueIdx,
+                                        })
+                                }
+                                onMouseLeave={
+                                  isWhitespaceOnly
+                                    ? undefined
+                                    : () => setHoveredCue(null)
+                                }
                                 tabIndex={isWhitespaceOnly ? -1 : 0}
                               >
                                 {renderedText}
@@ -326,6 +350,8 @@ export function WordLevelLyricsView({
                                 }
                                 onWordClick={onWordClick}
                                 registerRomajiRef={registerRomajiRef}
+                                hoveredCue={hoveredCue}
+                                onHoverCue={setHoveredCue}
                               />
                             </div>
                           ) : (

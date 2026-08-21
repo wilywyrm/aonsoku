@@ -1,4 +1,3 @@
-import { byteSlice, byteSliceFallback } from './byteSlice'
 import type { NormalizedCue, NormalizedCueLine } from './wordTiming'
 
 /**
@@ -33,6 +32,17 @@ export interface RomajiGap {
 export type RomajiItem = RomajiToken | RomajiGap
 
 /**
+ * Identifies one cue for cross-track hover linking: hovering the main word, its
+ * ruby, or its romaji lights up all three. Defined here (a leaf util) so the
+ * view and both cue-content components can share it without an import cycle.
+ */
+export interface LinkedCue {
+  lineIdx: number
+  cueLineKey: string
+  cueIdx: number
+}
+
+/**
  * Index of the main cue whose [start, end) contains `t`; falls back to the main
  * cue with the nearest start when `t` lands in a gap. Returns -1 only when there
  * are no main cues (caller then drops the token).
@@ -57,16 +67,18 @@ function mainCueIndexForStart(mainCues: NormalizedCue[], t: number): number {
  * Build the ordered romaji render row for one MAIN cueLine by overlaying the
  * romaji (Latn) cueLine's own cues, matched to the main cues by START timestamp.
  *
- * Spacing is taken VERBATIM from the romaji line value — the characters BETWEEN
- * two consecutive romaji cues (their byte gap) are emitted as a static
- * {@link RomajiGap}. So a word-spaced romaji line (`"kyō wa tenki ga ii"`) keeps
- * its spaces, a solid one (`"kokoro"`) concatenates, and a mora-split one
- * (`"ko n ni chi wa"`) renders as-authored. No collapsing, no inserting, no
- * segmenter — the romaji's spaces ARE the word boundaries (the authoring tool
- * space-joins per-token, so nothing better is recoverable for pure kana).
+ * Token text comes from each cue's `value` (e.g. "hitai", "ni"), NOT from the
+ * cue's byte offsets: the authoring pipeline emits per-word-LOCAL byteStart/
+ * byteEnd on pronunciation cues (0-based within each word), so byte-slicing the
+ * line value with them shreds it into repeated fragments. Verbatim spacing is
+ * instead recovered by locating each word in the line `value` left-to-right —
+ * the line value is the tool's own space-join of the words, so this reproduces
+ * the author's spacing exactly (word-spaced "kyō wa", solid "kokoro", or
+ * mora-split "ko n ni chi wa") while being immune to the bogus offsets. When a
+ * word cannot be located (missing/garbled line value) we fall back to a single
+ * separating space so adjacent words never fuse.
  *
- * Whitespace-only cues (e.g. the explicit `value:" "` space cues some providers
- * emit) degrade to gaps so they never become hover/seek targets.
+ * Whitespace-only cues degrade to gaps so they never become hover/seek targets.
  *
  * Returns `[]` when the romaji cueLine is absent or carries no cues, so the
  * caller cleanly falls back to the static line-level romaji.
@@ -77,45 +89,41 @@ export function buildRomajiRow(
 ): RomajiItem[] {
   if (!romajiCueLine || romajiCueLine.cues.length === 0) return []
 
-  const value = romajiCueLine.value
+  const value = romajiCueLine.value ?? ''
   const items: RomajiItem[] = []
-  let prevByteEnd: number | undefined
+  let cursor = 0
+  let emittedToken = false
 
   for (const cue of romajiCueLine.cues) {
-    const text = byteSliceFallback(cue, value)
+    const cueText = cue.value ?? ''
+    if (cueText === '') continue
 
     // Whitespace-only cue → static gap, never an interactive token.
-    if (text.trim() === '') {
-      if (text) items.push({ kind: 'gap', text })
-      if (cue.byteEnd !== undefined) prevByteEnd = cue.byteEnd
+    if (cueText.trim() === '') {
+      items.push({ kind: 'gap', text: cueText })
+      if (value.startsWith(cueText, cursor)) cursor += cueText.length
       continue
     }
 
-    // Verbatim gap between the previous cue and this one.
-    if (
-      prevByteEnd !== undefined &&
-      cue.byteStart !== undefined &&
-      cue.byteStart > prevByteEnd + 1
-    ) {
-      const gap = byteSlice(value, prevByteEnd + 1, cue.byteStart - 1)
-      if (gap) items.push({ kind: 'gap', text: gap })
-    } else if (
-      prevByteEnd !== undefined &&
-      (cue.byteStart === undefined || prevByteEnd === undefined)
-    ) {
-      // No byte offsets to derive spacing from → default to one space so
-      // adjacent words don't fuse (matches Hepburn word spacing).
+    const at = value.indexOf(cueText, cursor)
+    if (at >= 0) {
+      if (at > cursor) {
+        const gap = value.slice(cursor, at)
+        if (gap) items.push({ kind: 'gap', text: gap })
+      }
+      cursor = at + cueText.length
+    } else if (emittedToken) {
       items.push({ kind: 'gap', text: ' ' })
     }
 
     items.push({
       kind: 'token',
-      text,
+      text: cueText,
       mainCueIdx: mainCueIndexForStart(mainCues, cue.start),
       startMs: cue.start,
       endMs: cue.end,
     })
-    prevByteEnd = cue.byteEnd
+    emittedToken = true
   }
 
   return items

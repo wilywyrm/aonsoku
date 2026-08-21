@@ -130,4 +130,27 @@ describe('buildRomajiRow', () => {
     expect(buildRomajiRow([cue(0, 1, 'x')], undefined)).toEqual([])
     expect(buildRomajiRow([cue(0, 1, 'x')], cueLine('', []))).toEqual([])
   })
+
+  it('ignores per-word-local byte offsets (regression: no "hitaihihithi" shredding)', () => {
+    // Real Navidrome pronunciation cues carry 0-based byteStart/byteEnd WITHIN
+    // each word (hitai→0-4, ni→0-1, kan→0-2). Byte-slicing the line value with
+    // them produced "hitaihihithi…"; reconstruction keys off cue.value + the
+    // line value instead, so the bogus offsets are harmless.
+    const main = [
+      cue(10110, 11178, '額'),
+      cue(11178, 12295, 'に'),
+      cue(12295, 12851, '感'),
+    ]
+    const romaji = cueLine('hitai ni kan', [
+      cue(10110, 11178, 'hitai', 0, 4),
+      cue(11178, 12295, 'ni', 0, 1),
+      cue(12295, 12851, 'kan', 0, 2),
+    ])
+
+    const row = buildRomajiRow(main, romaji)
+
+    expect(render(row)).toBe('hitai ni kan')
+    expect(tokens(row).map((t) => t.text)).toEqual(['hitai', 'ni', 'kan'])
+    expect(tokens(row).map((t) => t.mainCueIdx)).toEqual([0, 1, 2])
+  })
 })
