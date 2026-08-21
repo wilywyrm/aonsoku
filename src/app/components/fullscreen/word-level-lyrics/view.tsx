@@ -267,8 +267,8 @@ export function WordLevelLyricsView({
                             const cueClassName = clsx(
                               !isWhitespaceOnly &&
                                 'cursor-pointer hover:opacity-100 [word-break:keep-all]',
-                              isDim && 'opacity-50',
-                              isCueLinked && 'opacity-100',
+                              isDim && !isCueLinked && 'opacity-50',
+                              isCueLinked && 'cue-linked',
                               cueState === 'active' && 'font-semibold',
                               cueState === 'active' &&
                                 !isWhitespaceOnly &&
