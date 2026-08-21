@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { RenderUnit, RubyLineSegment } from '@/types/furigana'
 import {
+  absorbOkurigana,
   groupReadings,
   mergeCollidingSegments,
   mergeCollidingUnits,
@@ -397,5 +398,135 @@ describe('mergeCollidingSegments', () => {
         ],
       },
     ])
+  })
+})
+
+describe('absorbOkurigana', () => {
+  it('folds trailing okurigana into the ruby unit (嫌 + っ → 嫌っ)', () => {
+    const units = absorbOkurigana([
+      unit({
+        charStart: 0,
+        charEnd: 0,
+        kanjiText: '嫌',
+        kana: 'きら',
+        coveringCueIdx: [0],
+        cueCharCounts: [1],
+      }),
+      unit({
+        charStart: 1,
+        charEnd: 1,
+        kanjiText: 'っ',
+        coveringCueIdx: [0],
+        cueCharCounts: [1],
+      }),
+    ])
+
+    expect(units).toHaveLength(1)
+    expect(units[0]).toMatchObject({
+      charStart: 0,
+      charEnd: 1,
+      kanjiText: '嫌っ',
+      kana: 'きら',
+      coveringCueIdx: [0],
+      cueCharCounts: [2],
+      perKanji: [{ charStart: 0, charEnd: 0, kana: 'きら' }],
+    })
+  })
+
+  it('folds leading okurigana into the ruby unit (お + 茶 → お茶)', () => {
+    const units = absorbOkurigana([
+      unit({
+        charStart: 0,
+        charEnd: 0,
+        kanjiText: 'お',
+        coveringCueIdx: [0],
+        cueCharCounts: [1],
+      }),
+      unit({
+        charStart: 1,
+        charEnd: 1,
+        kanjiText: '茶',
+        kana: 'ちゃ',
+        coveringCueIdx: [0],
+        cueCharCounts: [1],
+      }),
+    ])
+
+    expect(units).toHaveLength(1)
+    expect(units[0]).toMatchObject({
+      charStart: 0,
+      charEnd: 1,
+      kanjiText: 'お茶',
+      kana: 'ちゃ',
+      coveringCueIdx: [0],
+      cueCharCounts: [2],
+      perKanji: [{ charStart: 1, charEnd: 1, kana: 'ちゃ' }],
+    })
+  })
+
+  it('does not fold a bare unit from a different cue', () => {
+    const units = absorbOkurigana([
+      unit({
+        charStart: 0,
+        charEnd: 0,
+        kanjiText: '嫌',
+        kana: 'きら',
+        coveringCueIdx: [0],
+        cueCharCounts: [1],
+      }),
+      unit({
+        charStart: 1,
+        charEnd: 1,
+        kanjiText: 'て',
+        coveringCueIdx: [1],
+        cueCharCounts: [1],
+      }),
+    ])
+
+    expect(units).toHaveLength(2)
+  })
+
+  it('does not fold okurigana into a multi-cue (straddling) ruby unit', () => {
+    const units = absorbOkurigana([
+      unit({
+        charStart: 0,
+        charEnd: 1,
+        kanjiText: '今日',
+        kana: 'きょう',
+        coveringCueIdx: [0, 1],
+        cueCharCounts: [1, 1],
+      }),
+      unit({
+        charStart: 2,
+        charEnd: 2,
+        kanjiText: 'は',
+        coveringCueIdx: [1],
+        cueCharCounts: [1],
+      }),
+    ])
+
+    expect(units).toHaveLength(2)
+  })
+
+  it('does not fold whitespace into the ruby unit', () => {
+    const units = absorbOkurigana([
+      unit({
+        charStart: 0,
+        charEnd: 0,
+        kanjiText: '好',
+        kana: 'す',
+        coveringCueIdx: [0],
+        cueCharCounts: [1],
+      }),
+      unit({
+        charStart: 1,
+        charEnd: 1,
+        kanjiText: ' ',
+        coveringCueIdx: [0],
+        cueCharCounts: [1],
+      }),
+    ])
+
+    expect(units).toHaveLength(2)
   })
 })
