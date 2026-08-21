@@ -806,7 +806,7 @@ describe('WordLevelLyricsView Romaji (word-level)', () => {
     )
   })
 
-  it('active romaji word gets karaoke-fill + scale-110 + data-state="active"', () => {
+  it('active romaji word wipes (karaoke-fill) but is not enlarged', () => {
     const { data, rows } = romajiScenario()
     cy.mount(
       <WordLevelLyricsView
@@ -822,8 +822,8 @@ describe('WordLevelLyricsView Romaji (word-level)', () => {
     )
     cy.get('[data-testid="romaji-word-0-0:pos0-1"]')
       .should('have.class', 'karaoke-fill')
-      .and('have.class', 'scale-110')
       .and('have.attr', 'data-state', 'active')
+      .and('not.have.class', 'scale-110')
   })
 
   it('past romaji word gets opacity-50 + data-state="past"', () => {

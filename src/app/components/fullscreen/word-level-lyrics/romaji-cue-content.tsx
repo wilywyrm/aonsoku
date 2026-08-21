@@ -67,10 +67,9 @@ export function RomajiCueContent({
             data-state={cueState}
             className={clsx(
               'romaji-word cursor-pointer hover:opacity-100 [word-break:keep-all]',
-              'scale-100 transition-[transform] duration-500 motion-reduce:transition-none',
               isDim && !isLinked && 'opacity-50',
               isLinked && 'cue-linked',
-              cueState === 'active' && 'font-semibold karaoke-fill scale-110',
+              cueState === 'active' && 'font-semibold karaoke-fill',
             )}
             onClick={(e) => {
               e.stopPropagation()
