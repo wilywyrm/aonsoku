@@ -3,10 +3,12 @@ import { Fragment, useMemo } from 'react'
 import { isSafari } from 'react-device-detect'
 import type { RenderUnit } from '@/types/furigana'
 import { byteSliceFallback } from '@/utils/byteSlice'
+import type { RomajiItem } from '@/utils/romajiCue'
 import type {
   NormalizedBreak,
   NormalizedStructuredLyric,
 } from '@/utils/wordTiming'
+import { RomajiCueContent } from './romaji-cue-content'
 import { RubyCueContent } from './ruby-cue-content'
 
 const SECONDARY_AGENT_HUE_ROTATIONS = [180, 90, 270, 45, 135, 225, 315] as const
@@ -64,6 +66,16 @@ export interface WordLevelLyricsViewProps {
   resolvedLineSystem?: string
   /** Romaji line text keyed by line index (pronunciation track's per-line value). */
   romajiByLine?: ReadonlyMap<number, string>
+  /**
+   * Word-level romaji rows keyed `${lineIdx}|${cueLine.key}`. When present for a
+   * cueLine, the parallel romaji renders as karaoke words (wipe/hover/seek/focus)
+   * instead of the static `.romaji-cue` line.
+   */
+  romajiRowsByLineCue?: ReadonlyMap<string, RomajiItem[]>
+  /** Registers each romaji word <span> for the container's rAF --fill writes. */
+  registerRomajiRef?: (key: string, el: HTMLSpanElement | null) => void
+  /** Registers each romaji ROW <div> for the horizontal centering transform. */
+  registerRomajiRowRef?: (key: string, el: HTMLDivElement | null) => void
 }
 
 export function WordLevelLyricsView({
@@ -83,6 +95,9 @@ export function WordLevelLyricsView({
   rubyUnitsByLineCue,
   resolvedLineSystem,
   romajiByLine,
+  romajiRowsByLineCue,
+  registerRomajiRef,
+  registerRomajiRowRef,
 }: WordLevelLyricsViewProps) {
   const breaksByLine = new Map<number, NormalizedBreak>()
   for (const brk of data.breaks) {
@@ -179,6 +194,9 @@ export function WordLevelLyricsView({
                     )
                     const romajiValue = resolvedLineSystem
                       ? romajiByLine?.get(i)
+                      : undefined
+                    const romajiRow = resolvedLineSystem
+                      ? romajiRowsByLineCue?.get(`${i}|${cueLine.key}`)
                       : undefined
                     return (
                       <p
@@ -283,18 +301,47 @@ export function WordLevelLyricsView({
                             )
                           })
                         )}
-                        {resolvedLineSystem && romajiValue && (
-                          <span
-                            className="romaji-cue"
-                            lang={resolvedLineSystem}
-                            data-testid={`romaji-cue-${i}-${cueLine.key}`}
-                            style={{
-                              opacity: activeIndicesSet.has(i) ? 1 : 0.5,
-                            }}
-                          >
-                            {romajiValue}
-                          </span>
-                        )}
+                        {resolvedLineSystem &&
+                          (romajiRow && romajiRow.length > 0 ? (
+                            <div
+                              ref={(el) =>
+                                registerRomajiRowRef?.(
+                                  `${i}|${cueLine.key}`,
+                                  el,
+                                )
+                              }
+                              className="romaji-row transition-[transform] duration-500 motion-reduce:transition-none"
+                              lang={resolvedLineSystem}
+                              data-testid={`romaji-row-${i}-${cueLine.key}`}
+                            >
+                              <RomajiCueContent
+                                items={romajiRow}
+                                lineIdx={i}
+                                cueLineKey={cueLine.key}
+                                isLineActive={activeIndicesSet.has(i)}
+                                activeLineIdx={activeLineIdx}
+                                activeCueIdx={activeCueIdxForThisCueLine}
+                                lastVisitedCueIdx={
+                                  lastVisitedCueIdxForThisCueLine
+                                }
+                                onWordClick={onWordClick}
+                                registerRomajiRef={registerRomajiRef}
+                              />
+                            </div>
+                          ) : (
+                            romajiValue && (
+                              <span
+                                className="romaji-cue"
+                                lang={resolvedLineSystem}
+                                data-testid={`romaji-cue-${i}-${cueLine.key}`}
+                                style={{
+                                  opacity: activeIndicesSet.has(i) ? 1 : 0.5,
+                                }}
+                              >
+                                {romajiValue}
+                              </span>
+                            )
+                          ))}
                       </p>
                     )
                   })

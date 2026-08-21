@@ -555,6 +555,26 @@ svg#bars .eq-bar--4 {
   opacity: 0.6;
   margin-top: 0.1em;
 }
+/*
+ * Word-timed romaji row (RomajiCueContent): a slid line of timed romaji words.
+ * `.romaji-row` is translated per active cue by the container's centering
+ * effect; `.romaji-word` is inline-block so its focus scale/wipe apply; per-word
+ * opacity + wipe are Tailwind/`.karaoke-fill` (like the main cues). `.romaji-gap`
+ * reproduces the author's verbatim spacing without being a hover/seek target.
+ */
+.romaji-row {
+  display: block;
+  font-size: 0.7em;
+  margin-top: 0.1em;
+  white-space: nowrap;
+  will-change: transform;
+}
+.romaji-word {
+  display: inline-block;
+}
+.romaji-gap {
+  white-space: pre;
+}
 
 .default-gradient {
   @apply bg-gradient-to-b from-background/10 to-background/40;
