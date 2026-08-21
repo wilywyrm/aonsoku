@@ -580,9 +580,12 @@ svg#bars .eq-bar--4 {
  * three with `.cue-linked` — a primary-colour underline. A plain class emitted
  * after `@tailwind utilities`, so it reliably overrides utility styles; the
  * linked spans also drop their `opacity-50` dimming (in the components) so they
- * read as fully active.
+ * read as fully active. The `.ruby-base` selector is required because
+ * text-decoration does NOT propagate into `.ruby-unit`'s inline-block, so on a
+ * kanji that carries ruby the underline would otherwise never reach the base.
  */
-.cue-linked {
+.cue-linked,
+.cue-linked .ruby-base {
   text-decoration: underline;
   text-decoration-color: hsl(var(--primary));
   text-decoration-thickness: 0.08em;
