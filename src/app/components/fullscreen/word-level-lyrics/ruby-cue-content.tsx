@@ -154,8 +154,8 @@ export function RubyCueContent({
             className={clsx(
               !isWhitespaceOnly &&
                 'cursor-pointer hover:opacity-100 [word-break:keep-all]',
-              isDim && 'opacity-50',
-              isLinked && !isWhitespaceOnly && 'opacity-100',
+              isDim && !isLinked && 'opacity-50',
+              isLinked && !isWhitespaceOnly && 'cue-linked',
               unitState === 'active' && 'font-semibold',
               unitState === 'active' &&
                 !unit.kana &&
