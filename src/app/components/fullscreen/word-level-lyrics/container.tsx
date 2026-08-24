@@ -198,23 +198,12 @@ export function WordLevelLyricsContainer({
 
   // Per-romaji-token <span> registry, keyed `${lineIdx}|${cueLine.key}|${mainCueIdx}`
   // so handleTick drives each active romaji token's --fill in lockstep with its
-  // main cue, and the centering effect can measure the active token.
+  // main cue.
   const romajiRefs = useRef<Map<string, HTMLSpanElement>>(new Map())
   const registerRomajiRef = useCallback(
     (key: string, el: HTMLSpanElement | null) => {
       if (el) romajiRefs.current.set(key, el)
       else romajiRefs.current.delete(key)
-    },
-    [],
-  )
-
-  // Per-cueLine romaji ROW <div> registry, keyed `${lineIdx}|${cueLine.key}` —
-  // the element the centering effect slides via translateX.
-  const romajiRowRefs = useRef<Map<string, HTMLDivElement>>(new Map())
-  const registerRomajiRowRef = useCallback(
-    (key: string, el: HTMLDivElement | null) => {
-      if (el) romajiRowRefs.current.set(key, el)
-      else romajiRowRefs.current.delete(key)
     },
     [],
   )
@@ -373,35 +362,6 @@ export function WordLevelLyricsContainer({
 
   const onWordClick = useWordSeek()
 
-  // Resolve the active MAIN word's DOM node for a cueLine — a reconciled ruby
-  // unit covering the cue, else the legacy per-cue span — so romaji centering
-  // measures the right element in both render paths.
-  const getActiveMainEl = useCallback(
-    (lineIdx: number, cueLineKey: string, activeCueIdx: number) => {
-      if (activeCueIdx < 0) return undefined
-      const units = rubyUnitsByLineCue.get(`${lineIdx}|${cueLineKey}`)
-      if (units) {
-        for (let unitIdx = 0; unitIdx < units.length; unitIdx++) {
-          const u = units[unitIdx]
-          if (u.coveringCueIdx.includes(activeCueIdx)) {
-            const el = wordRefs.current.get(
-              rubyUnitKey(
-                lineIdx,
-                cueLineKey,
-                u.coveringCueIdx[0] ?? 0,
-                unitIdx,
-              ),
-            )
-            if (el) return el
-          }
-        }
-        return undefined
-      }
-      return wordRefs.current.get(`${lineIdx}|${cueLineKey}|${activeCueIdx}`)
-    },
-    [rubyUnitsByLineCue],
-  )
-
   // Refs for DOM nodes.
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const lineRefs = useRef<(HTMLDivElement | null)[]>([])
@@ -450,64 +410,6 @@ export function WordLevelLyricsContainer({
         : null,
   )
 
-  // Slide each active romaji row so its active word centres under the active
-  // main word. Self-correcting: the measured viewport delta is converted to the
-  // row's local space via its effective scale (which includes the active line's
-  // scale-125) and ADDED to the row's current translate, so it converges without
-  // a reset flash. Fires only on active-cue changes; the ease lives in CSS.
-  const romajiTranslateRef = useRef<Map<string, number>>(new Map())
-  useEffect(() => {
-    const activeSet =
-      activeLineIndices.length > 0
-        ? activeLineIndices
-        : activeLineIdx >= 0
-          ? [activeLineIdx]
-          : []
-    for (const lineIdx of activeSet) {
-      const line = normalized.lines[lineIdx]
-      if (!line) continue
-      for (const cueLine of line.cueLines) {
-        const rowKey = `${lineIdx}|${cueLine.key}`
-        const rowEl = romajiRowRefs.current.get(rowKey)
-        if (!rowEl) continue
-        const activeCueIdx = activeCueByKey[cueLine.key] ?? -1
-        const tokenEl =
-          activeCueIdx >= 0
-            ? romajiRefs.current.get(
-                `${lineIdx}|${cueLine.key}|${activeCueIdx}`,
-              )
-            : undefined
-        const mainEl = getActiveMainEl(lineIdx, cueLine.key, activeCueIdx)
-        if (!tokenEl || !mainEl) {
-          if (romajiTranslateRef.current.get(rowKey)) {
-            romajiTranslateRef.current.set(rowKey, 0)
-            rowEl.style.transform = 'translateX(0px)'
-          }
-          continue
-        }
-        const mainRect = mainEl.getBoundingClientRect()
-        const tokenRect = tokenEl.getBoundingClientRect()
-        const rowRect = rowEl.getBoundingClientRect()
-        const scaleX =
-          rowEl.offsetWidth > 0 ? rowRect.width / rowEl.offsetWidth : 1
-        const deltaViewport =
-          mainRect.left +
-          mainRect.width / 2 -
-          (tokenRect.left + tokenRect.width / 2)
-        const current = romajiTranslateRef.current.get(rowKey) ?? 0
-        const next = current + deltaViewport / (scaleX || 1)
-        romajiTranslateRef.current.set(rowKey, next)
-        rowEl.style.transform = `translateX(${next}px)`
-      }
-    }
-  }, [
-    activeCueByKey,
-    activeLineIndices,
-    activeLineIdx,
-    normalized,
-    getActiveMainEl,
-  ])
-
   // Defensive: should never be mounted without word timing, but bail out safely.
   if (!normalized.hasWordTiming) return null
 
@@ -531,7 +433,6 @@ export function WordLevelLyricsContainer({
       romajiByLine={romajiByLine}
       romajiRowsByLineCue={romajiRowsByLineCue}
       registerRomajiRef={registerRomajiRef}
-      registerRomajiRowRef={registerRomajiRowRef}
     />
   )
 }

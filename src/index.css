@@ -556,18 +556,23 @@ svg#bars .eq-bar--4 {
   margin-top: 0.1em;
 }
 /*
- * Word-timed romaji row (RomajiCueContent): a slid line of timed romaji words.
- * `.romaji-row` is translated per active cue by the container's centering
- * effect; `.romaji-word` is inline-block so its focus scale/wipe apply; per-word
- * opacity + wipe are Tailwind/`.karaoke-fill` (like the main cues). `.romaji-gap`
- * reproduces the author's verbatim spacing without being a hover/seek target.
+ * Word-timed romaji row (RomajiCueContent): a statically centred line of timed
+ * romaji words beneath the main lyric. `.romaji-row` centres on its own middle
+ * (aligned with the main line's centre / viewport centre) via `text-align:
+ * center` and no longer translates as playback proceeds; the per-token karaoke
+ * wipe still advances via each `.romaji-word`'s `--fill`. `.romaji-word` is
+ * inline-block so its focus scale/wipe apply; per-word opacity + wipe are
+ * Tailwind/`.karaoke-fill` (like the main cues). `.romaji-gap` reproduces the
+ * author's verbatim spacing without being a hover/seek target. `white-space:
+ * normal` lets long romanizations wrap and stay centred instead of clipping at
+ * the viewport edges — there is no longer a slide to bring off-screen parts in.
  */
 .romaji-row {
   display: block;
   font-size: 0.7em;
   margin-top: 0.1em;
-  white-space: nowrap;
-  will-change: transform;
+  white-space: normal;
+  text-align: center;
 }
 .romaji-word {
   display: inline-block;
