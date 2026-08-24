@@ -126,6 +126,24 @@ describe('buildRomajiRow', () => {
     expect(tokens(row).map((t) => t.mainCueIdx)).toEqual([0, 1])
   })
 
+  it('surfaces a cue value trailing space as a gap (spaced reading, no fusing)', () => {
+    // 私's romaji cue carries a trailing space (inherited from the hira reading
+    // 'わたし '); it must become a gap between watashi and otona, not get baked
+    // into the inline-block token (which would trim it and fuse the words).
+    const main = [cue(141640, 142232, '私 '), cue(142232, 142834, '大人')]
+    const romaji = cueLine('watashi otona', [
+      cue(141640, 142232, 'watashi '),
+      cue(142232, 142834, 'otona'),
+    ])
+
+    const row = buildRomajiRow(main, romaji)
+
+    expect(render(row)).toBe('watashi otona')
+    expect(tokens(row).map((t) => t.text)).toEqual(['watashi', 'otona'])
+    expect(row.some((i) => i.kind === 'gap' && i.text === ' ')).toBe(true)
+    expect(tokens(row).map((t) => t.mainCueIdx)).toEqual([0, 1])
+  })
+
   it('returns [] when the romaji cueLine is absent or empty', () => {
     expect(buildRomajiRow([cue(0, 1, 'x')], undefined)).toEqual([])
     expect(buildRomajiRow([cue(0, 1, 'x')], cueLine('', []))).toEqual([])

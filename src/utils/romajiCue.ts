@@ -105,20 +105,25 @@ export function buildRomajiRow(
       continue
     }
 
-    const at = value.indexOf(cueText, cursor)
+    // Match (and render) the trimmed word: a cue value that carries a word-
+    // separator space (e.g. "watashi " from a spaced reading) must surface that
+    // space as a gap, not bake it into the token — an inline-block `.romaji-word`
+    // trims its own trailing/leading whitespace, which would fuse it to the next.
+    const word = cueText.trim()
+    const at = value.indexOf(word, cursor)
     if (at >= 0) {
       if (at > cursor) {
         const gap = value.slice(cursor, at)
         if (gap) items.push({ kind: 'gap', text: gap })
       }
-      cursor = at + cueText.length
+      cursor = at + word.length
     } else if (emittedToken) {
       items.push({ kind: 'gap', text: ' ' })
     }
 
     items.push({
       kind: 'token',
-      text: cueText,
+      text: word,
       mainCueIdx: mainCueIndexForStart(mainCues, cue.start),
       startMs: cue.start,
       endMs: cue.end,
