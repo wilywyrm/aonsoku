@@ -74,8 +74,6 @@ export interface WordLevelLyricsViewProps {
   romajiRowsByLineCue?: ReadonlyMap<string, RomajiItem[]>
   /** Registers each romaji word <span> for the container's rAF --fill writes. */
   registerRomajiRef?: (key: string, el: HTMLSpanElement | null) => void
-  /** Registers each romaji ROW <div> for the horizontal centering transform. */
-  registerRomajiRowRef?: (key: string, el: HTMLDivElement | null) => void
 }
 
 export function WordLevelLyricsView({
@@ -97,7 +95,6 @@ export function WordLevelLyricsView({
   romajiByLine,
   romajiRowsByLineCue,
   registerRomajiRef,
-  registerRomajiRowRef,
 }: WordLevelLyricsViewProps) {
   const [hoveredCue, setHoveredCue] = useState<LinkedCue | null>(null)
   const breaksByLine = new Map<number, NormalizedBreak>()
@@ -328,13 +325,7 @@ export function WordLevelLyricsView({
                         {resolvedLineSystem &&
                           (romajiRow && romajiRow.length > 0 ? (
                             <div
-                              ref={(el) =>
-                                registerRomajiRowRef?.(
-                                  `${i}|${cueLine.key}`,
-                                  el,
-                                )
-                              }
-                              className="romaji-row transition-[transform] duration-500 motion-reduce:transition-none"
+                              className="romaji-row"
                               lang={resolvedLineSystem}
                               data-testid={`romaji-row-${i}-${cueLine.key}`}
                             >
