@@ -1,10 +1,13 @@
 import clsx from 'clsx'
 import type { LinkedCue, RomajiItem } from '@/utils/romajiCue'
+import { secondaryAgentHueRotation } from './secondaryAgentHue'
 
 export interface RomajiCueContentProps {
   items: RomajiItem[]
   lineIdx: number
   cueLineKey: string
+  // Parent cueLine's displayOrder (0 = main, ≥1 = secondary); tints the wipe to match the vocal.
+  displayOrder: number
   isLineActive: boolean
   activeLineIdx: number
   activeCueIdx: number
@@ -19,6 +22,7 @@ export function RomajiCueContent({
   items,
   lineIdx,
   cueLineKey,
+  displayOrder,
   isLineActive,
   activeLineIdx,
   activeCueIdx,
@@ -53,6 +57,10 @@ export function RomajiCueContent({
         const isDim =
           cueState === 'past' ||
           (cueState === 'future' && lineIdx > activeLineIdx)
+        const hueRotation =
+          cueState === 'active'
+            ? secondaryAgentHueRotation(displayOrder)
+            : undefined
         const isLinked =
           hoveredCue?.lineIdx === lineIdx &&
           hoveredCue.cueLineKey === cueLineKey &&
@@ -71,6 +79,11 @@ export function RomajiCueContent({
               isLinked && 'cue-linked',
               cueState === 'active' && 'font-semibold karaoke-fill',
             )}
+            style={
+              hueRotation !== undefined
+                ? { filter: `hue-rotate(${hueRotation}deg)` }
+                : undefined
+            }
             onClick={(e) => {
               e.stopPropagation()
               onWordClick(item.startMs)
