@@ -4,8 +4,7 @@ import { groupReadings } from '@/service/furigana/grouping'
 import { type RenderUnit, rubyUnitKey, rubyUnitTestId } from '@/types/furigana'
 import type { LinkedCue } from '@/utils/romajiCue'
 import type { NormalizedCueLine } from '@/utils/wordTiming'
-
-const SECONDARY_AGENT_HUE_ROTATIONS = [180, 90, 270, 45, 135, 225, 315] as const
+import { secondaryAgentHueRotation } from './secondaryAgentHue'
 
 // --seg-start/--seg-span position a reading's wipe within the unit's shared
 // --fill front (index.css remaps them into a per-reading --local-fill).
@@ -125,11 +124,8 @@ export function RubyCueContent({
           unitState === 'past' ||
           (unitState === 'future' && lineIdx > activeLineIdx)
         const hueRotation =
-          unitState === 'active' && cueLine.displayOrder >= 1
-            ? SECONDARY_AGENT_HUE_ROTATIONS[
-                (cueLine.displayOrder - 1) %
-                  SECONDARY_AGENT_HUE_ROTATIONS.length
-              ]
+          unitState === 'active'
+            ? secondaryAgentHueRotation(cueLine.displayOrder)
             : undefined
 
         const key = rubyUnitKey(lineIdx, cueLine.key, firstCue, unitIdx)

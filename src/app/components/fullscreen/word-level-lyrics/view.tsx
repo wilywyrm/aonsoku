@@ -10,8 +10,7 @@ import type {
 } from '@/utils/wordTiming'
 import { RomajiCueContent } from './romaji-cue-content'
 import { RubyCueContent } from './ruby-cue-content'
-
-const SECONDARY_AGENT_HUE_ROTATIONS = [180, 90, 270, 45, 135, 225, 315] as const
+import { secondaryAgentHueRotation } from './secondaryAgentHue'
 
 export interface WordLevelLyricsViewProps {
   data: NormalizedStructuredLyric
@@ -247,11 +246,10 @@ export function WordLevelLyricsView({
                             }
 
                             const hueRotation =
-                              cueState === 'active' && cueLine.displayOrder >= 1
-                                ? SECONDARY_AGENT_HUE_ROTATIONS[
-                                    (cueLine.displayOrder - 1) %
-                                      SECONDARY_AGENT_HUE_ROTATIONS.length
-                                  ]
+                              cueState === 'active'
+                                ? secondaryAgentHueRotation(
+                                    cueLine.displayOrder,
+                                  )
                                 : undefined
                             const isDim =
                               cueState === 'past' ||
@@ -333,6 +331,7 @@ export function WordLevelLyricsView({
                                 items={romajiRow}
                                 lineIdx={i}
                                 cueLineKey={cueLine.key}
+                                displayOrder={cueLine.displayOrder}
                                 isLineActive={activeIndicesSet.has(i)}
                                 activeLineIdx={activeLineIdx}
                                 activeCueIdx={activeCueIdxForThisCueLine}
