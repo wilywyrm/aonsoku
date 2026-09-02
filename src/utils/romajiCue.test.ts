@@ -126,14 +126,14 @@ describe('buildRomajiRow', () => {
     expect(tokens(row).map((t) => t.mainCueIdx)).toEqual([0, 1])
   })
 
-  it('surfaces a cue value trailing space as a gap (spaced reading, no fusing)', () => {
-    // 私's romaji cue carries a trailing space (inherited from the hira reading
-    // 'わたし '); it must become a gap between watashi and otona, not get baked
-    // into the inline-block token (which would trim it and fuse the words).
+  it('peels a trailing space baked into a cue slice into a gap (no fusing)', () => {
+    // A spaced reading ('watashi ') slices to include its trailing space; that
+    // space must surface as a gap between watashi and otona, not bake into the
+    // inline-block token (which trims its own whitespace and would fuse them).
     const main = [cue(141640, 142232, '私 '), cue(142232, 142834, '大人')]
     const romaji = cueLine('watashi otona', [
-      cue(141640, 142232, 'watashi '),
-      cue(142232, 142834, 'otona'),
+      cue(141640, 142232, 'watashi ', 0, 7),
+      cue(142232, 142834, 'otona', 8, 12),
     ])
 
     const row = buildRomajiRow(main, romaji)
@@ -149,26 +149,76 @@ describe('buildRomajiRow', () => {
     expect(buildRomajiRow([cue(0, 1, 'x')], cueLine('', []))).toEqual([])
   })
 
-  it('ignores per-word-local byte offsets (regression: no "hitaihihithi" shredding)', () => {
-    // Real Navidrome pronunciation cues carry 0-based byteStart/byteEnd WITHIN
-    // each word (hitai→0-4, ni→0-1, kan→0-2). Byte-slicing the line value with
-    // them produced "hitaihihithi…"; reconstruction keys off cue.value + the
-    // line value instead, so the bogus offsets are harmless.
+  it('renders untimed particles/okurigana between cues as static gaps (sparse)', () => {
+    // あぶく hira line: only 私/蠢く/獣 carry readings; the particle に (bytes
+    // 9-11) and okurigana く (bytes 21-23) are untimed and belong to no cue, so
+    // they slice out of the line value as static gaps (3 bytes per kana).
     const main = [
-      cue(10110, 11178, '額'),
-      cue(11178, 12295, 'に'),
-      cue(12295, 12851, '感'),
+      cue(14630, 15053, '私'),
+      cue(15472, 16032, '蠢く'),
+      cue(16032, 17255, '獣'),
     ]
-    const romaji = cueLine('hitai ni kan', [
-      cue(10110, 11178, 'hitai', 0, 4),
-      cue(11178, 12295, 'ni', 0, 1),
-      cue(12295, 12851, 'kan', 0, 2),
+    const romaji = cueLine('わたしにうごめくけもの', [
+      cue(14630, 15053, 'わたし', 0, 8),
+      cue(15472, 16032, 'うごめ', 12, 20),
+      cue(16032, 17255, 'けもの', 24, 32),
     ])
 
     const row = buildRomajiRow(main, romaji)
 
-    expect(render(row)).toBe('hitai ni kan')
-    expect(tokens(row).map((t) => t.text)).toEqual(['hitai', 'ni', 'kan'])
+    expect(render(row)).toBe('わたしにうごめくけもの')
+    expect(tokens(row).map((t) => t.text)).toEqual([
+      'わたし',
+      'うごめ',
+      'けもの',
+    ])
+    expect(row.filter((i) => i.kind === 'gap').map((i) => i.text)).toEqual([
+      'に',
+      'く',
+    ])
     expect(tokens(row).map((t) => t.mainCueIdx)).toEqual([0, 1, 2])
+  })
+
+  it('slices multi-byte macron vowels by UTF-8 byte offset', () => {
+    // ā = 2 bytes (0-1), space (2), dō = d(3) + ō(4-5).
+    const main = [cue(11762, 12538, 'あぁ'), cue(12538, 12826, 'どう')]
+    const romaji = cueLine('ā dō', [
+      cue(11762, 12538, 'ā', 0, 1),
+      cue(12538, 12826, 'dō', 3, 5),
+    ])
+
+    const row = buildRomajiRow(main, romaji)
+
+    expect(render(row)).toBe('ā dō')
+    expect(tokens(row).map((t) => t.text)).toEqual(['ā', 'dō'])
+  })
+
+  it('disambiguates repeated readings by byte offset (夕×3 → yū yū yū)', () => {
+    const main = [
+      cue(195480, 195811, '夕'),
+      cue(195811, 196201, '夕'),
+      cue(196201, 196541, '夕'),
+    ]
+    const romaji = cueLine('yū yū yū', [
+      cue(195480, 195811, 'yū', 0, 2),
+      cue(195811, 196201, 'yū', 4, 6),
+      cue(196201, 196541, 'yū', 8, 10),
+    ])
+
+    const row = buildRomajiRow(main, romaji)
+
+    expect(render(row)).toBe('yū yū yū')
+    expect(tokens(row).map((t) => t.text)).toEqual(['yū', 'yū', 'yū'])
+    expect(tokens(row).map((t) => t.mainCueIdx)).toEqual([0, 1, 2])
+    expect(tokens(row).map((t) => t.startMs)).toEqual([195480, 195811, 196201])
+  })
+
+  it('skips a cue that is missing byte offsets', () => {
+    const main = [cue(0, 500, 'A'), cue(500, 1000, 'B')]
+    const romaji = cueLine('a b', [cue(0, 500, 'a', 0, 0), cue(500, 1000, 'b')])
+
+    const row = buildRomajiRow(main, romaji)
+
+    expect(tokens(row).map((t) => t.text)).toEqual(['a'])
   })
 })
