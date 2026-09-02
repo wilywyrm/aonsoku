@@ -1,3 +1,4 @@
+import { byteSlice } from './byteSlice'
 import type { NormalizedCue, NormalizedCueLine } from './wordTiming'
 
 /**
@@ -65,23 +66,23 @@ function mainCueIndexForStart(mainCues: NormalizedCue[], t: number): number {
 
 /**
  * Build the ordered romaji render row for one MAIN cueLine by overlaying the
- * romaji (Latn) cueLine's own cues, matched to the main cues by START timestamp.
+ * romaji (Latn) cueLine's own cues, matched to the MAIN cues by START timestamp.
  *
- * Token text comes from each cue's `value` (e.g. "hitai", "ni"), NOT from the
- * cue's byte offsets: the authoring pipeline emits per-word-LOCAL byteStart/
- * byteEnd on pronunciation cues (0-based within each word), so byte-slicing the
- * line value with them shreds it into repeated fragments. Verbatim spacing is
- * instead recovered by locating each word in the line `value` left-to-right —
- * the line value is the tool's own space-join of the words, so this reproduces
- * the author's spacing exactly (word-spaced "kyō wa", solid "kokoro", or
- * mora-split "ko n ni chi wa") while being immune to the bogus offsets. When a
- * word cannot be located (missing/garbled line value) we fall back to a single
- * separating space so adjacent words never fuse.
+ * Each cue's text is sliced from `cueLine.value` by its inclusive UTF-8
+ * `byteStart`/`byteEnd` (via {@link byteSlice}), so repeated readings and
+ * multi-byte vowels resolve unambiguously. Byte ranges no cue covers — untimed
+ * particles, okurigana, and word spacing — are emitted as static `gap` items,
+ * reproducing the author's spacing (word-spaced "kyō wa", solid "kokoro",
+ * mora-split "ko n ni chi wa") straight from the line value.
  *
- * Whitespace-only cues degrade to gaps so they never become hover/seek targets.
+ * Whitespace baked into a cue's own slice (a spaced reading like "watashi ") is
+ * peeled off as gaps so the inline-block token, which trims its own whitespace,
+ * never fuses to a neighbor; a whitespace-only cue degrades to a single gap.
  *
- * Returns `[]` when the romaji cueLine is absent or carries no cues, so the
- * caller cleanly falls back to the static line-level romaji.
+ * Cues are assumed to carry valid cumulative offsets (byteStart ≤ byteEnd,
+ * non-overlapping) as emitted by the server; a cue missing offsets is skipped.
+ * Returns `[]` when the romaji cueLine is absent or empty, so the caller falls
+ * back to the static line-level romaji.
  */
 export function buildRomajiRow(
   mainCues: NormalizedCue[],
@@ -90,37 +91,29 @@ export function buildRomajiRow(
   if (!romajiCueLine || romajiCueLine.cues.length === 0) return []
 
   const value = romajiCueLine.value ?? ''
+  if (value === '') return []
+  const byteLength = new TextEncoder().encode(value).length
+
   const items: RomajiItem[] = []
-  let cursor = 0
-  let emittedToken = false
+  let byteCursor = 0
 
   for (const cue of romajiCueLine.cues) {
-    const cueText = cue.value ?? ''
-    if (cueText === '') continue
+    if (cue.byteStart == null || cue.byteEnd == null) continue
 
-    // Whitespace-only cue → static gap, never an interactive token.
-    if (cueText.trim() === '') {
-      items.push({ kind: 'gap', text: cueText })
-      if (value.startsWith(cueText, cursor)) cursor += cueText.length
+    const lead = byteSlice(value, byteCursor, cue.byteStart - 1)
+    if (lead) items.push({ kind: 'gap', text: lead })
+    byteCursor = Math.max(byteCursor, cue.byteEnd + 1)
+
+    const raw = byteSlice(value, cue.byteStart, cue.byteEnd)
+    const word = raw.trim()
+    if (word === '') {
+      if (raw) items.push({ kind: 'gap', text: raw })
       continue
     }
 
-    // Match (and render) the trimmed word: a cue value that carries a word-
-    // separator space (e.g. "watashi " from a spaced reading) must surface that
-    // space as a gap, not bake it into the token — an inline-block `.romaji-word`
-    // trims its own trailing/leading whitespace, which would fuse it to the next.
-    const word = cueText.trim()
-    const at = value.indexOf(word, cursor)
-    if (at >= 0) {
-      if (at > cursor) {
-        const gap = value.slice(cursor, at)
-        if (gap) items.push({ kind: 'gap', text: gap })
-      }
-      cursor = at + word.length
-    } else if (emittedToken) {
-      items.push({ kind: 'gap', text: ' ' })
-    }
-
+    const leadWs = raw.slice(0, raw.length - raw.trimStart().length)
+    const trailWs = raw.slice(raw.trimEnd().length)
+    if (leadWs) items.push({ kind: 'gap', text: leadWs })
     items.push({
       kind: 'token',
       text: word,
@@ -128,8 +121,11 @@ export function buildRomajiRow(
       startMs: cue.start,
       endMs: cue.end,
     })
-    emittedToken = true
+    if (trailWs) items.push({ kind: 'gap', text: trailWs })
   }
+
+  const tail = byteSlice(value, byteCursor, byteLength - 1)
+  if (tail) items.push({ kind: 'gap', text: tail })
 
   return items
 }
