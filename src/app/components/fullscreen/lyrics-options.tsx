@@ -18,11 +18,9 @@ import {
 import { Separator } from '@/app/components/ui/separator'
 import { useLyricsSettings } from '@/store/player.store'
 import type { IStructuredLyric } from '@/types/responses/song'
-import { isJapaneseLang } from '@/utils/language'
 import { listTransliterationOptions } from '@/utils/transliterationResolver'
 
 interface LyricsOptionsProps {
-  lang?: string
   songId?: string
   pronunciationLyrics?: IStructuredLyric[]
 }
@@ -31,7 +29,6 @@ const DEFAULT_VALUE = '__default__'
 const OFF_VALUE = 'off'
 
 export function LyricsOptions({
-  lang,
   songId,
   pronunciationLyrics,
 }: LyricsOptionsProps) {
@@ -43,7 +40,7 @@ export function LyricsOptions({
     listTransliterationOptions(pronunciationLyrics)
 
   const hasTracks = rubySystems.length > 0 || lineSystems.length > 0
-  if (!songId || !isJapaneseLang(lang) || !hasTracks) return null
+  if (!songId || !hasTracks) return null
 
   const override = perTrackTransliteration[songId]
   const isOverridden =
@@ -113,13 +110,11 @@ export function LyricsOptions({
 }
 
 interface LyricsTransliterationRowsProps {
-  lang?: string
   songId?: string
   pronunciationLyrics?: IStructuredLyric[]
 }
 
 export function LyricsTransliterationRows({
-  lang,
   songId,
   pronunciationLyrics,
 }: LyricsTransliterationRowsProps) {
@@ -131,7 +126,7 @@ export function LyricsTransliterationRows({
     listTransliterationOptions(pronunciationLyrics)
 
   const hasTracks = rubySystems.length > 0 || lineSystems.length > 0
-  if (!songId || !isJapaneseLang(lang) || !hasTracks) return null
+  if (!songId || !hasTracks) return null
 
   const override = perTrackTransliteration[songId]
   const isOverridden =

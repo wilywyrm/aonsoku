@@ -81,12 +81,12 @@ export function LyricsTab() {
     enabled: !!id,
   })
 
-  const setCurrentLyricsContext = usePlayerStore(
-    (s) => s.settings.lyrics.setCurrentLyricsContext,
+  const setCurrentPronunciationLyrics = usePlayerStore(
+    (s) => s.settings.lyrics.setCurrentPronunciationLyrics,
   )
   useEffect(() => {
-    setCurrentLyricsContext(lyrics?.lang, lyrics?.pronunciationLyrics)
-  }, [lyrics?.lang, lyrics?.pronunciationLyrics, setCurrentLyricsContext])
+    setCurrentPronunciationLyrics(lyrics?.pronunciationLyrics)
+  }, [lyrics?.pronunciationLyrics, setCurrentPronunciationLyrics])
 
   const rubyModels = useRubyModels(
     lyrics?.structuredLyric,

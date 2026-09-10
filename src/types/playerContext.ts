@@ -1,6 +1,6 @@
 import { EpisodeWithPodcast } from './responses/podcasts'
 import { Radio } from './responses/radios'
-import { ISong } from './responses/song'
+import { ISong, IStructuredLyric } from './responses/song'
 
 export enum LoopState {
   Off = 0,
@@ -127,6 +127,10 @@ interface ILyrics {
     override: PerTrackTransliteration,
   ) => void
   clearPerTrackTransliteration: (songId: string) => void
+  currentPronunciationLyrics: IStructuredLyric[] | undefined
+  setCurrentPronunciationLyrics: (
+    pronunciationLyrics: IStructuredLyric[] | undefined,
+  ) => void
 }
 
 interface LrcLib {

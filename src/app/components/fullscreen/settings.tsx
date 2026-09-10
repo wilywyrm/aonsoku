@@ -12,14 +12,18 @@ import { Separator } from '@/app/components/ui/separator'
 import { Slider } from '@/app/components/ui/slider'
 import { Switch } from '@/app/components/ui/switch'
 import { cn } from '@/lib/utils'
-import { useLyricsSettings, usePlayerSonglist, useSongColor } from '@/store/player.store'
+import {
+  useLyricsSettings,
+  usePlayerSonglist,
+  useSongColor,
+} from '@/store/player.store'
 import { buttonsStyle } from './controls'
 import { LyricsTransliterationRows } from './lyrics-options'
 
 export function FullscreenSettings() {
   const { useSongColorOnBigPlayer } = useSongColor()
   const { currentSong } = usePlayerSonglist()
-  const { currentLyricsLang, currentPronunciationLyrics } = useLyricsSettings()
+  const { currentPronunciationLyrics } = useLyricsSettings()
 
   return (
     <Popover>
@@ -42,7 +46,6 @@ export function FullscreenSettings() {
           {useSongColorOnBigPlayer && <ColorIntensityOption />}
           {!useSongColorOnBigPlayer && <ImageBlurSizeOption />}
           <LyricsTransliterationRows
-            lang={currentLyricsLang}
             songId={currentSong?.id}
             pronunciationLyrics={currentPronunciationLyrics}
           />
@@ -55,7 +58,7 @@ export function FullscreenSettings() {
 export function QueueSettings() {
   const { useSongColorOnQueue } = useSongColor()
   const { currentSong } = usePlayerSonglist()
-  const { currentLyricsLang, currentPronunciationLyrics } = useLyricsSettings()
+  const { currentPronunciationLyrics } = useLyricsSettings()
 
   return (
     <Popover>
@@ -73,7 +76,6 @@ export function QueueSettings() {
           <QueueDynamicColorOption showSeparator={false} />
           {useSongColorOnQueue && <ColorIntensityOption />}
           <LyricsTransliterationRows
-            lang={currentLyricsLang}
             songId={currentSong?.id}
             pronunciationLyrics={currentPronunciationLyrics}
           />
