@@ -213,12 +213,136 @@ describe('buildRomajiRow', () => {
     expect(tokens(row).map((t) => t.startMs)).toEqual([195480, 195811, 196201])
   })
 
-  it('skips a cue that is missing byte offsets', () => {
+  it('recovers a byte-offset-less cue from the line value via main-cue linking', () => {
+    // The 'b' cue carries timing but no byteStart/byteEnd, so it can't be
+    // sliced; its text still lives in the line value and matches the unclaimed
+    // main cue 'B', so it is recovered as a linked token rather than dropped.
     const main = [cue(0, 500, 'A'), cue(500, 1000, 'B')]
     const romaji = cueLine('a b', [cue(0, 500, 'a', 0, 0), cue(500, 1000, 'b')])
 
     const row = buildRomajiRow(main, romaji)
 
-    expect(tokens(row).map((t) => t.text)).toEqual(['a'])
+    expect(tokens(row).map((t) => t.text)).toEqual(['a', 'b'])
+    expect(tokens(row).map((t) => t.mainCueIdx)).toEqual([0, 1])
+  })
+
+  it('links a pass-through English word to its own main cue (no romaji cue)', () => {
+    // 'Dreaming' is copied verbatim into the romaji line but carries no romaji
+    // cue; it must bind to main cue 1 and inherit that cue's timing.
+    const main = [cue(1000, 2000, '夢'), cue(2000, 4000, 'Dreaming')]
+    const romaji = cueLine('yume Dreaming', [cue(1000, 2000, 'yume', 0, 3)])
+
+    const row = buildRomajiRow(main, romaji)
+
+    expect(render(row)).toBe('yume Dreaming')
+    expect(tokens(row).map((t) => t.text)).toEqual(['yume', 'Dreaming'])
+    expect(tokens(row).map((t) => t.mainCueIdx)).toEqual([0, 1])
+    const dreaming = tokens(row)[1]
+    expect([dreaming.startMs, dreaming.endMs]).toEqual([2000, 4000])
+  })
+
+  it('binds repeated pass-through text to SUCCESSIVE main cues, never re-matching the first', () => {
+    // Both 'la' are pass-through (no romaji cue). A naive line search would
+    // resolve both to the first 'la' (main 1); the forward-only pointer binds
+    // them to main 1 and main 3 respectively, with distinct timings.
+    const main = [
+      cue(1000, 2000, '夢'),
+      cue(2000, 3000, 'la'),
+      cue(3000, 4000, '見る'),
+      cue(4000, 5000, 'la'),
+    ]
+    const romaji = cueLine('yume la miru la', [
+      cue(1000, 2000, 'yume', 0, 3),
+      cue(3000, 4000, 'miru', 8, 11),
+    ])
+
+    const row = buildRomajiRow(main, romaji)
+
+    expect(render(row)).toBe('yume la miru la')
+    expect(tokens(row).map((t) => t.text)).toEqual(['yume', 'la', 'miru', 'la'])
+    expect(tokens(row).map((t) => t.mainCueIdx)).toEqual([0, 1, 2, 3])
+    const las = tokens(row).filter((t) => t.text === 'la')
+    expect(las.map((t) => t.startMs)).toEqual([2000, 4000])
+  })
+
+  it('splits a contiguous repeated pass-through gap ("la la") across successive main cues', () => {
+    const main = [
+      cue(0, 1000, '夢'),
+      cue(1000, 2000, 'la'),
+      cue(2000, 3000, 'la'),
+      cue(3000, 4000, '見る'),
+    ]
+    const romaji = cueLine('yume la la miru', [
+      cue(0, 1000, 'yume', 0, 3),
+      cue(3000, 4000, 'miru', 11, 14),
+    ])
+
+    const row = buildRomajiRow(main, romaji)
+
+    expect(render(row)).toBe('yume la la miru')
+    expect(tokens(row).map((t) => t.text)).toEqual(['yume', 'la', 'la', 'miru'])
+    expect(tokens(row).map((t) => t.mainCueIdx)).toEqual([0, 1, 2, 3])
+    const las = tokens(row).filter((t) => t.text === 'la')
+    expect(las.map((t) => t.startMs)).toEqual([1000, 2000])
+  })
+
+  it('splits a multi-word pass-through gap into one token per main cue', () => {
+    const main = [
+      cue(0, 1000, '夢'),
+      cue(1000, 1500, 'I'),
+      cue(1500, 2000, 'love'),
+      cue(2000, 2500, 'you'),
+      cue(2500, 3500, '見る'),
+    ]
+    const romaji = cueLine('yume I love you miru', [
+      cue(0, 1000, 'yume', 0, 3),
+      cue(2500, 3500, 'miru', 16, 19),
+    ])
+
+    const row = buildRomajiRow(main, romaji)
+
+    expect(render(row)).toBe('yume I love you miru')
+    expect(tokens(row).map((t) => t.text)).toEqual([
+      'yume',
+      'I',
+      'love',
+      'you',
+      'miru',
+    ])
+    expect(tokens(row).map((t) => t.mainCueIdx)).toEqual([0, 1, 2, 3, 4])
+  })
+
+  it('links pass-through text that leads the line (before the first romaji cue)', () => {
+    const main = [cue(0, 1000, 'Hello'), cue(1000, 2000, '夢')]
+    const romaji = cueLine('Hello yume', [cue(1000, 2000, 'yume', 6, 9)])
+
+    const row = buildRomajiRow(main, romaji)
+
+    expect(render(row)).toBe('Hello yume')
+    expect(tokens(row).map((t) => t.text)).toEqual(['Hello', 'yume'])
+    expect(tokens(row).map((t) => t.mainCueIdx)).toEqual([0, 1])
+  })
+
+  it('leaves an uncovered word that matches no main cue as a static gap', () => {
+    // The unclaimed main cue reads 'ah', so the uncovered 'oh' must NOT link —
+    // the value guard rejects the near-miss and it degrades to a plain gap.
+    const main = [
+      cue(0, 1000, '夢'),
+      cue(1000, 2000, 'ah'),
+      cue(2000, 3000, '空'),
+    ]
+    const romaji = cueLine('yume oh sora', [
+      cue(0, 1000, 'yume', 0, 3),
+      cue(2000, 3000, 'sora', 8, 11),
+    ])
+
+    const row = buildRomajiRow(main, romaji)
+
+    expect(render(row)).toBe('yume oh sora')
+    expect(tokens(row).map((t) => t.text)).toEqual(['yume', 'sora'])
+    expect(tokens(row).map((t) => t.mainCueIdx)).toEqual([0, 2])
+    expect(row.some((i) => i.kind === 'gap' && i.text.includes('oh'))).toBe(
+      true,
+    )
   })
 })
