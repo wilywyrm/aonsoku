@@ -345,4 +345,62 @@ describe('buildRomajiRow', () => {
       true,
     )
   })
+
+  it('links pass-through words the main track split into karaoke syllables', () => {
+    // Real line: English words are split into sub-word cues on the main track
+    // ('ne'+'ver', 'sur'+'ren'+'der') but appear whole in the romaji line value.
+    // Each fragment must still link to its own main cue, in order, so 'never
+    // surrender' is not left as an orphaned gap.
+    const main = [
+      cue(149661, 149776, 'Let '),
+      cue(149776, 149888, 'it '),
+      cue(149888, 150024, 'be '),
+      cue(150024, 150302, 'known '),
+      cue(150302, 150444, '消'),
+      cue(150444, 150525, 'え'),
+      cue(150525, 150664, 'ろ'),
+      cue(150664, 151002, 'よ '),
+      cue(151002, 151216, 'I '),
+      cue(151216, 151357, 'will '),
+      cue(151357, 151451, 'ne'),
+      cue(151451, 151584, 'ver '),
+      cue(151584, 151697, 'sur'),
+      cue(151697, 152031, 'ren'),
+      cue(152031, 152531, 'der'),
+    ]
+    const romaji = cueLine('Let it be known kiero yo I will never surrender', [
+      cue(150302, 150444, 'ki', 16, 17),
+      cue(150444, 150525, 'e', 18, 18),
+      cue(150525, 150664, 'ro', 19, 20),
+      cue(150664, 151002, 'yo', 22, 23),
+    ])
+
+    const row = buildRomajiRow(main, romaji)
+
+    expect(render(row)).toBe('Let it be known kiero yo I will never surrender')
+    expect(tokens(row).map((t) => t.text)).toEqual([
+      'Let',
+      'it',
+      'be',
+      'known',
+      'ki',
+      'e',
+      'ro',
+      'yo',
+      'I',
+      'will',
+      'ne',
+      'ver',
+      'sur',
+      'ren',
+      'der',
+    ])
+    expect(tokens(row).map((t) => t.mainCueIdx)).toEqual([
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+    ])
+    // Each 'never'/'surrender' fragment carries its own main-cue timing.
+    const ne = tokens(row).find((t) => t.text === 'ne')
+    const ver = tokens(row).find((t) => t.text === 'ver')
+    expect([ne?.startMs, ver?.startMs]).toEqual([151357, 151451])
+  })
 })

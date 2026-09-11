@@ -79,11 +79,13 @@ function mainCueIndexForStart(mainCues: NormalizedCue[], t: number): number {
  * repeated token ("la … la", "Dreaming … Dreaming") consumes the NEXT unclaimed
  * MAIN cue rather than re-finding the first occurrence. `hi` caps candidates to
  * the MAIN cues preceding the following covered token, so a lead gap can never
- * reach past its neighbour. A word links only when it matches its candidate MAIN
- * cue's value verbatim (case-insensitive, at a trailing word boundary): romaji
- * readings differ from their kanji/kana MAIN value and so never link, only
- * genuine pass-through does. Whitespace is preserved as `gap`s and any unmatched
- * remainder stays a single `gap` (safe degradation to the prior behaviour).
+ * reach past its neighbour. Each candidate MAIN cue's value must match the gap
+ * text verbatim (case-insensitive) at the cursor: the MAIN cues re-segment the
+ * SAME pass-through text, so a word the MAIN track split into karaoke syllables
+ * ("ne" + "ver") links fragment-by-fragment, while a romaji reading (which
+ * differs from its kanji/kana MAIN value) fails the match and never links. A
+ * mismatch ends the run, so whitespace is preserved as `gap`s and any unmatched
+ * remainder stays a `gap` (safe degradation to the prior behaviour).
  *
  * Mutates `items` (appends) and `claimed` (marks consumed indices); returns the
  * advanced `lo` (highest MAIN index bound so far).
@@ -111,15 +113,16 @@ function pushLinkedGap(
     const leadWsLen = rest.length - rest.trimStart().length
     const afterWs = rest.slice(leadWsLen)
 
-    // Whole-token, boundary-checked, case-insensitive prefix match. Case-fold
-    // lets a romanizer that re-cases a pass-through token ("YOU" → "you") still
-    // link; the trailing-boundary guard stops a short value ("la") from biting
-    // into a longer word ("lala" / "Introduction").
+    // Case-insensitive prefix match. Each MAIN cue value re-segments the SAME
+    // pass-through text, so a word the MAIN track split into karaoke syllables
+    // ("ne" + "ver", "sur" + "ren" + "der") links fragment-by-fragment; a
+    // mismatch ends the run so a divergent romaji line degrades to a gap instead
+    // of mis-binding. Case-fold lets a romanizer that re-cases a token ("YOU" →
+    // "you") still link.
     const fits =
       target !== '' &&
       afterWs.length >= target.length &&
-      afterWs.slice(0, target.length).toLowerCase() === target.toLowerCase() &&
-      (afterWs.length === target.length || afterWs[target.length].trim() === '')
+      afterWs.slice(0, target.length).toLowerCase() === target.toLowerCase()
 
     if (!fits) break
 
