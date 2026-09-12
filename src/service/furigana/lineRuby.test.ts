@@ -367,7 +367,7 @@ describe('buildLineRenderSpans', () => {
     expectConcatInvariant(spans, text)
   })
 
-  it('merges a long GROUPED reading across a segment boundary so it no longer overlaps (少々 + 出来)', () => {
+  it('condenses a grouped reading across a segment boundary so it no longer overlaps (少々 + 出来)', () => {
     const text = '少々出来すぎ'
     const model: RubyLineModel = {
       segments: [
@@ -399,7 +399,8 @@ describe('buildLineRenderSpans', () => {
         text: '少々出来',
         kana: 'しょうしょうでき',
         cells: [
-          { text: '少々出', kana: 'しょうしょうで' },
+          { text: '少々', kana: 'しょうしょう', tracking: -0.2 },
+          { text: '出', kana: 'で' },
           { text: '来', kana: 'き' },
         ],
       },

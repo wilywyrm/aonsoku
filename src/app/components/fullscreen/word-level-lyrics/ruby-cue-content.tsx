@@ -8,11 +8,18 @@ import { secondaryAgentHueRotation } from './secondaryAgentHue'
 
 // --seg-start/--seg-span position a reading's wipe within the unit's shared
 // --fill front (index.css remaps them into a per-reading --local-fill).
-function segStyle(start: number, span: number, total: number): CSSProperties {
-  return {
+function segStyle(
+  start: number,
+  span: number,
+  total: number,
+  tracking?: number,
+): CSSProperties {
+  const style: Record<string, string> = {
     '--seg-start': `${(start / total) * 100}%`,
     '--seg-span': `${span / total}`,
-  } as CSSProperties
+  }
+  if (tracking !== undefined) style['--rt-tracking'] = `${tracking}em`
+  return style as CSSProperties
 }
 
 // Furigana overlay for one kanji unit: readings floated ABOVE the flat
@@ -56,7 +63,7 @@ function renderFuriCells(unit: RenderUnit): ReactNode {
         </span>
         <span
           className="ruby-furi-rt"
-          style={segStyle(g.start, g.end - g.start + 1, total)}
+          style={segStyle(g.start, g.end - g.start + 1, total, g.tracking)}
         >
           {g.kana}
         </span>

@@ -13,6 +13,7 @@ import { groupReadings, mergeCollidingSegments } from './grouping'
 export interface LineRubyCell {
   text: string
   kana?: string
+  tracking?: number
 }
 
 // One ordered piece of a rendered line: a bare text run (kana and cells
@@ -61,7 +62,11 @@ function buildCells(
     const gEnd = Math.min(end, g.end + 1)
     if (gEnd <= gStart || gStart < local) continue
     if (gStart > local) cells.push({ text: text.slice(local, gStart) })
-    cells.push({ text: text.slice(gStart, gEnd), kana: g.kana })
+    cells.push({
+      text: text.slice(gStart, gEnd),
+      kana: g.kana,
+      tracking: g.tracking,
+    })
     local = gEnd
   }
   if (local < end) cells.push({ text: text.slice(local, end) })

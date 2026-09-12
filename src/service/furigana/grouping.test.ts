@@ -88,7 +88,9 @@ describe('groupReadings', () => {
     ])
   })
 
-  it('is transitive (a widened group absorbs the next reading)', () => {
+  it('merges the unclearable pair in a chain, then condenses the rest', () => {
+    // こころ + がま overlap even fully condensed → they merge; the widened group
+    // then clears かた within the floor → condensed apart rather than merged.
     const groups = groupReadings(
       [
         { charStart: 0, charEnd: 0, kana: 'こころ' },
@@ -97,7 +99,41 @@ describe('groupReadings', () => {
       ],
       0,
     )
-    expect(groups).toEqual([{ start: 0, end: 2, kana: 'こころがまかた' }])
+    expect(groups).toEqual([
+      { start: 0, end: 1, kana: 'こころがま', tracking: -0.2 },
+      { start: 2, end: 2, kana: 'かた', tracking: -0.2 },
+    ])
+  })
+
+  it('condenses colliding readings within the floor instead of merging', () => {
+    // 5-kana reading over 2 kanji meeting a 4-kana reading over 2 kanji overhangs
+    // only 0.25em — cleared by tracking both ~-0.143 rt-em, so they stay separate
+    // mono-ruby cells instead of merging into one group-ruby span.
+    const groups = groupReadings(
+      [
+        { charStart: 0, charEnd: 1, kana: 'かきくけこ' },
+        { charStart: 2, charEnd: 3, kana: 'さしすせ' },
+      ],
+      0,
+    )
+    expect(groups).toEqual([
+      { start: 0, end: 1, kana: 'かきくけこ', tracking: -0.1429 },
+      { start: 2, end: 3, kana: 'さしすせ', tracking: -0.1429 },
+    ])
+  })
+
+  it('merges when condensing to the floor cannot clear the overlap (飄々)', () => {
+    // 飄 + 々 (both ひょう, 3 mora over 1 kanji, reaching groupReadings fused from
+    // separate cues via mergeCollidingUnits) overlap 0.5em — ~33% each to fit,
+    // far past the floor — so they fall back to one centred group-ruby span.
+    const groups = groupReadings(
+      [
+        { charStart: 0, charEnd: 0, kana: 'ひょう' },
+        { charStart: 1, charEnd: 1, kana: 'ひょう' },
+      ],
+      0,
+    )
+    expect(groups).toEqual([{ start: 0, end: 1, kana: 'ひょうひょう' }])
   })
 })
 

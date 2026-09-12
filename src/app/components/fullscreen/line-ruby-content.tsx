@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { type CSSProperties, useMemo } from 'react'
 import { buildLineRenderSpans } from '@/service/furigana/lineRuby'
 import type { RubyLineModel } from '@/types/furigana'
 
@@ -51,7 +51,18 @@ export function LineRubyContent({
                     cell.kana !== undefined ? (
                       <span key={ci} className="ruby-furi-cell">
                         <span className="ruby-furi-spacer">{cell.text}</span>
-                        <span className="ruby-furi-rt">{cell.kana}</span>
+                        <span
+                          className="ruby-furi-rt"
+                          style={
+                            cell.tracking !== undefined
+                              ? ({
+                                  '--rt-tracking': `${cell.tracking}em`,
+                                } as CSSProperties)
+                              : undefined
+                          }
+                        >
+                          {cell.kana}
+                        </span>
                       </span>
                     ) : (
                       <span key={ci} className="ruby-furi-gap">
