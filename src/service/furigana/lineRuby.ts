@@ -4,6 +4,7 @@ import {
   mergeCollidingSegments,
   type ReadingGroup,
   resolveSegmentGroups,
+  shiftAcrossGaps,
 } from './grouping'
 
 // Line-char coordinates below are JS string (code-unit) indices with an
@@ -19,6 +20,7 @@ export interface LineRubyCell {
   text: string
   kana?: string
   tracking?: number
+  shift?: number
 }
 
 // One ordered piece of a rendered line: a bare text run (kana and cells
@@ -29,6 +31,7 @@ export interface LineRenderSpan {
   kana?: string
   cells?: LineRubyCell[]
   tracking?: number
+  shift?: number
 }
 
 // react-lrc's clrc parser captures the single space after "]" from the
@@ -64,6 +67,7 @@ function buildCells(
       text: text.slice(gStart, gEnd),
       kana: g.kana,
       tracking: g.tracking,
+      shift: g.shift,
     })
     local = gEnd
   }
@@ -92,12 +96,11 @@ export function buildLineRenderSpans(
   // Resolve each segment's groups (absolute coords), then condense readings that
   // overhang across the spaces between phrases before tiling cells.
   const segGroups = segments.map(resolveSegmentGroups)
-  condenseAcrossGaps(
-    segGroups
-      .map((groups) => ({ groups, baseOffset: 0 }))
-      .filter((item) => item.groups.length > 0),
-    text,
-  )
+  const gapItems = segGroups
+    .map((groups) => ({ groups, baseOffset: 0 }))
+    .filter((item) => item.groups.length > 0)
+  shiftAcrossGaps(gapItems, text)
+  condenseAcrossGaps(gapItems, text)
   const spans: LineRenderSpan[] = []
   let cursor = 0
 
@@ -125,7 +128,12 @@ export function buildLineRenderSpans(
       !perKanji ||
       perKanji.length === 0
     ) {
-      spans.push({ text: slice, kana, tracking: groups[0]?.tracking })
+      spans.push({
+        text: slice,
+        kana,
+        tracking: groups[0]?.tracking,
+        shift: groups[0]?.shift,
+      })
     } else {
       spans.push({
         text: slice,

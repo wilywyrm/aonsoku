@@ -30,6 +30,10 @@ const EPS = 1e-9
 // residual overlap, never layout breakage (base kanji never move).
 export const SPACE_ADVANCE_EM = 0.33
 
+// Aesthetic cap (base-em) on how far jidori may shift a reading off the centre of
+// its own kanji before it looks detached. Tuned by eye like the other constants.
+export const JIDORI_MAX_SHIFT = 0.5
+
 // One reading over a contiguous kanji span. start/end are inclusive char indices
 // in whatever coordinate space the caller uses (unit-local for grouping within a
 // unit, line-char for merging across units); readingsCollide only compares
@@ -61,6 +65,7 @@ export interface ReadingGroup {
   end: number // unit-local char index of the group's last kanji (inclusive)
   kana: string // combined reading, centred over the whole group
   tracking?: number // per-gap letter-spacing (rt-em, < 0) condensing this reading to clear a collision; absent = natural width (overhang kept)
+  shift?: number // horizontal offset (base-em, + = right) shifting this reading off-centre into adjacent reading-less space (jidori); absent = centred
 }
 
 // Fuse adjacent overhanging reading spans into one centred group-ruby span
@@ -242,6 +247,10 @@ function groupOverhang(g: ReadingGroup): number {
   )
 }
 
+function shiftOf(g: ReadingGroup): number {
+  return g.shift ?? 0
+}
+
 // Approximate advance (base-em) of one character when measuring a phrase gap:
 // narrow ASCII whitespace is SPACE_ADVANCE_EM; everything else — CJK, kana, the
 // ideographic space U+3000, and (deliberately) Latin — is 1em. Over-counting
@@ -305,7 +314,9 @@ export function condenseAcrossGaps(
     const overlap =
       groupOverhang(lg) +
       groupOverhang(rg) -
-      gapAdvanceEm(text, absLeftEnd + 1, absRightStart)
+      gapAdvanceEm(text, absLeftEnd + 1, absRightStart) +
+      shiftOf(lg) -
+      shiftOf(rg)
     if (overlap <= EPS) continue
     const prevAvail = Math.max(
       0,
@@ -322,6 +333,118 @@ export function condenseAcrossGaps(
     if (dCur > EPS) {
       rg.tracking = dropToTracking(rg.kana.length, currentDrop(rg) + dCur)
     }
+  }
+}
+
+// Cumulative advance (base-em) of text[0, i): a reading over base chars
+// [start, end] spans [prefix[start], prefix[end + 1]]. Narrow whitespace counts
+// as SPACE_ADVANCE_EM — this is what makes jidori aware of the real gap widths.
+function advancePrefix(text: string): number[] {
+  const prefix = new Array<number>(text.length + 1)
+  prefix[0] = 0
+  for (let i = 0; i < text.length; i++) {
+    prefix[i + 1] = prefix[i] + charAdvanceEm(text[i])
+  }
+  return prefix
+}
+
+// One reading placed on the advance-em axis: `centre` is its fixed home centre
+// over its kanji; its live edges add the current `shift`.
+interface ShiftNode {
+  group: ReadingGroup
+  centre: number
+  half: number
+}
+
+function leftEdge(n: ShiftNode): number {
+  return n.centre + shiftOf(n.group) - n.half
+}
+
+function rightEdge(n: ShiftNode): number {
+  return n.centre + shiftOf(n.group) + n.half
+}
+
+// How far node i's reading can travel left: its own remaining budget vs. the
+// slack to its left neighbour PLUS however far that neighbour can itself yield
+// left (recruit). Bounded by JIDORI_MAX_SHIFT and the line start.
+function roomLeft(nodes: ShiftNode[], i: number): number {
+  const own = JIDORI_MAX_SHIFT + shiftOf(nodes[i].group)
+  const slack =
+    i === 0 ? leftEdge(nodes[0]) : leftEdge(nodes[i]) - rightEdge(nodes[i - 1])
+  const recruit = i === 0 ? 0 : roomLeft(nodes, i - 1)
+  return Math.max(0, Math.min(own, slack + recruit))
+}
+
+function roomRight(nodes: ShiftNode[], i: number, lineEnd: number): number {
+  const last = nodes.length - 1
+  const own = JIDORI_MAX_SHIFT - shiftOf(nodes[i].group)
+  const slack =
+    i === last
+      ? lineEnd - rightEdge(nodes[i])
+      : leftEdge(nodes[i + 1]) - rightEdge(nodes[i])
+  const recruit = i === last ? 0 : roomRight(nodes, i + 1, lineEnd)
+  return Math.max(0, Math.min(own, slack + recruit))
+}
+
+// Move node i left by d, pushing any reading it runs into further left (cascade).
+// Callers pass d <= roomLeft(i), so the cascade never exceeds a reading's budget.
+function pushLeft(nodes: ShiftNode[], i: number, d: number): void {
+  nodes[i].group.shift = shiftOf(nodes[i].group) - d
+  if (i > 0) {
+    const over = rightEdge(nodes[i - 1]) - leftEdge(nodes[i])
+    if (over > EPS) pushLeft(nodes, i - 1, over)
+  }
+}
+
+function pushRight(nodes: ShiftNode[], i: number, d: number): void {
+  nodes[i].group.shift = shiftOf(nodes[i].group) + d
+  if (i < nodes.length - 1) {
+    const over = rightEdge(nodes[i]) - leftEdge(nodes[i + 1])
+    if (over > EPS) pushRight(nodes, i + 1, over)
+  }
+}
+
+// Jidori: resolve overhang collisions between adjacent readings by shifting BOTH
+// members of a colliding pair EQUALLY and OPPOSITELY into adjacent reading-less
+// room — cascading through blocking readings (a wide reading pushes its neighbour
+// aside rather than shrinking it or touching the space). Runs BEFORE
+// condenseAcrossGaps, which then sheds only whatever overlap this room-/cap-limited
+// symmetric shift leaves behind. Mutates group.shift in place; purely visual
+// (never touches char counts, cue coverage, or the wipe). `items` are the
+// kana-bearing units/segments in order; `baseOffset` maps a group's start/end into
+// `text`. Strict symmetry holds for an isolated pair (the common case); where one
+// side has less room BOTH are clamped to the smaller (still symmetric, remainder →
+// condensation), and a reading wedged between two collisions is best-effort.
+export function shiftAcrossGaps(
+  items: Array<{ groups: ReadingGroup[]; baseOffset: number }>,
+  text: string,
+): void {
+  const prefix = advancePrefix(text)
+  const lineEnd = prefix[text.length]
+  const nodes: ShiftNode[] = []
+  for (const item of items) {
+    for (const g of item.groups) {
+      const l = prefix[item.baseOffset + g.start]
+      const r = prefix[item.baseOffset + g.end + 1]
+      nodes.push({
+        group: g,
+        centre: (l + r) / 2,
+        half: (g.kana.length * RT_EM - currentDrop(g)) / 2,
+      })
+    }
+  }
+  nodes.sort((a, b) => a.centre - b.centre)
+  for (let i = 1; i < nodes.length; i++) {
+    const overlap = rightEdge(nodes[i - 1]) - leftEdge(nodes[i])
+    if (overlap <= EPS) continue
+    const d = Math.min(
+      overlap / 2,
+      roomLeft(nodes, i - 1),
+      roomRight(nodes, i, lineEnd),
+    )
+    if (d <= EPS) continue
+    pushLeft(nodes, i - 1, d)
+    pushRight(nodes, i, d)
   }
 }
 

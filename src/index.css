@@ -460,13 +460,16 @@ svg#bars .eq-bar--4 {
   position: absolute;
   bottom: 100%;
   left: 50%;
-  transform: translate(-50%, var(--furi-offset, -0.2em));
-  /* --rt-tracking (rt-em, < 0; set per reading by groupReadings) condenses a
-   * colliding reading via negative letter-spacing. padding-inline-end restores
-   * the trailing advance that negative letter-spacing removes, so the
-   * shrink-to-fit box wraps the glyph run again: this re-centres the reading AND
-   * keeps background-clip:text painting the last kana (without it the trailing
-   * glyph overflows the paint box and is dropped). var default 0em → no effect. */
+  /* --rt-shift (jidori offset, rt-em) slides a colliding reading off-centre into
+   * adjacent reading-less space; --rt-tracking (rt-em, < 0) condenses it via
+   * negative letter-spacing. padding-inline-end restores the trailing advance
+   * negative letter-spacing removes so the shrink-to-fit box wraps the glyph run
+   * again — re-centring the reading AND keeping background-clip:text painting the
+   * last kana. All default 0em → no effect. */
+  transform: translate(
+    calc(-50% + var(--rt-shift, 0em)),
+    var(--furi-offset, -0.2em)
+  );
   letter-spacing: var(--rt-tracking, 0em);
   padding-inline-end: calc(-1 * var(--rt-tracking, 0em));
   font-size: 0.5em;
