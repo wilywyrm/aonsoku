@@ -18,7 +18,7 @@ export const READING_GAP_EM = 0
 // still doesn't clear the overlap are the readings merged (group-ruby) instead —
 // "condense first, merge as a last resort". Tuned by eye (visual QA): more
 // negative resolves more collisions without merging but packs kana tighter.
-export const READING_TRACK_FLOOR = -0.2
+export const READING_TRACK_FLOOR = -0.15
 
 // Float tolerance for edge-to-edge readings (mirrors readingsCollide's strict >).
 const EPS = 1e-9

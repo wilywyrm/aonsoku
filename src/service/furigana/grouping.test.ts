@@ -91,9 +91,9 @@ describe('groupReadings', () => {
     ])
   })
 
-  it('merges the unclearable pair in a chain, then condenses the rest', () => {
-    // こころ + がま overlap even fully condensed → they merge; the widened group
-    // then clears かた within the floor → condensed apart rather than merged.
+  it('merges a chain that still overlaps even fully condensed', () => {
+    // At the floor these 3+2+2-mora readings can't be tracked apart, so the
+    // whole run collapses to one group-ruby.
     const groups = groupReadings(
       [
         { charStart: 0, charEnd: 0, kana: 'こころ' },
@@ -102,10 +102,7 @@ describe('groupReadings', () => {
       ],
       0,
     )
-    expect(groups).toEqual([
-      { start: 0, end: 1, kana: 'こころがま', tracking: -0.2 },
-      { start: 2, end: 2, kana: 'かた', tracking: -0.2 },
-    ])
+    expect(groups).toEqual([{ start: 0, end: 2, kana: 'こころがまかた' }])
   })
 
   it('condenses colliding readings within the floor instead of merging', () => {
@@ -582,8 +579,8 @@ describe('condenseAcrossGaps', () => {
     const left = item([{ start: 3, end: 4, kana: 'ひょうひょう' }])
     const right = item([{ start: 6, end: 6, kana: 'かすみ' }])
     condenseAcrossGaps([left, right], 'ひらり飄々 霞掛かる鼓動')
-    expect(left.groups[0].tracking).toBe(-0.2)
-    expect(right.groups[0].tracking).toBe(-0.2)
+    expect(left.groups[0].tracking).toBe(-0.15)
+    expect(right.groups[0].tracking).toBe(-0.15)
   })
 
   it('leaves readings alone across a full-width space (U+3000)', () => {
