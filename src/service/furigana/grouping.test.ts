@@ -9,6 +9,7 @@ import {
   type ReadingGroup,
   readingsCollide,
   resolveUnitGroups,
+  shiftAcrossGaps,
 } from './grouping'
 
 function unit(over: Partial<RenderUnit>): RenderUnit {
@@ -629,5 +630,47 @@ describe('resolveUnitGroups', () => {
       { start: 0, end: 0, kana: 'な' },
       { start: 1, end: 1, kana: 'まえ' },
     ])
+  })
+})
+
+describe('shiftAcrossGaps', () => {
+  it('symmetrically shifts a wide reading, cascading its blocker, to clear a gap', () => {
+    // 飄々→ひょうひょう (overhangs 0.5em) overlaps 霞→かすみ across the ~0.33em ASCII
+    // space by 0.42em. Symmetric jidori moves each 0.21em apart; かすみ's right is
+    // blocked by 掛→か edge-to-edge, so か rides right 0.21em into かる's empty space.
+    const hyou: ReadingGroup = { start: 0, end: 1, kana: 'ひょうひょう' }
+    const kasumi: ReadingGroup = { start: 0, end: 0, kana: 'かすみ' }
+    const ka: ReadingGroup = { start: 0, end: 0, kana: 'か' }
+    const ko: ReadingGroup = { start: 0, end: 0, kana: 'こ' }
+    const dou: ReadingGroup = { start: 0, end: 0, kana: 'どう' }
+    shiftAcrossGaps(
+      [
+        { groups: [hyou], baseOffset: 3 },
+        { groups: [kasumi], baseOffset: 6 },
+        { groups: [ka], baseOffset: 7 },
+        { groups: [ko], baseOffset: 10 },
+        { groups: [dou], baseOffset: 11 },
+      ],
+      'ひらり飄々 霞掛かる鼓動',
+    )
+    expect(hyou.shift).toBeCloseTo(-0.21, 4)
+    expect(kasumi.shift).toBeCloseTo(0.21, 4)
+    expect(ka.shift).toBeCloseTo(0.21, 4)
+    expect(ko.shift).toBeUndefined()
+    expect(dou.shift).toBeUndefined()
+  })
+
+  it('leaves readings centred when a full-width space gives enough clearance', () => {
+    const hyou: ReadingGroup = { start: 0, end: 1, kana: 'ひょうひょう' }
+    const kasumi: ReadingGroup = { start: 0, end: 0, kana: 'かすみ' }
+    shiftAcrossGaps(
+      [
+        { groups: [hyou], baseOffset: 3 },
+        { groups: [kasumi], baseOffset: 6 },
+      ],
+      'ひらり飄々\u3000霞掛かる鼓動',
+    )
+    expect(hyou.shift).toBeUndefined()
+    expect(kasumi.shift).toBeUndefined()
   })
 })

@@ -1,6 +1,17 @@
 import { type CSSProperties, useMemo } from 'react'
+import { RT_EM } from '@/service/furigana/grouping'
 import { buildLineRenderSpans } from '@/service/furigana/lineRuby'
 import type { RubyLineModel } from '@/types/furigana'
+
+// Per-reading CSS vars: --rt-tracking (letter-spacing, rt-em) and --rt-shift
+// (jidori offset, base-em → rt-em). Undefined when the reading carries neither.
+function rtStyle(tracking?: number, shift?: number): CSSProperties | undefined {
+  if (tracking === undefined && shift === undefined) return undefined
+  const style: Record<string, string> = {}
+  if (tracking !== undefined) style['--rt-tracking'] = `${tracking}em`
+  if (shift !== undefined) style['--rt-shift'] = `${shift / RT_EM}em`
+  return style as CSSProperties
+}
 
 interface LineRubyContentProps {
   text: string
@@ -53,13 +64,7 @@ export function LineRubyContent({
                         <span className="ruby-furi-spacer">{cell.text}</span>
                         <span
                           className="ruby-furi-rt"
-                          style={
-                            cell.tracking !== undefined
-                              ? ({
-                                  '--rt-tracking': `${cell.tracking}em`,
-                                } as CSSProperties)
-                              : undefined
-                          }
+                          style={rtStyle(cell.tracking, cell.shift)}
                         >
                           {cell.kana}
                         </span>
@@ -88,13 +93,7 @@ export function LineRubyContent({
                   <span className="ruby-furi-spacer">{span.text}</span>
                   <span
                     className="ruby-furi-rt"
-                    style={
-                      span.tracking !== undefined
-                        ? ({
-                            '--rt-tracking': `${span.tracking}em`,
-                          } as CSSProperties)
-                        : undefined
-                    }
+                    style={rtStyle(span.tracking, span.shift)}
                   >
                     {span.kana}
                   </span>

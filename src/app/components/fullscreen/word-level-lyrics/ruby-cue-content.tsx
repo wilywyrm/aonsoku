@@ -4,6 +4,8 @@ import {
   condenseAcrossGaps,
   type ReadingGroup,
   resolveUnitGroups,
+  RT_EM,
+  shiftAcrossGaps,
 } from '@/service/furigana/grouping'
 import { type RenderUnit, rubyUnitKey, rubyUnitTestId } from '@/types/furigana'
 import type { LinkedCue } from '@/utils/romajiCue'
@@ -17,12 +19,14 @@ function segStyle(
   span: number,
   total: number,
   tracking?: number,
+  shift?: number,
 ): CSSProperties {
   const style: Record<string, string> = {
     '--seg-start': `${(start / total) * 100}%`,
     '--seg-span': `${span / total}`,
   }
   if (tracking !== undefined) style['--rt-tracking'] = `${tracking}em`
+  if (shift !== undefined) style['--rt-shift'] = `${shift / RT_EM}em`
   return style as CSSProperties
 }
 
@@ -53,7 +57,13 @@ function renderFuriCells(unit: RenderUnit, groups: ReadingGroup[]): ReactNode {
         </span>
         <span
           className="ruby-furi-rt"
-          style={segStyle(g.start, g.end - g.start + 1, total, g.tracking)}
+          style={segStyle(
+            g.start,
+            g.end - g.start + 1,
+            total,
+            g.tracking,
+            g.shift,
+          )}
         >
           {g.kana}
         </span>
@@ -106,6 +116,7 @@ export function RubyCueContent({
     const items = units
       .map((unit, i) => ({ groups: groups[i], baseOffset: unit.charStart }))
       .filter((item) => item.groups.length > 0)
+    shiftAcrossGaps(items, cueLine.value)
     condenseAcrossGaps(items, cueLine.value)
     return groups
   }, [units, cueLine.value])
