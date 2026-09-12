@@ -12,6 +12,17 @@ export const RT_EM = 0.5
 // merely sit edge-to-edge; raise it to force more breathing room.
 export const READING_GAP_EM = 0
 
+// Most-negative letter-spacing (in rt-em, i.e. multiples of the .ruby-furi-rt
+// font-size) applied BETWEEN kana of a colliding reading before its glyphs start
+// to touch. On a collision a reading is condensed at most this far; only if that
+// still doesn't clear the overlap are the readings merged (group-ruby) instead —
+// "condense first, merge as a last resort". Tuned by eye (visual QA): more
+// negative resolves more collisions without merging but packs kana tighter.
+export const READING_TRACK_FLOOR = -0.2
+
+// Float tolerance for edge-to-edge readings (mirrors readingsCollide's strict >).
+const EPS = 1e-9
+
 // One reading over a contiguous kanji span. start/end are inclusive char indices
 // in whatever coordinate space the caller uses (unit-local for grouping within a
 // unit, line-char for merging across units); readingsCollide only compares
@@ -33,13 +44,16 @@ function spanHalf(s: ReadingSpan): number {
 // collide when the earlier one's right edge (plus a small gap) passes the next
 // one's left edge.
 export function readingsCollide(a: ReadingSpan, b: ReadingSpan): boolean {
-  return spanCentre(a) + spanHalf(a) + READING_GAP_EM > spanCentre(b) - spanHalf(b)
+  return (
+    spanCentre(a) + spanHalf(a) + READING_GAP_EM > spanCentre(b) - spanHalf(b)
+  )
 }
 
 export interface ReadingGroup {
   start: number // unit-local char index of the group's first kanji
   end: number // unit-local char index of the group's last kanji (inclusive)
   kana: string // combined reading, centred over the whole group
+  tracking?: number // per-gap letter-spacing (rt-em, < 0) condensing this reading to clear a collision; absent = natural width (overhang kept)
 }
 
 // Fuse adjacent overhanging reading spans into one centred group-ruby span
@@ -59,15 +73,132 @@ function groupSpans(spans: ReadingSpan[]): ReadingSpan[] {
   return groups
 }
 
-// Group a unit's per-kanji readings: any run whose readings would overhang into
-// each other is merged so the combined reading centres over the whole kanji
-// group (group-ruby) instead of overlapping. Merging is transitive — a widened
-// group is re-tested against the next reading. Coordinates are unit-local.
+// A reading being resolved for render: its char span, current combined kana, and
+// how much width (base-em) it has already shed via negative tracking. `drop`
+// grows as the reading is condensed to clear a collision on either side.
+interface WorkingGroup {
+  start: number
+  end: number
+  kana: string
+  drop: number
+}
+
+// Effective half-width (base-em) after shedding `drop`. Natural width is
+// kana.length * RT_EM; symmetric tracking removes `drop` centred, so each edge
+// moves inward by drop / 2.
+function effHalf(g: WorkingGroup): number {
+  return (g.kana.length * RT_EM - g.drop) / 2
+}
+
+// Widest a reading of `kanaLen` kana can shed (base-em) by tracking its gaps down
+// to READING_TRACK_FLOOR: (kanaLen - 1) gaps, each worth RT_EM base-em per 1
+// rt-em of letter-spacing. Single-kana readings have no gaps -> 0.
+function trackingBudget(kanaLen: number): number {
+  if (kanaLen <= 1) return 0
+  return (kanaLen - 1) * -READING_TRACK_FLOOR * RT_EM
+}
+
+// Inverse of trackingBudget: per-gap letter-spacing (rt-em, <= 0) that sheds
+// `dropBaseEm` of width, clamped to the floor and rounded to a clean CSS value.
+function dropToTracking(kanaLen: number, dropBaseEm: number): number {
+  if (kanaLen <= 1 || dropBaseEm <= EPS) return 0
+  const t = -dropBaseEm / ((kanaLen - 1) * RT_EM)
+  return Math.round(Math.max(t, READING_TRACK_FLOOR) * 1e4) / 1e4
+}
+
+// Half-width (base-em) of a reading fully condensed to READING_TRACK_FLOOR — the
+// tightest it can render without merging.
+function floorHalf(s: ReadingSpan): number {
+  return (s.kana.length * RT_EM - trackingBudget(s.kana.length)) / 2
+}
+
+// Two readings that overlap even when BOTH are condensed to the floor: no amount
+// of tracking can separate them, so they must merge.
+function collidesAtFloor(a: ReadingSpan, b: ReadingSpan): boolean {
+  return (
+    spanCentre(a) + floorHalf(a) + READING_GAP_EM > spanCentre(b) - floorHalf(b)
+  )
+}
+
+// Resolve a unit's per-kanji readings into render groups, preferring condensation
+// over merging.
+//   Phase 1 (merge — last resort): fuse only runs that would still overlap when
+//   fully condensed to the floor. The monotonic stack re-tests leftward, so a
+//   widened merge cascades into the previous group when it now collides too.
+//   Phase 2 (condense): readings that overlap at natural width but clear at the
+//   floor are tracked apart and kept as separate mono-ruby cells. Feasible by
+//   construction — after phase 1 no adjacent groups collide at the floor, so a
+//   colliding pair's remaining budget always covers the 2 * overlap it must shed
+//   (symmetric tracking moves each edge in by half that reading's width drop).
+// Coordinates are unit-local, so an internal gap (space / okurigana) widens the
+// centre distance and is counted. (groupSpans stays the pure-merge model the
+// unit/segment boundary collision test measures with.)
+function resolveReadingGroups(spans: ReadingSpan[]): ReadingGroup[] {
+  const merged: ReadingSpan[] = []
+  for (const s of spans) {
+    let cur: ReadingSpan = { start: s.start, end: s.end, kana: s.kana }
+    while (
+      merged.length > 0 &&
+      collidesAtFloor(merged[merged.length - 1], cur)
+    ) {
+      const top = merged.pop()!
+      cur = { start: top.start, end: cur.end, kana: top.kana + cur.kana }
+    }
+    merged.push(cur)
+  }
+
+  const work: WorkingGroup[] = merged.map((g) => ({
+    start: g.start,
+    end: g.end,
+    kana: g.kana,
+    drop: 0,
+  }))
+  for (let i = 1; i < work.length; i++) {
+    const prev = work[i - 1]
+    const cur = work[i]
+    const overlap =
+      spanCentre(prev) +
+      effHalf(prev) +
+      READING_GAP_EM -
+      (spanCentre(cur) - effHalf(cur))
+    if (overlap <= EPS) continue
+    const prevAvail = Math.max(0, trackingBudget(prev.kana.length) - prev.drop)
+    const curAvail = Math.max(0, trackingBudget(cur.kana.length) - cur.drop)
+    if (prevAvail + curAvail <= EPS) continue
+    const need = 2 * overlap
+    let dCur = need * (curAvail / (prevAvail + curAvail))
+    let dPrev = need - dCur
+    if (dPrev > prevAvail) {
+      dPrev = prevAvail
+      dCur = need - dPrev
+    }
+    if (dCur > curAvail) {
+      dCur = curAvail
+      dPrev = need - dCur
+    }
+    prev.drop += dPrev
+    cur.drop += dCur
+  }
+
+  return work.map((g) => {
+    const tracking = dropToTracking(g.kana.length, g.drop)
+    return tracking < 0
+      ? { start: g.start, end: g.end, kana: g.kana, tracking }
+      : { start: g.start, end: g.end, kana: g.kana }
+  })
+}
+
+// Group a unit's per-kanji readings for rendering: adjacent readings that would
+// overhang into each other are condensed within READING_TRACK_FLOOR to clear the
+// overlap (kept as separate mono-ruby cells, each carrying its `tracking`); only
+// when condensing cannot fit do they merge into one group-ruby span. Coordinates
+// are unit-local. (groupSpans stays the pure-merge model the unit/segment
+// boundary collision test measures with.)
 export function groupReadings(
   perKanji: NonNullable<RenderUnit['perKanji']>,
   unitStart: number,
 ): ReadingGroup[] {
-  return groupSpans(
+  return resolveReadingGroups(
     perKanji.map((pk) => ({
       start: pk.charStart - unitStart,
       end: pk.charEnd - unitStart,
@@ -112,7 +243,10 @@ function synthPerKanji(
 // Two kanji-bearing runs can merge when they are contiguous in line-char space
 // and the earlier run's last reading would overhang into the later run's first
 // reading. Bare runs (no kana) never merge. Shared by both merge passes.
-function boundaryReadingsCollide(a: ReadingBearing, b: ReadingBearing): boolean {
+function boundaryReadingsCollide(
+  a: ReadingBearing,
+  b: ReadingBearing,
+): boolean {
   if (a.kana === undefined || b.kana === undefined) return false
   if (a.charEnd + 1 !== b.charStart) return false
   const aSpans = groupSpans(readingSpans(a))

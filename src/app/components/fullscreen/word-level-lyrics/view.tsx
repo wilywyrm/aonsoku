@@ -2,7 +2,11 @@ import clsx from 'clsx'
 import { Fragment, useMemo, useState } from 'react'
 import { isSafari } from 'react-device-detect'
 import type { RenderUnit } from '@/types/furigana'
-import { byteSliceFallback } from '@/utils/byteSlice'
+import {
+  buildMainCueGaps,
+  byteSliceFallback,
+  type MainCueGaps,
+} from '@/utils/byteSlice'
 import type { LinkedCue, RomajiItem } from '@/utils/romajiCue'
 import type {
   NormalizedBreak,
@@ -134,6 +138,16 @@ export function WordLevelLyricsView({
     return hidden
   }, [data.breaks, data.lines])
 
+  const cueGapsByKey = useMemo(() => {
+    const map = new Map<string, MainCueGaps>()
+    for (const line of data.lines) {
+      for (const cueLine of line.cueLines) {
+        map.set(cueLine.key, buildMainCueGaps(cueLine.cues, cueLine.value))
+      }
+    }
+    return map
+  }, [data.lines])
+
   return (
     <div
       ref={scrollContainerRef}
@@ -195,6 +209,7 @@ export function WordLevelLyricsView({
                     const romajiRow = resolvedLineSystem
                       ? romajiRowsByLineCue?.get(`${i}|${cueLine.key}`)
                       : undefined
+                    const cueGaps = cueGapsByKey.get(cueLine.key)
                     return (
                       <p
                         key={cueLine.key}
@@ -224,6 +239,8 @@ export function WordLevelLyricsView({
                               cue,
                               cueLine.value,
                             )
+                            const leadGap = cueGaps?.leads[cueIdx] ?? ''
+                            const isLastCue = cueIdx === cueLine.cues.length - 1
                             const isWhitespaceOnly =
                               renderedText.trim().length === 0
 
@@ -272,51 +289,54 @@ export function WordLevelLyricsView({
                             const wordKey = `${i}|${cueLine.key}|${cueIdx}`
 
                             return (
-                              <span
-                                key={cueIdx}
-                                ref={(el) => registerWordRef?.(wordKey, el)}
-                                data-testid={`word-${i}-${cueLine.key}-${cueIdx}`}
-                                data-state={cueState}
-                                aria-hidden={
-                                  isWhitespaceOnly ? 'true' : undefined
-                                }
-                                className={cueClassName}
-                                style={
-                                  hueRotation !== undefined
-                                    ? {
-                                        filter: `hue-rotate(${hueRotation}deg)`,
-                                      }
-                                    : undefined
-                                }
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  onWordClick(cue.start)
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault()
-                                    onWordClick(cue.start)
+                              <Fragment key={cueIdx}>
+                                {leadGap}
+                                <span
+                                  ref={(el) => registerWordRef?.(wordKey, el)}
+                                  data-testid={`word-${i}-${cueLine.key}-${cueIdx}`}
+                                  data-state={cueState}
+                                  aria-hidden={
+                                    isWhitespaceOnly ? 'true' : undefined
                                   }
-                                }}
-                                onMouseEnter={
-                                  isWhitespaceOnly
-                                    ? undefined
-                                    : () =>
-                                        setHoveredCue({
-                                          lineIdx: i,
-                                          cueLineKey: cueLine.key,
-                                          cueIdx,
-                                        })
-                                }
-                                onMouseLeave={
-                                  isWhitespaceOnly
-                                    ? undefined
-                                    : () => setHoveredCue(null)
-                                }
-                                tabIndex={isWhitespaceOnly ? -1 : 0}
-                              >
-                                {renderedText}
-                              </span>
+                                  className={cueClassName}
+                                  style={
+                                    hueRotation !== undefined
+                                      ? {
+                                          filter: `hue-rotate(${hueRotation}deg)`,
+                                        }
+                                      : undefined
+                                  }
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    onWordClick(cue.start)
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault()
+                                      onWordClick(cue.start)
+                                    }
+                                  }}
+                                  onMouseEnter={
+                                    isWhitespaceOnly
+                                      ? undefined
+                                      : () =>
+                                          setHoveredCue({
+                                            lineIdx: i,
+                                            cueLineKey: cueLine.key,
+                                            cueIdx,
+                                          })
+                                  }
+                                  onMouseLeave={
+                                    isWhitespaceOnly
+                                      ? undefined
+                                      : () => setHoveredCue(null)
+                                  }
+                                  tabIndex={isWhitespaceOnly ? -1 : 0}
+                                >
+                                  {renderedText}
+                                </span>
+                                {isLastCue ? cueGaps?.tail : null}
+                              </Fragment>
                             )
                           })
                         )}
