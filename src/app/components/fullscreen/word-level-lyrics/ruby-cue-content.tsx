@@ -1,6 +1,10 @@
 import clsx from 'clsx'
-import type { CSSProperties, ReactNode } from 'react'
-import { groupReadings } from '@/service/furigana/grouping'
+import { type CSSProperties, type ReactNode, useMemo } from 'react'
+import {
+  condenseAcrossGaps,
+  type ReadingGroup,
+  resolveUnitGroups,
+} from '@/service/furigana/grouping'
 import { type RenderUnit, rubyUnitKey, rubyUnitTestId } from '@/types/furigana'
 import type { LinkedCue } from '@/utils/romajiCue'
 import type { NormalizedCueLine } from '@/utils/wordTiming'
@@ -27,23 +31,9 @@ function segStyle(
 // overhangs without widening the base (kanji stay flush) and the base glyphs
 // are never duplicated. Hidden spacers reproduce the base layout so each
 // reading aligns without pixel measurement.
-function renderFuriCells(unit: RenderUnit): ReactNode {
+function renderFuriCells(unit: RenderUnit, groups: ReadingGroup[]): ReactNode {
   const text = unit.kanjiText
   const total = text.length
-
-  // Jukujikun (non-splittable): one reading centred over the whole group.
-  if (!unit.perKanji || unit.perKanji.length === 0) {
-    return (
-      <span className="ruby-furi-cell">
-        <span className="ruby-furi-spacer">{text}</span>
-        <span className="ruby-furi-rt" style={segStyle(0, total, total)}>
-          {unit.kana}
-        </span>
-      </span>
-    )
-  }
-
-  const groups = groupReadings(unit.perKanji, unit.charStart)
   const cells: ReactNode[] = []
   let local = 0
   groups.forEach((g, idx) => {
@@ -108,6 +98,18 @@ export function RubyCueContent({
   hoveredCue,
   onHoverCue,
 }: RubyCueContentProps) {
+  // Resolve every unit's render groups once, then condense readings that overhang
+  // across the spaces between phrases (needs the whole ordered sequence + the line
+  // text; mutates tracking only, so the char-based wipe layout is untouched).
+  const groupsByUnit = useMemo(() => {
+    const groups = units.map(resolveUnitGroups)
+    const items = units
+      .map((unit, i) => ({ groups: groups[i], baseOffset: unit.charStart }))
+      .filter((item) => item.groups.length > 0)
+    condenseAcrossGaps(items, cueLine.value)
+    return groups
+  }, [units, cueLine.value])
+
   return (
     <>
       {units.map((unit, unitIdx) => {
@@ -199,7 +201,7 @@ export function RubyCueContent({
               <span className="ruby-unit">
                 <span className="ruby-base">{unit.kanjiText}</span>
                 <span className="ruby-furi" aria-hidden="true">
-                  {renderFuriCells(unit)}
+                  {renderFuriCells(unit, groupsByUnit[unitIdx])}
                 </span>
               </span>
             ) : (

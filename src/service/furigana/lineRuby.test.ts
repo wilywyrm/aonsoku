@@ -409,6 +409,46 @@ describe('buildLineRenderSpans', () => {
     expectConcatInvariant(spans, text)
   })
 
+  it('condenses readings across a space between phrases (飄々 ␣ 霞)', () => {
+    const text = '飄々 霞'
+    const model: RubyLineModel = {
+      segments: [
+        {
+          charStart: 0,
+          charEnd: 1,
+          kana: 'ひょうひょう',
+          nonSplittable: false,
+          perKanji: [
+            { charStart: 0, charEnd: 0, kana: 'ひょう' },
+            { charStart: 1, charEnd: 1, kana: 'ひょう' },
+          ],
+        },
+        {
+          charStart: 3,
+          charEnd: 3,
+          kana: 'かすみ',
+          nonSplittable: false,
+          perKanji: [{ charStart: 3, charEnd: 3, kana: 'かすみ' }],
+        },
+      ],
+    }
+    const spans = buildLineRenderSpans(text, model)
+    expect(spans).toEqual([
+      {
+        text: '飄々',
+        kana: 'ひょうひょう',
+        cells: [{ text: '飄々', kana: 'ひょうひょう', tracking: -0.2 }],
+      },
+      { text: ' ' },
+      {
+        text: '霞',
+        kana: 'かすみ',
+        cells: [{ text: '霞', kana: 'かすみ', tracking: -0.2 }],
+      },
+    ])
+    expectConcatInvariant(spans, text)
+  })
+
   it('regression 泥の花: single-kanji {k,k} segments are NOT dropped', () => {
     const text = '泥の花'
     const model: RubyLineModel = {
