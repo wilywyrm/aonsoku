@@ -86,7 +86,18 @@ export function LineRubyContent({
               <span className="ruby-furi" aria-hidden="true">
                 <span className="ruby-furi-cell">
                   <span className="ruby-furi-spacer">{span.text}</span>
-                  <span className="ruby-furi-rt">{span.kana}</span>
+                  <span
+                    className="ruby-furi-rt"
+                    style={
+                      span.tracking !== undefined
+                        ? ({
+                            '--rt-tracking': `${span.tracking}em`,
+                          } as CSSProperties)
+                        : undefined
+                    }
+                  >
+                    {span.kana}
+                  </span>
                 </span>
               </span>
             </span>

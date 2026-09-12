@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest'
 import type { RenderUnit, RubyLineSegment } from '@/types/furigana'
 import {
   absorbOkurigana,
+  condenseAcrossGaps,
   groupReadings,
   mergeCollidingSegments,
   mergeCollidingUnits,
+  type ReadingGroup,
   readingsCollide,
+  resolveUnitGroups,
 } from './grouping'
 
 function unit(over: Partial<RenderUnit>): RenderUnit {
@@ -564,5 +567,70 @@ describe('absorbOkurigana', () => {
     ])
 
     expect(units).toHaveLength(2)
+  })
+})
+
+describe('condenseAcrossGaps', () => {
+  function item(groups: ReadingGroup[], baseOffset = 0) {
+    return { groups, baseOffset }
+  }
+
+  it('condenses both readings overhanging a narrow ASCII space (飄々 ␣ 霞)', () => {
+    // 飄々 renders as one group-ruby ひょうひょう (overhangs 0.5em); 霞's かすみ
+    // overhangs 0.25em; across the ~0.33em ASCII space they overlap ~0.42em, so
+    // both track down to the floor (residual accepted, never merged).
+    const left = item([{ start: 3, end: 4, kana: 'ひょうひょう' }])
+    const right = item([{ start: 6, end: 6, kana: 'かすみ' }])
+    condenseAcrossGaps([left, right], 'ひらり飄々 霞掛かる鼓動')
+    expect(left.groups[0].tracking).toBe(-0.2)
+    expect(right.groups[0].tracking).toBe(-0.2)
+  })
+
+  it('leaves readings alone across a full-width space (U+3000)', () => {
+    const left = item([{ start: 3, end: 4, kana: 'ひょうひょう' }])
+    const right = item([{ start: 6, end: 6, kana: 'かすみ' }])
+    condenseAcrossGaps([left, right], 'ひらり飄々\u3000霞掛かる鼓動')
+    expect(left.groups[0].tracking).toBeUndefined()
+    expect(right.groups[0].tracking).toBeUndefined()
+  })
+
+  it('does not touch contiguous readings (merge owns those)', () => {
+    const left = item([{ start: 0, end: 1, kana: 'ひょうひょう' }])
+    const right = item([{ start: 2, end: 2, kana: 'かすみ' }])
+    condenseAcrossGaps([left, right], '飄々霞')
+    expect(left.groups[0].tracking).toBeUndefined()
+    expect(right.groups[0].tracking).toBeUndefined()
+  })
+})
+
+describe('resolveUnitGroups', () => {
+  it('returns one whole-span group for a jukujikun (no perKanji)', () => {
+    expect(
+      resolveUnitGroups(unit({ kanjiText: '今日', kana: 'きょう' })),
+    ).toEqual([{ start: 0, end: 1, kana: 'きょう' }])
+  })
+
+  it('returns [] for a bare (reading-less) unit', () => {
+    expect(resolveUnitGroups(unit({ kanjiText: 'の' }))).toEqual([])
+  })
+
+  it('groups per-kanji readings in unit-local coords', () => {
+    expect(
+      resolveUnitGroups(
+        unit({
+          charStart: 5,
+          charEnd: 6,
+          kanjiText: '名前',
+          kana: 'なまえ',
+          perKanji: [
+            { charStart: 5, charEnd: 5, kana: 'な' },
+            { charStart: 6, charEnd: 6, kana: 'まえ' },
+          ],
+        }),
+      ),
+    ).toEqual([
+      { start: 0, end: 0, kana: 'な' },
+      { start: 1, end: 1, kana: 'まえ' },
+    ])
   })
 })

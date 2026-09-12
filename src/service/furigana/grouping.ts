@@ -23,6 +23,13 @@ export const READING_TRACK_FLOOR = -0.2
 // Float tolerance for edge-to-edge readings (mirrors readingsCollide's strict >).
 const EPS = 1e-9
 
+// Approximate horizontal advance (base-em) of a NARROW space — used only to
+// measure the real gap between two space-separated compound phrases (full-width
+// chars are 1em). Hardcoded because it is font-dependent and only tunes how
+// aggressively cross-gap readings condense: being off yields a hair more/less
+// residual overlap, never layout breakage (base kanji never move).
+export const SPACE_ADVANCE_EM = 0.33
+
 // One reading over a contiguous kanji span. start/end are inclusive char indices
 // in whatever coordinate space the caller uses (unit-local for grouping within a
 // unit, line-char for merging across units); readingsCollide only compares
@@ -120,6 +127,31 @@ function collidesAtFloor(a: ReadingSpan, b: ReadingSpan): boolean {
   )
 }
 
+// Split `need` (total base-em width two adjacent readings must shed to clear an
+// overlap) across their remaining budgets, proportional to headroom and clamped
+// to each. When the combined budget can't cover `need`, shed everything available
+// and leave the rest — the caller decides whether the residual is accepted
+// (cross-gap) or was already ruled out by a prior merge (within-unit).
+function distributeShed(
+  prevAvail: number,
+  curAvail: number,
+  need: number,
+): { dPrev: number; dCur: number } {
+  const total = Math.min(need, prevAvail + curAvail)
+  if (total <= EPS) return { dPrev: 0, dCur: 0 }
+  let dCur = total * (curAvail / (prevAvail + curAvail))
+  let dPrev = total - dCur
+  if (dPrev > prevAvail) {
+    dPrev = prevAvail
+    dCur = total - dPrev
+  }
+  if (dCur > curAvail) {
+    dCur = curAvail
+    dPrev = total - dCur
+  }
+  return { dPrev, dCur }
+}
+
 // Resolve a unit's per-kanji readings into render groups, preferring condensation
 // over merging.
 //   Phase 1 (merge — last resort): fuse only runs that would still overlap when
@@ -164,18 +196,7 @@ function resolveReadingGroups(spans: ReadingSpan[]): ReadingGroup[] {
     if (overlap <= EPS) continue
     const prevAvail = Math.max(0, trackingBudget(prev.kana.length) - prev.drop)
     const curAvail = Math.max(0, trackingBudget(cur.kana.length) - cur.drop)
-    if (prevAvail + curAvail <= EPS) continue
-    const need = 2 * overlap
-    let dCur = need * (curAvail / (prevAvail + curAvail))
-    let dPrev = need - dCur
-    if (dPrev > prevAvail) {
-      dPrev = prevAvail
-      dCur = need - dPrev
-    }
-    if (dCur > curAvail) {
-      dCur = curAvail
-      dPrev = need - dCur
-    }
+    const { dPrev, dCur } = distributeShed(prevAvail, curAvail, 2 * overlap)
     prev.drop += dPrev
     cur.drop += dCur
   }
@@ -205,6 +226,103 @@ export function groupReadings(
       kana: pk.kana,
     })),
   )
+}
+
+// Base-em width a group has already shed via its current tracking (inverse of
+// dropToTracking): tracking is per-gap letter-spacing (rt-em) over (len-1) gaps.
+function currentDrop(g: ReadingGroup): number {
+  return g.tracking ? -g.tracking * (g.kana.length - 1) * RT_EM : 0
+}
+
+// How far a group's reading extends past its base span edge on EACH side
+// (positive = overhang), at its current (possibly already-condensed) width.
+function groupOverhang(g: ReadingGroup): number {
+  return (
+    (g.kana.length * RT_EM - currentDrop(g)) / 2 - (g.end - g.start + 1) / 2
+  )
+}
+
+// Approximate advance (base-em) of one character when measuring a phrase gap:
+// narrow ASCII whitespace is SPACE_ADVANCE_EM; everything else — CJK, kana, the
+// ideographic space U+3000, and (deliberately) Latin — is 1em. Over-counting
+// Latin only ever UNDER-condenses (safe); real inter-phrase gaps are whitespace.
+function charAdvanceEm(ch: string): number {
+  return /\s/.test(ch) && ch !== '\u3000' ? SPACE_ADVANCE_EM : 1
+}
+
+function gapAdvanceEm(text: string, from: number, to: number): number {
+  let w = 0
+  for (let i = from; i < to; i++) w += charAdvanceEm(text[i])
+  return w
+}
+
+// Render groups for one unit in UNIT-LOCAL coords (what renderFuriCells draws): a
+// jukujikun (kana, no perKanji) is a single whole-span group so it too can carry
+// tracking; a splittable unit condenses/merges its per-kanji readings; a bare
+// unit has none.
+export function resolveUnitGroups(unit: RenderUnit): ReadingGroup[] {
+  if (unit.kana === undefined) return []
+  if (!unit.perKanji || unit.perKanji.length === 0) {
+    return [{ start: 0, end: unit.kanjiText.length - 1, kana: unit.kana }]
+  }
+  return groupReadings(unit.perKanji, unit.charStart)
+}
+
+// Render groups for one line-model segment in ABSOLUTE line-char coords.
+export function resolveSegmentGroups(seg: RubyLineSegment): ReadingGroup[] {
+  if (seg.kana === undefined) return []
+  if (seg.nonSplittable || !seg.perKanji || seg.perKanji.length === 0) {
+    return [{ start: seg.charStart, end: seg.charEnd, kana: seg.kana }]
+  }
+  return groupReadings(
+    [...seg.perKanji].sort((a, b) => a.charStart - b.charStart),
+    0,
+  )
+}
+
+// Condense the BOUNDARY readings of adjacent kana-bearing items so a reading in
+// one phrase doesn't overlap the next phrase's across the (narrow) space between
+// them — WITHOUT merging (a group-ruby must never span a space). Mutates
+// group.tracking in place. `items` are the kana-bearing units/segments in order;
+// `baseOffset` maps a group's start/end into `text` (unit.charStart for the word
+// path, 0 for the line path). The gap is measured from each boundary group's base
+// edge (so okurigana between the reading and the space is counted) with
+// advance-aware widths; the overlap is shed symmetrically, capped at the floor,
+// and any residual (space too narrow to fully clear) is accepted.
+export function condenseAcrossGaps(
+  items: Array<{ groups: ReadingGroup[]; baseOffset: number }>,
+  text: string,
+): void {
+  for (let i = 1; i < items.length; i++) {
+    const left = items[i - 1]
+    const right = items[i]
+    const lg = left.groups[left.groups.length - 1]
+    const rg = right.groups[0]
+    if (!lg || !rg) continue
+    const absLeftEnd = left.baseOffset + lg.end
+    const absRightStart = right.baseOffset + rg.start
+    if (absRightStart <= absLeftEnd + 1) continue
+    const overlap =
+      groupOverhang(lg) +
+      groupOverhang(rg) -
+      gapAdvanceEm(text, absLeftEnd + 1, absRightStart)
+    if (overlap <= EPS) continue
+    const prevAvail = Math.max(
+      0,
+      trackingBudget(lg.kana.length) - currentDrop(lg),
+    )
+    const curAvail = Math.max(
+      0,
+      trackingBudget(rg.kana.length) - currentDrop(rg),
+    )
+    const { dPrev, dCur } = distributeShed(prevAvail, curAvail, 2 * overlap)
+    if (dPrev > EPS) {
+      lg.tracking = dropToTracking(lg.kana.length, currentDrop(lg) + dPrev)
+    }
+    if (dCur > EPS) {
+      rg.tracking = dropToTracking(rg.kana.length, currentDrop(rg) + dCur)
+    }
+  }
 }
 
 // Fields the collision gate reads: a char range plus its reading(s). Both

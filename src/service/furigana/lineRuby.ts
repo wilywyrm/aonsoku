@@ -1,5 +1,10 @@
-import type { RubyLineModel, RubyLineSegment } from '@/types/furigana'
-import { groupReadings, mergeCollidingSegments } from './grouping'
+import type { RubyLineModel } from '@/types/furigana'
+import {
+  condenseAcrossGaps,
+  mergeCollidingSegments,
+  type ReadingGroup,
+  resolveSegmentGroups,
+} from './grouping'
 
 // Line-char coordinates below are JS string (code-unit) indices with an
 // INCLUSIVE end, matching alignLine (align.ts:124 emits
@@ -23,6 +28,7 @@ export interface LineRenderSpan {
   text: string
   kana?: string
   cells?: LineRubyCell[]
+  tracking?: number
 }
 
 // react-lrc's clrc parser captures the single space after "]" from the
@@ -33,27 +39,19 @@ export function normalizeLrcContent(content: string): string {
   return content.startsWith(' ') ? content.slice(1) : content
 }
 
-// Tile a splittable segment's [start, end) slice into ruby cells: a kana-bearing
-// cell over each reading group plus a bare cell for every okurigana / non-kanji
-// gap (leading, internal, or trailing). Adjacent per-kanji readings that would
-// overhang into each other are first merged into a single group-ruby cell via
-// groupReadings — the SAME collision model the word-level path uses (see
-// ruby-cue-content.tsx / grouping.ts) — so a wide reading like じょう over a
-// single-width 丈 no longer overlaps its neighbour's reading (大丈夫 →
-// {大丈: だいじょう} + {夫: ぶ} instead of three colliding cells). unitStart = 0
-// keeps the returned start/end in line-char space with the same inclusive end as
-// the perKanji spans align.ts emits. Overlapping or zero-width entries are
-// dropped (keep first) so the invariant
-// cells.map(c => c.text).join('') === text.slice(start, end) always holds.
+// Tile a splittable segment's [start, end) slice into ruby cells from its
+// already-resolved reading `groups` (absolute line-char coords; condensed/merged
+// within the segment and across phrase gaps by the caller): a kana-bearing cell
+// (carrying its tracking) over each group plus a bare cell for every okurigana /
+// non-kanji gap (leading, internal, trailing). Overlapping or zero-width entries
+// are dropped (keep first) so cells.map(c => c.text).join('') ===
+// text.slice(start, end) always holds.
 function buildCells(
   text: string,
   start: number,
   end: number,
-  perKanji: NonNullable<RubyLineSegment['perKanji']>,
+  groups: ReadingGroup[],
 ): LineRubyCell[] {
-  const sorted = [...perKanji].sort((a, b) => a.charStart - b.charStart)
-  const groups = groupReadings(sorted, 0)
-
   const cells: LineRubyCell[] = []
   let local = start
   for (const g of groups) {
@@ -91,10 +89,21 @@ export function buildLineRenderSpans(
   const segments = mergeCollidingSegments(
     [...model.segments].sort((a, b) => a.charStart - b.charStart),
   )
+  // Resolve each segment's groups (absolute coords), then condense readings that
+  // overhang across the spaces between phrases before tiling cells.
+  const segGroups = segments.map(resolveSegmentGroups)
+  condenseAcrossGaps(
+    segGroups
+      .map((groups) => ({ groups, baseOffset: 0 }))
+      .filter((item) => item.groups.length > 0),
+    text,
+  )
   const spans: LineRenderSpan[] = []
   let cursor = 0
 
-  for (const seg of segments) {
+  for (let si = 0; si < segments.length; si++) {
+    const seg = segments[si]
+    const groups = segGroups[si]
     const start = Math.max(0, seg.charStart)
     // seg.charEnd is inclusive (align.ts); convert to an exclusive slice end.
     const end = Math.min(text.length, seg.charEnd + 1)
@@ -116,12 +125,12 @@ export function buildLineRenderSpans(
       !perKanji ||
       perKanji.length === 0
     ) {
-      spans.push({ text: slice, kana })
+      spans.push({ text: slice, kana, tracking: groups[0]?.tracking })
     } else {
       spans.push({
         text: slice,
         kana,
-        cells: buildCells(text, start, end, perKanji),
+        cells: buildCells(text, start, end, groups),
       })
     }
     cursor = end
