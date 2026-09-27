@@ -367,7 +367,7 @@ describe('buildLineRenderSpans', () => {
     expectConcatInvariant(spans, text)
   })
 
-  it('merges a grouped reading across a segment boundary so it no longer overlaps (少々 + 出来)', () => {
+  it('shifts で into free space instead of merging 少々 + 出来 (E6)', () => {
     const text = '少々出来すぎ'
     const model: RubyLineModel = {
       segments: [
@@ -396,14 +396,40 @@ describe('buildLineRenderSpans', () => {
     const spans = buildLineRenderSpans(text, model)
     expect(spans).toEqual([
       {
-        text: '少々出来',
-        kana: 'しょうしょうでき',
+        text: '少々',
+        kana: 'しょうしょう',
+        cells: [{ text: '少々', kana: 'しょうしょう' }],
+      },
+      {
+        text: '出来',
+        kana: 'でき',
         cells: [
-          { text: '少々出', kana: 'しょうしょうで' },
+          { text: '出', kana: 'で', shift: expect.closeTo(0.25, 4) },
           { text: '来', kana: 'き' },
         ],
       },
       { text: 'すぎ' },
+    ])
+    expectConcatInvariant(spans, text)
+  })
+
+  it('regression 妄想戦上のルーティン: じょう shifts right instead of colliding with そう (E1)', () => {
+    const text = '妄想戦上のルーティン'
+    const model: RubyLineModel = {
+      segments: [
+        { charStart: 0, charEnd: 0, kana: 'もう', nonSplittable: true },
+        { charStart: 1, charEnd: 1, kana: 'そう', nonSplittable: true },
+        { charStart: 2, charEnd: 2, kana: 'せん', nonSplittable: true },
+        { charStart: 3, charEnd: 3, kana: 'じょう', nonSplittable: true },
+      ],
+    }
+    const spans = buildLineRenderSpans(text, model)
+    expect(spans).toEqual([
+      { text: '妄', kana: 'もう' },
+      { text: '想', kana: 'そう' },
+      { text: '戦', kana: 'せん' },
+      { text: '上', kana: 'じょう', shift: expect.closeTo(0.25, 4) },
+      { text: 'のルーティン' },
     ])
     expectConcatInvariant(spans, text)
   })

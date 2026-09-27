@@ -1,10 +1,12 @@
 import type { RenderUnit, RubyLineSegment } from '@/types/furigana'
 import {
   absorbOkurigana,
+  boundaryCollides,
   condenseAcrossGaps,
-  mergeCollidingSegments,
-  mergeCollidingUnits,
+  mergeSegmentPair,
+  mergeUnitPair,
   type ReadingGroup,
+  type ReadingItem,
   resolveSegmentGroups,
   resolveUnitGroups,
   shiftAcrossGaps,
@@ -40,7 +42,7 @@ function layoutPass<T>(
   baseOffsetOf: (item: T) => number,
 ): ReadingGroup[][] {
   const groups = items.map(groupsOf)
-  const readingItems: Array<{ groups: ReadingGroup[]; baseOffset: number }> = []
+  const readingItems: ReadingItem[] = []
   for (let i = 0; i < items.length; i++) {
     if (groups[i].length === 0) continue
     readingItems.push({ groups: groups[i], baseOffset: baseOffsetOf(items[i]) })
@@ -50,6 +52,48 @@ function layoutPass<T>(
   return groups
 }
 
+// Shift-first: each pass lays the line out from scratch (resolve, jidori-shift,
+// condense), then merges only the leftmost contiguous kana-bearing pair whose
+// readings still collide, and the next pass rescans from the line start. So a
+// merge only mops up what shifting and condensing couldn't clear, never
+// pre-empts them. Each merge removes one item, so a call merges at most
+// items.length - 1 times. resolveUnitLayout's pass after absorbOkurigana runs
+// no merge check: folding okurigana into its ruby unit moves no reading, so
+// that pass redraws this loop's last geometry, and a check there could only
+// catch pairs the fold made contiguous across okurigana.
+function resolveLayout<
+  T extends { charStart: number; charEnd: number; kana?: string },
+>(
+  items: T[],
+  text: string,
+  groupsOf: (item: T) => ReadingGroup[],
+  baseOffsetOf: (item: T) => number,
+  merge: (a: T, b: T) => T,
+): { items: T[]; groups: ReadingGroup[][] } {
+  let cur = items
+  while (true) {
+    const groups = layoutPass(cur, text, groupsOf, baseOffsetOf)
+    const i = cur.findIndex((left, k) => {
+      if (k + 1 === cur.length) return false
+      const right = cur[k + 1]
+      return (
+        left.kana !== undefined &&
+        right.kana !== undefined &&
+        groups[k].length > 0 &&
+        groups[k + 1].length > 0 &&
+        left.charEnd + 1 === right.charStart &&
+        boundaryCollides(
+          { groups: groups[k], baseOffset: baseOffsetOf(left) },
+          { groups: groups[k + 1], baseOffset: baseOffsetOf(right) },
+          text,
+        )
+      )
+    })
+    if (i < 0) return { items: cur, groups }
+    cur = [...cur.slice(0, i), merge(cur[i], cur[i + 1]), ...cur.slice(i + 2)]
+  }
+}
+
 // Word path, for one cueLine's reconciled units. Merging runs before
 // absorbOkurigana, while bare okurigana is still its own unit, so readings never
 // merge across it. Unit groups are unit-local, hence baseOffset = charStart.
@@ -57,10 +101,17 @@ export function resolveUnitLayout(
   units: RenderUnit[],
   text: string,
 ): RubyUnitLayout {
-  const merged = absorbOkurigana(mergeCollidingUnits(units))
+  const { items } = resolveLayout(
+    units,
+    text,
+    resolveUnitGroups,
+    (u) => u.charStart,
+    mergeUnitPair,
+  )
+  const final = absorbOkurigana(items)
   return {
-    units: merged,
-    groups: layoutPass(merged, text, resolveUnitGroups, (u) => u.charStart),
+    units: final,
+    groups: layoutPass(final, text, resolveUnitGroups, (u) => u.charStart),
   }
 }
 
@@ -83,9 +134,12 @@ export function resolveSegmentLayout(
     kept.push(s)
     cursor = end
   }
-  const merged = mergeCollidingSegments(kept)
-  return {
-    segments: merged,
-    groups: layoutPass(merged, text, resolveSegmentGroups, () => 0),
-  }
+  const result = resolveLayout(
+    kept,
+    text,
+    resolveSegmentGroups,
+    () => 0,
+    mergeSegmentPair,
+  )
+  return { segments: result.items, groups: result.groups }
 }

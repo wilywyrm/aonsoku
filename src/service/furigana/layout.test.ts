@@ -1,16 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import type { RenderUnit, RubyLineSegment } from '@/types/furigana'
-import {
-  absorbOkurigana,
-  condenseAcrossGaps,
-  mergeCollidingSegments,
-  mergeCollidingUnits,
-  resolveSegmentGroups,
-  resolveUnitGroups,
-  shiftAcrossGaps,
-} from './grouping'
+import type {
+  NormalizedCue,
+  NormalizedStructuredLyric,
+} from '@/utils/wordTiming'
+import { alignPronunciation } from './alignPronunciation'
+import { boundaryCollides } from './grouping'
 import { resolveSegmentLayout, resolveUnitLayout } from './layout'
 import { buildLineRenderSpans } from './lineRuby'
+import { reconcile } from './reconcile'
+import { computeWipeLayout, unitWipePct } from './wipeFront'
 
 function unit(over: Partial<RenderUnit>): RenderUnit {
   return {
@@ -205,76 +204,305 @@ const chainC = seg({
   perKanji: [{ charStart: 3, charEnd: 3, kana: 'し' }],
 })
 
-// The word-level pipeline before extraction, inlined: the container memo's merge
-// + absorb, then RubyCueContent's resolve + shift + condense.
-function unitPipeline(units: RenderUnit[], text: string) {
-  const merged = absorbOkurigana(mergeCollidingUnits(units))
-  const groups = merged.map(resolveUnitGroups)
-  const items = merged
-    .map((u, i) => ({ groups: groups[i], baseOffset: u.charStart }))
-    .filter((item) => item.groups.length > 0)
-  shiftAcrossGaps(items, text)
-  condenseAcrossGaps(items, text)
-  return { units: merged, groups }
+// A one-line track of explicitly timed cues, shaped like a lyricsfile payload:
+// the line value is the cue values in order, and byte offsets run over it with
+// an INCLUSIVE byteEnd (reconcile treats an exclusive one as malformed and
+// drops the ruby). Each cue keeps its own end; none is derived.
+function makeTrack(
+  cues: Array<{ value: string; start: number; end: number }>,
+): NormalizedStructuredLyric {
+  let running = 0
+  const timed: NormalizedCue[] = cues.map(({ value, start, end }) => {
+    const len = new TextEncoder().encode(value).length
+    const byteStart = running
+    const byteEnd = running + len - 1
+    running += len
+    return { start, end, value, byteStart, byteEnd }
+  })
+  const value = cues.map((c) => c.value).join('')
+  const start = timed[0].start
+  const end = timed[timed.length - 1].end
+  return {
+    kind: 'main',
+    synced: true,
+    agents: [],
+    hasWordTiming: true,
+    breaks: [],
+    lines: [
+      {
+        start,
+        end,
+        value,
+        cueLines: [
+          {
+            lineIndex: 0,
+            key: '0:pos0',
+            displayOrder: 0,
+            start,
+            end,
+            value,
+            cues: timed,
+          },
+        ],
+      },
+    ],
+  }
 }
 
-// The line-level pipeline before extraction, inlined from buildLineRenderSpans.
-function segmentPipeline(segments: RubyLineSegment[], text: string) {
-  const merged = mergeCollidingSegments(
-    [...segments].sort((a, b) => a.charStart - b.charStart),
-  )
-  const groups = merged.map(resolveSegmentGroups)
-  const items = groups
-    .map((g) => ({ groups: g, baseOffset: 0 }))
-    .filter((item) => item.groups.length > 0)
-  shiftAcrossGaps(items, text)
-  condenseAcrossGaps(items, text)
-  return { segments: merged, groups }
-}
-
-describe('composition parity (replaced in Task 4)', () => {
-  // Each reference runs on its own copy of the input, so the two sides share no
-  // objects.
-  it('resolveUnitLayout matches the pre-extraction pipeline (妄想戦上のルーティン)', () => {
-    const { text, units } = routine
-    expect(resolveUnitLayout(units, text)).toEqual(
-      unitPipeline(structuredClone(units), text),
-    )
+describe('resolveUnitLayout shift-first loop', () => {
+  it('word: 妄想戦上のルーティン — no merges, じょう shifts right (E1)', () => {
+    const result = resolveUnitLayout(routine.units, routine.text)
+    expect(result.units).toEqual(routine.units)
+    expect(result.groups.slice(0, 3)).toEqual([
+      [{ start: 0, end: 0, kana: 'もう' }],
+      [{ start: 0, end: 0, kana: 'そう' }],
+      [{ start: 0, end: 0, kana: 'せん' }],
+    ])
+    expect(result.groups[3]).toHaveLength(1)
+    expect(result.groups[3][0].shift).toBeCloseTo(0.25, 4)
+    expect(result.groups[3][0].tracking).toBeUndefined()
+    expect(result.groups.slice(4)).toEqual([[], [], [], [], [], []])
   })
 
-  it('resolveUnitLayout matches the pre-extraction pipeline (心構えても)', () => {
-    const { text, units } = kokorogamae
-    expect(resolveUnitLayout(units, text)).toEqual(
-      unitPipeline(structuredClone(units), text),
+  it('word pipeline: 妄想戦上のルーティン from real cue data (E1)', () => {
+    const starts = [
+      101881, 102183, 102729, 102910, 103052, 103254, 103436, 103577, 103637,
+      103799,
+    ]
+    const ends = [
+      102183, 102729, 102910, 103052, 103254, 103436, 103577, 103637, 103799,
+      103900,
+    ]
+    const timed = (values: string[]) =>
+      values.map((value, i) => ({ value, start: starts[i], end: ends[i] }))
+    const text = '妄想戦上のルーティン'
+    const main = makeTrack(timed([...text]))
+    const pron = makeTrack(
+      timed(['もう', 'そう', 'せん', 'じょう', ...'のルーティン']),
     )
+
+    const [model] = alignPronunciation(main, pron)
+    const units = reconcile(model, main.lines[0].cueLines[0].cues, text)
+    const result = resolveUnitLayout(units, text)
+
+    expect(result.units).toHaveLength(10)
+    const ruby = result.units.filter((u) => u.kana !== undefined)
+    expect(ruby.map((u) => u.kana)).toEqual(['もう', 'そう', 'せん', 'じょう'])
+    for (const u of ruby) {
+      expect(u.coveringCueIdx).toHaveLength(1)
+      expect(u.charEnd).toBe(u.charStart)
+    }
+    expect(result.units[3]).toMatchObject({ kanjiText: '上', kana: 'じょう' })
+    expect(result.groups[3][0].shift).toBeCloseTo(0.25, 4)
+    for (const g of result.groups.flat()) expect(g.tracking).toBeUndefined()
   })
 
-  it('resolveUnitLayout matches the pre-extraction pipeline (飄々 霞)', () => {
-    const { text, units } = hyouhyou
-    expect(resolveUnitLayout(units, text)).toEqual(
-      unitPipeline(structuredClone(units), text),
-    )
+  it('word: 妄想戦上 merges leftovers leftmost-first (E2)', () => {
+    // The line ends at 上, so じょう has no room to shift into.
+    const units = routine.units.slice(0, 4)
+    const result = resolveUnitLayout(units, '妄想戦上')
+
+    expect(result.units).toHaveLength(2)
+    expect(result.units[0]).toEqual(units[0])
+    expect(result.units[1]).toEqual({
+      charStart: 1,
+      charEnd: 3,
+      kanjiText: '想戦上',
+      kana: 'そうせんじょう',
+      nonSplittable: false,
+      coveringCueIdx: [1, 2, 3],
+      cueCharCounts: [1, 1, 1],
+      perKanji: [
+        { charStart: 1, charEnd: 1, kana: 'そう' },
+        { charStart: 2, charEnd: 2, kana: 'せん' },
+        { charStart: 3, charEnd: 3, kana: 'じょう' },
+      ],
+    })
+    expect(result.groups[0]).toEqual([
+      { start: 0, end: 0, kana: 'もう', tracking: -0.1429 },
+    ])
+    expect(result.groups[1]).toEqual([
+      { start: 0, end: 2, kana: 'そうせんじょう', tracking: -0.1429 },
+    ])
+
+    const layout = computeWipeLayout(result.units, 4)
+    expect(layout).toEqual({
+      unitOffset: [0, 1],
+      unitWidth: [1, 3],
+      cueStart: [0, 1, 2, 3],
+      cueChars: [1, 1, 1, 1],
+    })
+    expect(unitWipePct(2.5, 1, layout)).toBeCloseTo(50, 5)
   })
 
-  it('resolveSegmentLayout matches the pre-extraction pipeline (心技)', () => {
-    const { text, segments } = shingi
-    expect(resolveSegmentLayout(segments, text)).toEqual(
-      segmentPipeline(structuredClone(segments), text),
-    )
+  it('word: 心構えても — かま shifts instead of merging (E3)', () => {
+    const result = resolveUnitLayout(kokorogamae.units, kokorogamae.text)
+    expect(result.units.map((u) => u.kanjiText)).toEqual([
+      '心',
+      '構え',
+      'て',
+      'も',
+    ])
+    expect(result.units[1]).toMatchObject({
+      charStart: 1,
+      charEnd: 2,
+      kanjiText: '構え',
+      kana: 'かま',
+      coveringCueIdx: [1],
+      cueCharCounts: [2],
+      perKanji: [{ charStart: 1, charEnd: 1, kana: 'かま' }],
+    })
+    expect(result.groups[0]).toEqual([{ start: 0, end: 0, kana: 'こころ' }])
+    expect(result.groups[1][0].shift).toBeCloseTo(0.25, 4)
   })
 
-  it('resolveSegmentLayout matches the pre-extraction pipeline (少々出来すぎ)', () => {
-    const { text, segments } = shoushou
-    expect(resolveSegmentLayout(segments, text)).toEqual(
-      segmentPipeline(structuredClone(segments), text),
-    )
+  it('word: rounding residual does not merge (E8)', () => {
+    const units = [
+      unit({
+        charStart: 0,
+        charEnd: 2,
+        kanjiText: '一二三',
+        kana: 'あいうえおか',
+        nonSplittable: true,
+        coveringCueIdx: [0],
+        cueCharCounts: [3],
+      }),
+      unit({
+        charStart: 3,
+        charEnd: 4,
+        kanjiText: '四五',
+        kana: 'きくけこさ',
+        nonSplittable: true,
+        coveringCueIdx: [1],
+        cueCharCounts: [2],
+      }),
+    ]
+    const result = resolveUnitLayout(units, '一二三四五')
+    expect(result.units).toHaveLength(2)
+    expect(result.groups[0][0].tracking).toBe(-0.1111)
+    expect(result.groups[1][0].tracking).toBe(-0.1111)
   })
 
-  it('resolveSegmentLayout matches the pre-extraction pipeline (飄々 霞)', () => {
-    const { text, segments } = hyouhyou
-    expect(resolveSegmentLayout(segments, text)).toEqual(
-      segmentPipeline(structuredClone(segments), text),
-    )
+  it('word: never merges across okurigana, even after absorb (E9)', () => {
+    const text = '一の二'
+    const units = [
+      unit({
+        charStart: 0,
+        charEnd: 0,
+        kanjiText: '一',
+        kana: 'あいうえおか',
+        nonSplittable: true,
+        coveringCueIdx: [0],
+      }),
+      unit({ charStart: 1, charEnd: 1, kanjiText: 'の', coveringCueIdx: [0] }),
+      unit({
+        charStart: 2,
+        charEnd: 2,
+        kanjiText: '二',
+        kana: 'かきくけこ',
+        nonSplittable: true,
+        coveringCueIdx: [1],
+      }),
+    ]
+    const result = resolveUnitLayout(units, text)
+
+    expect(result.units).toHaveLength(2)
+    expect(result.units.map((u) => u.kanjiText)).toEqual(['一の', '二'])
+    expect(result.groups[0][0].tracking).toBe(-0.15)
+    expect(result.groups[1][0].tracking).toBe(-0.15)
+    // Absorbing の makes the two ruby units contiguous and they still
+    // overlap, yet they stay apart.
+    expect(
+      boundaryCollides(
+        { groups: result.groups[0], baseOffset: result.units[0].charStart },
+        { groups: result.groups[1], baseOffset: result.units[1].charStart },
+        text,
+      ),
+    ).toBe(true)
+  })
+
+  it('word: never merges across a space (E7)', () => {
+    const result = resolveUnitLayout(hyouhyou.units, hyouhyou.text)
+    expect(result.units).toHaveLength(3)
+    expect(result.groups[0][0].tracking).toBe(-0.15)
+    expect(result.groups[2][0].tracking).toBe(-0.15)
+  })
+})
+
+describe('resolveSegmentLayout shift-first loop', () => {
+  it('line: 妄想戦上のルーティン — じょう shifts right (E1)', () => {
+    const segments = [
+      seg({ charStart: 0, charEnd: 0, kana: 'もう', nonSplittable: true }),
+      seg({ charStart: 1, charEnd: 1, kana: 'そう', nonSplittable: true }),
+      seg({ charStart: 2, charEnd: 2, kana: 'せん', nonSplittable: true }),
+      seg({ charStart: 3, charEnd: 3, kana: 'じょう', nonSplittable: true }),
+    ]
+    const result = resolveSegmentLayout(segments, routine.text)
+
+    expect(result.segments).toEqual(segments)
+    expect(result.groups.slice(0, 3)).toEqual([
+      [{ start: 0, end: 0, kana: 'もう' }],
+      [{ start: 1, end: 1, kana: 'そう' }],
+      [{ start: 2, end: 2, kana: 'せん' }],
+    ])
+    expect(result.groups[3][0].shift).toBeCloseTo(0.25, 4)
+    expect(result.groups[3][0].tracking).toBeUndefined()
+  })
+
+  it('line: 心姿力 chain collapses to one group (E4)', () => {
+    const segments = [
+      seg({
+        charStart: 0,
+        charEnd: 0,
+        kana: 'こころ',
+        perKanji: [{ charStart: 0, charEnd: 0, kana: 'こころ' }],
+      }),
+      seg({
+        charStart: 1,
+        charEnd: 1,
+        kana: 'すがた',
+        perKanji: [{ charStart: 1, charEnd: 1, kana: 'すがた' }],
+      }),
+      seg({
+        charStart: 2,
+        charEnd: 2,
+        kana: 'ちから',
+        perKanji: [{ charStart: 2, charEnd: 2, kana: 'ちから' }],
+      }),
+    ]
+    const result = resolveSegmentLayout(segments, '心姿力')
+
+    expect(result.segments).toEqual([
+      {
+        charStart: 0,
+        charEnd: 2,
+        kana: 'こころすがたちから',
+        nonSplittable: false,
+        perKanji: [
+          { charStart: 0, charEnd: 0, kana: 'こころ' },
+          { charStart: 1, charEnd: 1, kana: 'すがた' },
+          { charStart: 2, charEnd: 2, kana: 'ちから' },
+        ],
+      },
+    ])
+    expect(result.groups).toEqual([
+      [{ start: 0, end: 2, kana: 'こころすがたちから' }],
+    ])
+  })
+
+  it('line: 心技 still merges (E5)', () => {
+    const result = resolveSegmentLayout(shingi.segments, shingi.text)
+    expect(result.segments).toHaveLength(1)
+    expect(result.segments[0].kana).toBe('こころわざ')
+  })
+
+  it('line: 少々出来 shifts で instead of merging (E6)', () => {
+    const result = resolveSegmentLayout(shoushou.segments, shoushou.text)
+    expect(result.segments).toEqual(shoushou.segments)
+    expect(result.groups[1]).toEqual([
+      { start: 2, end: 2, kana: 'で', shift: expect.closeTo(0.25, 4) },
+      { start: 3, end: 3, kana: 'き' },
+    ])
   })
 })
 
