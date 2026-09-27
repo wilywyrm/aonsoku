@@ -379,9 +379,9 @@ svg#bars .eq-bar--4 {
  * continuous run (.ruby-base) plus a separate absolutely-positioned overlay
  * (.ruby-furi) that floats the readings above. The base alone establishes the
  * unit's width, so a reading OVERHANGS without widening it — kanji stay flush.
- * Only one glyph set is painted per pixel, so there is no ghosting. (Adjacent
- * readings that would overhang into each other are merged upstream in
- * ruby-cue-content.tsx into one reading centred over the kanji group.)
+ * Only one glyph set is painted per pixel, so there is no ghosting. (Colliding
+ * readings are resolved upstream by resolveUnitLayout: shifted, condensed, and
+ * merged into one centred group-ruby only as a last resort.)
  *
  * The wipe: --fill (a percentage written per frame by handleTick onto the unit
  * span) inherits into .ruby-base, and each reading remaps it into its own
