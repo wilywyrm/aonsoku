@@ -3,9 +3,9 @@ import { isSafari } from 'react-device-detect'
 import { type RafTickInfo, useRafActiveCue } from '@/hooks/use-raf-active-cue'
 import { useWordSeek } from '@/hooks/use-word-seek'
 import {
-  absorbOkurigana,
-  mergeCollidingUnits,
-} from '@/service/furigana/grouping'
+  type RubyUnitLayout,
+  resolveUnitLayout,
+} from '@/service/furigana/layout'
 import { reconcile } from '@/service/furigana/reconcile'
 import {
   computeWipeLayout,
@@ -15,11 +15,7 @@ import {
 } from '@/service/furigana/wipeFront'
 import { useLang } from '@/store/lang.store'
 import { usePlayerRef } from '@/store/player.store'
-import {
-  type RenderUnit,
-  type RubyLineModel,
-  rubyUnitKey,
-} from '@/types/furigana'
+import { type RubyLineModel, rubyUnitKey } from '@/types/furigana'
 import type { IStructuredLyric } from '@/types/responses/song'
 import { buildRomajiRow, type RomajiItem } from '@/utils/romajiCue'
 import { normalizeStructuredLyric } from '@/utils/wordTiming'
@@ -145,35 +141,45 @@ export function WordLevelLyricsContainer({
   // `${lineIdx}|${cueLine.key}` to mirror view.tsx. When no model exists for a
   // line, its cueLines are skipped here and fall back to the legacy per-cue
   // render/wipe path in view.tsx (bare text, no ruby).
-  const { rubyUnitsByLineCue, wipeLayoutsByLineCue } = useMemo(() => {
-    const units = new Map<string, RenderUnit[]>()
-    const layouts = new Map<string, WipeLayout>()
+  const { rubyLayoutsByLineCue, wipeLayoutsByLineCue } = useMemo(() => {
+    const rubyLayouts = new Map<string, RubyUnitLayout>()
+    const wipeLayouts = new Map<string, WipeLayout>()
     if (!rubyModels || rubyModels.size === 0) {
-      return { rubyUnitsByLineCue: units, wipeLayoutsByLineCue: layouts }
+      return {
+        rubyLayoutsByLineCue: rubyLayouts,
+        wipeLayoutsByLineCue: wipeLayouts,
+      }
     }
     normalized.lines.forEach((line, i) => {
       const model = rubyModels.get(i)
       if (!model) return
       for (const cueLine of line.cueLines) {
         const key = `${i}|${cueLine.key}`
-        // Merge adjacent kanji units whose readings would overhang into each
-        // other (e.g. 心構えても → 心 + 構え split across cues) so the shared
-        // wipe layout and the render agree on one group-ruby unit.
-        const u = absorbOkurigana(
-          mergeCollidingUnits(reconcile(model, cueLine.cues, cueLine.value)),
+        // Layout is resolved exactly once here (shift-first collision
+        // resolution, including any leftover merges), so the wipe layout and
+        // the render share the same final units AND the same reading groups.
+        const layout = resolveUnitLayout(
+          reconcile(model, cueLine.cues, cueLine.value),
+          cueLine.value,
         )
-        units.set(key, u)
+        rubyLayouts.set(key, layout)
         // Precompute the shared-front char layout once per cueLine, not per frame.
-        layouts.set(key, computeWipeLayout(u, cueLine.cues.length))
+        wipeLayouts.set(
+          key,
+          computeWipeLayout(layout.units, cueLine.cues.length),
+        )
       }
     })
-    return { rubyUnitsByLineCue: units, wipeLayoutsByLineCue: layouts }
+    return {
+      rubyLayoutsByLineCue: rubyLayouts,
+      wipeLayoutsByLineCue: wipeLayouts,
+    }
   }, [normalized, rubyModels])
 
   // Mirror into refs so the rAF tick reads current units + layout without
   // re-subscribing.
-  const rubyUnitsRef = useRef(rubyUnitsByLineCue)
-  rubyUnitsRef.current = rubyUnitsByLineCue
+  const rubyLayoutsRef = useRef(rubyLayoutsByLineCue)
+  rubyLayoutsRef.current = rubyLayoutsByLineCue
   const wipeLayoutsRef = useRef(wipeLayoutsByLineCue)
   wipeLayoutsRef.current = wipeLayoutsByLineCue
 
@@ -273,7 +279,9 @@ export function WordLevelLyricsContainer({
           // the active cue (kanji group, bare okurigana, paren, particle) fills
           // only as the front crosses its own char slice, so a cue never shows
           // parallel wipes. Non-furigana cueLines keep the legacy per-cue --fill.
-          const units = rubyUnitsRef.current.get(`${lineIdx}|${cueLine.key}`)
+          const units = rubyLayoutsRef.current.get(
+            `${lineIdx}|${cueLine.key}`,
+          )?.units
           const layout = wipeLayoutsRef.current.get(`${lineIdx}|${cueLine.key}`)
           if (units && layout) {
             const activeCue = cueLine.cues[cueIdx]
@@ -428,7 +436,7 @@ export function WordLevelLyricsContainer({
       breakContainerRefs={breakContainerRefs}
       registerWordRef={registerWordRef}
       registerDotRef={registerDotRef}
-      rubyUnitsByLineCue={rubyUnitsByLineCue}
+      rubyLayoutsByLineCue={rubyLayoutsByLineCue}
       resolvedLineSystem={resolvedLineSystem}
       romajiByLine={romajiByLine}
       romajiRowsByLineCue={romajiRowsByLineCue}

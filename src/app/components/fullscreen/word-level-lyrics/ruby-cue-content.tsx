@@ -1,12 +1,6 @@
 import clsx from 'clsx'
-import { type CSSProperties, type ReactNode, useMemo } from 'react'
-import {
-  condenseAcrossGaps,
-  type ReadingGroup,
-  resolveUnitGroups,
-  RT_EM,
-  shiftAcrossGaps,
-} from '@/service/furigana/grouping'
+import type { CSSProperties, ReactNode } from 'react'
+import { type ReadingGroup, RT_EM } from '@/service/furigana/grouping'
 import { type RenderUnit, rubyUnitKey, rubyUnitTestId } from '@/types/furigana'
 import type { LinkedCue } from '@/utils/romajiCue'
 import type { NormalizedCueLine } from '@/utils/wordTiming'
@@ -83,6 +77,8 @@ function renderFuriCells(unit: RenderUnit, groups: ReadingGroup[]): ReactNode {
 
 export interface RubyCueContentProps {
   units: RenderUnit[]
+  /** Parallel to units; resolved upstream by resolveUnitLayout. Read-only. */
+  groups: ReadingGroup[][]
   lineIdx: number
   cueLine: NormalizedCueLine
   isLineActive: boolean
@@ -97,6 +93,7 @@ export interface RubyCueContentProps {
 
 export function RubyCueContent({
   units,
+  groups,
   lineIdx,
   cueLine,
   isLineActive,
@@ -108,19 +105,6 @@ export function RubyCueContent({
   hoveredCue,
   onHoverCue,
 }: RubyCueContentProps) {
-  // Resolve every unit's render groups once, then condense readings that overhang
-  // across the spaces between phrases (needs the whole ordered sequence + the line
-  // text; mutates tracking only, so the char-based wipe layout is untouched).
-  const groupsByUnit = useMemo(() => {
-    const groups = units.map(resolveUnitGroups)
-    const items = units
-      .map((unit, i) => ({ groups: groups[i], baseOffset: unit.charStart }))
-      .filter((item) => item.groups.length > 0)
-    shiftAcrossGaps(items, cueLine.value)
-    condenseAcrossGaps(items, cueLine.value)
-    return groups
-  }, [units, cueLine.value])
-
   return (
     <>
       {units.map((unit, unitIdx) => {
@@ -212,7 +196,7 @@ export function RubyCueContent({
               <span className="ruby-unit">
                 <span className="ruby-base">{unit.kanjiText}</span>
                 <span className="ruby-furi" aria-hidden="true">
-                  {renderFuriCells(unit, groupsByUnit[unitIdx])}
+                  {renderFuriCells(unit, groups[unitIdx] ?? [])}
                 </span>
               </span>
             ) : (
