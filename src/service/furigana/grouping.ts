@@ -23,6 +23,13 @@ export const READING_TRACK_FLOOR = -0.15
 // Float tolerance for edge-to-edge readings (mirrors readingsCollide's strict >).
 const EPS = 1e-9
 
+// Collision tolerance (base-em) for boundaryCollides. Tracking is rounded to
+// 1e-4 rt-em (see dropToTracking), so a boundary that condensation cleared
+// exactly can keep a residual of up to 1.25e-5·(k₁+k₂−2) base-em (k = each
+// reading's kana count). 1e-3 is therefore safe up to ~80 combined kana gaps,
+// and is ≈0.03px at a 32px font.
+const BOUNDARY_EPS = 1e-3
+
 // Approximate horizontal advance (base-em) of a NARROW space — used only to
 // measure the real gap between two space-separated compound phrases (full-width
 // chars are 1em). Hardcoded because it is font-dependent and only tunes how
@@ -289,19 +296,24 @@ export function resolveSegmentGroups(seg: RubyLineSegment): ReadingGroup[] {
   )
 }
 
-// Condense the BOUNDARY readings of adjacent kana-bearing items so a reading in
-// one phrase doesn't overlap the next phrase's across the (narrow) space between
-// them — WITHOUT merging (a group-ruby must never span a space). Mutates
-// group.tracking in place. `items` are the kana-bearing units/segments in order;
-// `baseOffset` maps a group's start/end into `text` (unit.charStart for the word
-// path, 0 for the line path). The gap is measured from each boundary group's base
-// edge (so okurigana between the reading and the space is counted) with
-// advance-aware widths; the overlap is shed symmetrically, capped at the floor,
-// and any residual (space too narrow to fully clear) is accepted.
-export function condenseAcrossGaps(
-  items: Array<{ groups: ReadingGroup[]; baseOffset: number }>,
-  text: string,
-): void {
+// A kana-bearing unit/segment as the cross-item passes see it: its render groups
+// plus `baseOffset`, which maps a group's start/end into the line text
+// (unit.charStart for the word path, 0 for the line path).
+export interface ReadingItem {
+  groups: ReadingGroup[]
+  baseOffset: number
+}
+
+// Condense the BOUNDARY readings of adjacent kana-bearing items (in order) so a
+// reading in one item doesn't overlap the next item's — across the (narrow)
+// space between two phrases, or where their kanji touch — WITHOUT merging (a
+// group-ruby must never span a space; merging contiguous items is left to the
+// caller). Mutates group.tracking in place. The gap is measured from each
+// boundary group's base edge (so okurigana between the reading and the space is
+// counted) with advance-aware widths, and is 0 when the kanji touch; the
+// overlap is shed symmetrically, capped at the floor, and any residual (gap too
+// narrow to fully clear) is accepted.
+export function condenseAcrossGaps(items: ReadingItem[], text: string): void {
   for (let i = 1; i < items.length; i++) {
     const left = items[i - 1]
     const right = items[i]
@@ -310,7 +322,7 @@ export function condenseAcrossGaps(
     if (!lg || !rg) continue
     const absLeftEnd = left.baseOffset + lg.end
     const absRightStart = right.baseOffset + rg.start
-    if (absRightStart <= absLeftEnd + 1) continue
+    if (absRightStart <= absLeftEnd) continue
     const overlap =
       groupOverhang(lg) +
       groupOverhang(rg) -
@@ -404,21 +416,18 @@ function pushRight(nodes: ShiftNode[], i: number, d: number): void {
   }
 }
 
-// Jidori: resolve overhang collisions between adjacent readings by shifting BOTH
-// members of a colliding pair EQUALLY and OPPOSITELY into adjacent reading-less
-// room — cascading through blocking readings (a wide reading pushes its neighbour
-// aside rather than shrinking it or touching the space). Runs BEFORE
-// condenseAcrossGaps, which then sheds only whatever overlap this room-/cap-limited
-// symmetric shift leaves behind. Mutates group.shift in place; purely visual
-// (never touches char counts, cue coverage, or the wipe). `items` are the
-// kana-bearing units/segments in order; `baseOffset` maps a group's start/end into
-// `text`. Strict symmetry holds for an isolated pair (the common case); where one
-// side has less room BOTH are clamped to the smaller (still symmetric, remainder →
-// condensation), and a reading wedged between two collisions is best-effort.
-export function shiftAcrossGaps(
-  items: Array<{ groups: ReadingGroup[]; baseOffset: number }>,
-  text: string,
-): void {
+// Jidori: resolve overhang collisions between adjacent readings by shifting the
+// members of a colliding pair apart into adjacent reading-less room — cascading
+// through blocking readings (a wide reading pushes its neighbour aside rather
+// than shrinking it or touching the space). The shift is symmetric (each side
+// moves half the overlap) when both sides have room for half; when one side is
+// short (a blocking neighbour, the line edge, JIDORI_MAX_SHIFT), the other side
+// takes the remainder, up to its own room. Runs BEFORE condenseAcrossGaps:
+// whatever overlap the room can't clear falls through to condensation. Mutates
+// group.shift in place; purely visual (never touches char counts, cue coverage,
+// or the wipe). `items` are the kana-bearing units/segments in order. A reading
+// wedged between two collisions is best-effort.
+export function shiftAcrossGaps(items: ReadingItem[], text: string): void {
   const prefix = advancePrefix(text)
   const lineEnd = prefix[text.length]
   const nodes: ShiftNode[] = []
@@ -437,15 +446,44 @@ export function shiftAcrossGaps(
   for (let i = 1; i < nodes.length; i++) {
     const overlap = rightEdge(nodes[i - 1]) - leftEdge(nodes[i])
     if (overlap <= EPS) continue
-    const d = Math.min(
-      overlap / 2,
-      roomLeft(nodes, i - 1),
-      roomRight(nodes, i, lineEnd),
-    )
-    if (d <= EPS) continue
-    pushLeft(nodes, i - 1, d)
-    pushRight(nodes, i, d)
+    const half = overlap / 2
+    const rl = roomLeft(nodes, i - 1)
+    const rr = roomRight(nodes, i, lineEnd)
+    let dl = Math.min(half, rl)
+    let dr = Math.min(half, rr)
+    if (dl < half) dr = Math.min(rr, overlap - dl)
+    if (dr < half) dl = Math.min(rl, overlap - dr)
+    if (dl > EPS) pushLeft(nodes, i - 1, dl)
+    if (dr > EPS) pushRight(nodes, i, dr)
   }
+}
+
+// Whether the last reading of `left` still overlaps the first reading of
+// `right` as rendered: at their current tracking and shift, placed exactly as
+// shiftAcrossGaps places them (advance-em centre over the kanji, half-width net
+// of tracking), so the two never disagree. An overlap within BOUNDARY_EPS is
+// tracking-rounding noise, not a collision. Pure geometry: whether a colliding
+// pair may merge (contiguity, spaces, okurigana) is the caller's decision.
+export function boundaryCollides(
+  left: ReadingItem,
+  right: ReadingItem,
+  text: string,
+): boolean {
+  const lg = left.groups[left.groups.length - 1]
+  const rg = right.groups[0]
+  if (!lg || !rg) return false
+  const prefix = advancePrefix(text)
+  const centre = (g: ReadingGroup, base: number) =>
+    (prefix[base + g.start] + prefix[base + g.end + 1]) / 2
+  const half = (g: ReadingGroup) => (g.kana.length * RT_EM - currentDrop(g)) / 2
+  return (
+    centre(lg, left.baseOffset) +
+      shiftOf(lg) +
+      half(lg) +
+      READING_GAP_EM -
+      (centre(rg, right.baseOffset) + shiftOf(rg) - half(rg)) >
+    BOUNDARY_EPS
+  )
 }
 
 // Fields the collision gate reads: a char range plus its reading(s). Both
@@ -496,7 +534,7 @@ function boundaryReadingsCollide(
   return readingsCollide(aSpans[aSpans.length - 1], bSpans[0])
 }
 
-function mergeTwo(a: RenderUnit, b: RenderUnit): RenderUnit {
+export function mergeUnitPair(a: RenderUnit, b: RenderUnit): RenderUnit {
   // coveringCueIdx: concat b's cues onto a's; a shared boundary cue sums its
   // char count so the wipe layout stays correct.
   const coveringCueIdx = [...a.coveringCueIdx]
@@ -534,7 +572,7 @@ export function mergeCollidingUnits(units: RenderUnit[]): RenderUnit[] {
   for (const cur of units) {
     const prev = out[out.length - 1]
     if (prev && boundaryReadingsCollide(prev, cur)) {
-      out[out.length - 1] = mergeTwo(prev, cur)
+      out[out.length - 1] = mergeUnitPair(prev, cur)
     } else {
       out.push(cur)
     }
@@ -605,10 +643,10 @@ export function absorbOkurigana(units: RenderUnit[]): RenderUnit[] {
   return out
 }
 
-// Segment-level analogue of mergeTwo: segments carry no cue bookkeeping or
+// Segment-level analogue of mergeUnitPair: segments carry no cue bookkeeping or
 // kanjiText, so only the union range, concatenated reading, and per-kanji spans
 // remain (a jukujikun contributes one synthesized whole-span entry).
-function mergeTwoSegments(
+export function mergeSegmentPair(
   a: RubyLineSegment,
   b: RubyLineSegment,
 ): RubyLineSegment {
@@ -633,7 +671,7 @@ export function mergeCollidingSegments(
   for (const cur of segments) {
     const prev = out[out.length - 1]
     if (prev && boundaryReadingsCollide(prev, cur)) {
-      out[out.length - 1] = mergeTwoSegments(prev, cur)
+      out[out.length - 1] = mergeSegmentPair(prev, cur)
     } else {
       out.push(cur)
     }
