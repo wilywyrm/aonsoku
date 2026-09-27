@@ -1,11 +1,6 @@
 import type { RubyLineModel } from '@/types/furigana'
-import {
-  condenseAcrossGaps,
-  mergeCollidingSegments,
-  type ReadingGroup,
-  resolveSegmentGroups,
-  shiftAcrossGaps,
-} from './grouping'
+import type { ReadingGroup } from './grouping'
+import { resolveSegmentLayout } from './layout'
 
 // Line-char coordinates below are JS string (code-unit) indices with an
 // INCLUSIVE end, matching alignLine (align.ts:124 emits
@@ -77,11 +72,11 @@ function buildCells(
 
 // Cue-free analogue of reconcile(): flatten a line's ruby model into ordered
 // render spans over the raw line text. Splittable segments carry per-kanji
-// `cells`; jukujikun (nonSplittable) and kana-less runs carry none. Adjacent
-// segments whose boundary readings would overhang are first merged
-// (mergeCollidingSegments) so a cross-word collision group-ruby's like a
-// within-word one. Segments are clamped to the line, overlapping ones drop (keep
-// first), and gaps fill with bare spans, so spans.map(s => s.text).join('') ===
+// `cells`; jukujikun (nonSplittable) and kana-less runs carry none. Collision
+// resolution comes from resolveSegmentLayout, shared with the word-level path,
+// which drops overlapping segments (keep first) BEFORE layout so one that never
+// renders can't move the readings of those that do. Segments are clamped to the
+// line and gaps fill with bare spans, so spans.map(s => s.text).join('') ===
 // text for non-empty input. Pure — never mutates `model`.
 export function buildLineRenderSpans(
   text: string,
@@ -90,17 +85,10 @@ export function buildLineRenderSpans(
   if (text === '') return []
   if (!model || model.segments.length === 0) return [{ text }]
 
-  const segments = mergeCollidingSegments(
-    [...model.segments].sort((a, b) => a.charStart - b.charStart),
+  const { segments, groups: segGroups } = resolveSegmentLayout(
+    model.segments,
+    text,
   )
-  // Resolve each segment's groups (absolute coords), then condense readings that
-  // overhang across the spaces between phrases before tiling cells.
-  const segGroups = segments.map(resolveSegmentGroups)
-  const gapItems = segGroups
-    .map((groups) => ({ groups, baseOffset: 0 }))
-    .filter((item) => item.groups.length > 0)
-  shiftAcrossGaps(gapItems, text)
-  condenseAcrossGaps(gapItems, text)
   const spans: LineRenderSpan[] = []
   let cursor = 0
 
