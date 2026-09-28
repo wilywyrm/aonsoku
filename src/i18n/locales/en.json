@@ -376,7 +376,7 @@
     "lyricsOptions": {
       "title": "Transliteration",
       "ruby": "Ruby",
-      "romaji": "Romaji",
+      "romanization": "Romanization",
       "default": "Default",
       "off": "Off",
       "overridden": "Custom for this track"
