@@ -225,7 +225,7 @@ describe('alignPronunciation (Latin & JA regression)', () => {
       const main = makeTrack([
         {
           value: '你， ',
-          cues: [{ start: 0, value: '你， ', byteStart: 0, byteEnd: 5 }],
+          cues: [{ start: 0, value: '你， ', byteStart: 0, byteEnd: 6 }],
         },
       ])
       const pron = makeTrack([
