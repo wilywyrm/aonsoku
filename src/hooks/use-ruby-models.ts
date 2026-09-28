@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useTransliterationResolver } from '@/hooks/use-transliteration-resolver'
 import { alignPronunciation } from '@/service/furigana/alignPronunciation'
+import { markSpread } from '@/service/furigana/spreadLayout'
 import type { RubyLineModel } from '@/types/furigana'
 import type { IStructuredLyric } from '@/types/responses/song'
 import {
@@ -24,7 +25,8 @@ import {
  *
  * Returns `undefined` (never an empty map) when no overlay is wanted, no
  * matching track exists, or no line yields ruby, so callers cleanly fall back
- * to bare text.
+ * to bare text. With a Latin-script system (pinyin) every model is marked
+ * `spread` (see `markSpread`), so its units widen to fit their readings.
  */
 export function useRubyModels(
   structuredLyric: IStructuredLyric | undefined,
@@ -56,6 +58,6 @@ export function useRubyModels(
     models.forEach((model, lineIdx) => {
       if (model.segments.length > 0) map.set(lineIdx, model)
     })
-    return map.size > 0 ? map : undefined
+    return map.size > 0 ? markSpread(map, resolvedRubySystem) : undefined
   }, [resolvedRubySystem, structuredLyric, pronunciationLyrics])
 }
