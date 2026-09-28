@@ -466,7 +466,8 @@ svg#bars .eq-bar--4 {
  * overhang without spreading the base). bottom:100% seats it just above the base
  * top, inside the reserved padding; --furi-offset tunes the vertical gap
  * (negative = up/looser, positive = down/tighter) and -50% centres it on its
- * kanji group.
+ * kanji group. The -0.4em default keeps descenders (the tail of g, q, y) clear
+ * of the base; it applies to every track, so all readings share one baseline.
  */
 .ruby-furi-rt {
   position: absolute;
@@ -480,13 +481,20 @@ svg#bars .eq-bar--4 {
    * last kana. All default 0em → no effect. */
   transform: translate(
     calc(-50% + var(--rt-shift, 0em)),
-    var(--furi-offset, -0.2em)
+    var(--furi-offset, -0.4em)
   );
   letter-spacing: var(--rt-tracking, 0em);
   padding-inline-end: calc(-1 * var(--rt-tracking, 0em));
   font-size: 0.5em;
   font-weight: normal;
   line-height: 1;
+  /* background-clip:text paints only inside this box, and at line-height:1 the
+   * box is shorter than descenders and stacked tone marks (g, q, y, ǚ), which
+   * would otherwise lose their edges. The block padding covers them; the equal
+   * negative bottom margin keeps the bottom-anchored text where it would be. */
+  padding-top: 0.3em;
+  padding-bottom: 0.3em;
+  margin-bottom: -0.3em;
   white-space: nowrap;
   color: currentColor;
   background-image: linear-gradient(90deg, currentColor 0%, currentColor 100%);
