@@ -97,7 +97,7 @@ export function LyricsOptions({
           )}
           {lineSystems.length > 0 && (
             <AxisRow
-              label={t('fullscreen.lyricsOptions.romaji')}
+              label={t('fullscreen.lyricsOptions.romanization')}
               value={axisValue('line')}
               systems={lineSystems}
               onValueChange={(value) => setAxis('line', value)}
@@ -163,7 +163,7 @@ export function LyricsTransliterationRows({
       )}
       {lineSystems.length > 0 && (
         <AxisRow
-          label={t('fullscreen.lyricsOptions.romaji')}
+          label={t('fullscreen.lyricsOptions.romanization')}
           value={axisValue('line')}
           systems={lineSystems}
           onValueChange={(value) => setAxis('line', value)}

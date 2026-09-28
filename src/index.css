@@ -509,6 +509,34 @@ svg#bars .eq-bar--4 {
 }
 
 /*
+ * Spread ruby (Latin-script readings such as pinyin): the unit widens to fit
+ * its reading instead of letting it overhang. .ruby-spread-sizer, rendered as
+ * the unit's FIRST child, is a hidden zero-height copy of the reading (sized
+ * like .ruby-furi-rt) whose in-flow max-content width makes the inline-block
+ * at least that wide. .ruby-base stays shrink-wrapped to its glyphs, only
+ * centred (as is the overlay), so the char-based wipe math is unaffected.
+ */
+.ruby-unit.ruby-spread {
+  text-align: center;
+}
+
+.ruby-spread > .ruby-furi {
+  text-align: center;
+}
+
+.ruby-spread-sizer {
+  display: block;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  font-size: 0.5em;
+  font-weight: normal;
+  line-height: 0;
+  white-space: nowrap;
+  padding-inline: 0.15em;
+}
+
+/*
  * Active unit only: base wipes left→right on the shared --fill front. The
  * `> .ruby-unit >` child chain is REQUIRED, not cosmetic: data-state='active'
  * also sits on ancestor Radix wrappers (the Lyrics TabsContent), so a plain

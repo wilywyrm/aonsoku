@@ -1,6 +1,9 @@
 import { type CSSProperties, useMemo } from 'react'
 import { RT_EM } from '@/service/furigana/grouping'
-import { buildLineRenderSpans } from '@/service/furigana/lineRuby'
+import {
+  buildLineRenderSpans,
+  type LineRenderSpan,
+} from '@/service/furigana/lineRuby'
 import type { RubyLineModel } from '@/types/furigana'
 
 // Per-reading CSS vars: --rt-tracking (letter-spacing, rt-em) and --rt-shift
@@ -11,6 +14,21 @@ function rtStyle(tracking?: number, shift?: number): CSSProperties | undefined {
   if (tracking !== undefined) style['--rt-tracking'] = `${tracking}em`
   if (shift !== undefined) style['--rt-shift'] = `${shift / RT_EM}em`
   return style as CSSProperties
+}
+
+// Hidden copy of a spread unit's readings (space-separated, like the line
+// pinyin) that widens the unit to fit them (.ruby-spread-sizer). It must be
+// the unit's FIRST child: the base then stays the last line box, which sets
+// the unit's baseline against the bare text around it.
+function spreadSizer(span: LineRenderSpan) {
+  const readings = span.cells
+    ? span.cells.flatMap((cell) => cell.kana ?? []).join(' ')
+    : span.kana
+  return (
+    <span className="ruby-spread-sizer" aria-hidden="true">
+      {readings}
+    </span>
+  )
 }
 
 interface LineRubyContentProps {
@@ -48,14 +66,20 @@ export function LineRubyContent({
             return span.text
           }
 
+          const unitClass = span.spread
+            ? 'ruby-unit ruby-static ruby-spread'
+            : 'ruby-unit ruby-static'
+          const sizer = span.spread && spreadSizer(span)
+
           // Ruby span with cells (splittable)
           if (span.cells !== undefined) {
             return (
               <span
                 key={idx}
-                className="ruby-unit ruby-static"
+                className={unitClass}
                 data-testid="line-ruby-unit"
               >
+                {sizer}
                 <span className="ruby-base">{span.text}</span>
                 <span className="ruby-furi" aria-hidden="true">
                   {span.cells.map((cell, ci) =>
@@ -82,11 +106,8 @@ export function LineRubyContent({
 
           // Ruby span without cells (jukujikun)
           return (
-            <span
-              key={idx}
-              className="ruby-unit ruby-static"
-              data-testid="line-ruby-unit"
-            >
+            <span key={idx} className={unitClass} data-testid="line-ruby-unit">
+              {sizer}
               <span className="ruby-base">{span.text}</span>
               <span className="ruby-furi" aria-hidden="true">
                 <span className="ruby-furi-cell">

@@ -79,8 +79,8 @@ export function LyricsSettings() {
           </ContentItemForm>
         </ContentItem>
         <ContentItem>
-          <ContentItemTitle info={t('settings.audio.lyrics.romaji.info')}>
-            {t('settings.audio.lyrics.romaji.label')}
+          <ContentItemTitle info={t('settings.audio.lyrics.romanization.info')}>
+            {t('settings.audio.lyrics.romanization.label')}
           </ContentItemTitle>
           <ContentItemForm>
             <Switch

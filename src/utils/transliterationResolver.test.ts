@@ -101,6 +101,80 @@ describe('resolveTransliteration', () => {
     expect(result.resolvedRubySystem).toBeUndefined()
     expect(result.resolvedLineSystem).toBeUndefined()
   })
+
+  it('zh-Latn is ruby-eligible: ruby axis picks it when line is off', () => {
+    const tracks = [track('zh-latn')]
+
+    const result = resolveTransliteration(tracks, {
+      ...AUTO_PREFS,
+      linePreference: 'off',
+    })
+
+    expect(result.resolvedRubySystem).toBe('zh-latn')
+    expect(result.resolvedLineSystem).toBeUndefined()
+  })
+
+  it('zh-Latn is ruby-eligible: both axes pick it independently', () => {
+    const tracks = [track('zh-latn')]
+
+    const result = resolveTransliteration(tracks, AUTO_PREFS)
+
+    expect(result.resolvedRubySystem).toBe('zh-latn')
+    expect(result.resolvedLineSystem).toBe('zh-latn')
+  })
+
+  it('zh-Latn case-insensitive variants are all ruby-eligible', () => {
+    const variants = ['zh-Latn', 'ZH-LATN', 'zh-Latn-pinyin', 'zh_Latn']
+
+    for (const variant of variants) {
+      const result = resolveTransliteration([track(variant)], {
+        ...AUTO_PREFS,
+        linePreference: 'off',
+      })
+      expect(
+        result.resolvedRubySystem,
+        `${variant} should be ruby-eligible`,
+      ).toBe(variant)
+    }
+  })
+
+  it('ja-Latn stays line-only (not ruby-eligible)', () => {
+    const tracks = [track('ja-Latn')]
+
+    const result = resolveTransliteration(tracks, AUTO_PREFS)
+
+    expect(result.resolvedRubySystem).toBeUndefined()
+    expect(result.resolvedLineSystem).toBe('ja-Latn')
+  })
+
+  it('en-Latn stays line-only (not ruby-eligible)', () => {
+    const tracks = [track('en-Latn')]
+
+    const result = resolveTransliteration(tracks, AUTO_PREFS)
+
+    expect(result.resolvedRubySystem).toBeUndefined()
+    expect(result.resolvedLineSystem).toBe('en-Latn')
+  })
+
+  it('zhx-latn is not ruby-eligible (primary subtag must be exactly zh)', () => {
+    const tracks = [track('zhx-latn')]
+
+    const result = resolveTransliteration(tracks, AUTO_PREFS)
+
+    expect(result.resolvedRubySystem).toBeUndefined()
+    expect(result.resolvedLineSystem).toBe('zhx-latn')
+  })
+
+  it('per-track override: ruby off with zh-latn and line auto', () => {
+    const tracks = [track('zh-latn')]
+
+    const result = resolveTransliteration(tracks, AUTO_PREFS, {
+      ruby: 'off',
+    })
+
+    expect(result.resolvedRubySystem).toBeUndefined()
+    expect(result.resolvedLineSystem).toBe('zh-latn')
+  })
 })
 
 describe('listTransliterationOptions', () => {
@@ -116,5 +190,15 @@ describe('listTransliterationOptions', () => {
 
     expect(rubySystems).toEqual(['ja-Hira', 'ja-Kana'])
     expect(lineSystems).toEqual(['ja-Latn'])
+  })
+
+  it('zh-latn appears in both ruby and line systems', () => {
+    const tracks = [track('zh-latn'), track('ja-Hira')]
+
+    const { rubySystems, lineSystems } = listTransliterationOptions(tracks)
+
+    expect(rubySystems).toContain('zh-latn')
+    expect(rubySystems).toContain('ja-Hira')
+    expect(lineSystems).toEqual(['zh-latn'])
   })
 })

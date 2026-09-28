@@ -16,6 +16,8 @@ export interface RubyLineSegment {
 
 export interface RubyLineModel {
   segments: RubyLineSegment[]
+  // Latin-script ruby: units widen to fit, no shift/condense/merge/absorb.
+  spread?: boolean
 }
 
 // Cue-reconciled render unit (output of reconcile)
@@ -34,6 +36,8 @@ export interface RenderUnit {
   // renderer can place each reading over its own kanji. Absent for bare units
   // and for non-splittable jukujikun (which render one <rt> over the group).
   perKanji?: Array<{ charStart: number; charEnd: number; kana: string }>
+  // Latin-script ruby: widens to fit, no shift/condense/merge/absorb.
+  spread?: boolean
 }
 
 // Stable DOM ref key for per-unit refs (extends existing wordRef key scheme)

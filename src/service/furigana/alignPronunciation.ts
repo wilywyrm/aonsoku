@@ -97,6 +97,16 @@ interface StrippedReading {
   nonSplittable: boolean // core spans the whole base (jukujikun / no okurigana)
 }
 
+// Check if a string contains any kana character (hiragana U+3041–U+3096 or
+// katakana U+30A0–U+30FF). Used to detect Latin (pinyin) readings that should
+// have edge whitespace peeled from the base.
+function hasKanaChar(s: string): boolean {
+  return [...s].some((ch) => {
+    const cp = ch.codePointAt(0)!
+    return isHiragana(cp) || (cp >= 0x30a0 && cp <= 0x30ff)
+  })
+}
+
 // Peel shared leading kana and trailing okurigana off a (base, reading) pair to
 // isolate the kanji that actually needs ruby. Structural only — no dictionary.
 // Returns null when there is nothing to annotate (no kanji, or a pure-kana /
@@ -120,12 +130,25 @@ function stripAffixes(base: string, reading: string): StrippedReading | null {
   // Reading identical to the base → pure passthrough, no ruby.
   if (base === reading) return null
 
+  let baseStart = 0
+  let baseEnd = base.length - 1
+
+  // For Latin (pinyin) readings with no kana, peel edge whitespace from the base
+  // BEFORE the punctuation peel, so the ruby core excludes trailing/leading spaces.
+  // Kana readings (hiragana or katakana) take the existing code path unchanged.
+  if (!hasKanaChar(reading)) {
+    while (baseStart <= baseEnd && /\s/.test(base[baseStart]!)) {
+      baseStart++
+    }
+    while (baseEnd >= baseStart && /\s/.test(base[baseEnd]!)) {
+      baseEnd--
+    }
+  }
+
   // Peel wrapping punctuation (brackets/quotes such as 「」『』（）"") off the base
   // ONLY: it carries no reading, so the ruby must centre over the kanji inside,
   // never the punctuation. Reading indices stay put since nothing matched, which
   // is why base and reading positions are tracked separately from here on.
-  let baseStart = 0
-  let baseEnd = base.length - 1
   while (
     baseStart <= baseEnd &&
     isRubyExcludedPunctuation(base.codePointAt(baseStart)!)
@@ -138,6 +161,7 @@ function stripAffixes(base: string, reading: string): StrippedReading | null {
   ) {
     baseEnd--
   }
+
   // Content bounds excluding wrapping punctuation: nonSplittable below is measured
   // against these so a bracketed jukujikun (「今日」) is not mistaken for splittable.
   const contentStart = baseStart

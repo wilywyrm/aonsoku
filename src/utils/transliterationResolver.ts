@@ -49,6 +49,20 @@ function langIncludes(lang: string | undefined, subtag: string): boolean {
   return (lang ?? '').toLowerCase().includes(subtag.toLowerCase())
 }
 
+/** Parse BCP-47 language tag into subtags (e.g. 'zh-Latn-pinyin' → ['zh', 'latn', 'pinyin']). */
+function langSubtags(lang: string | undefined): string[] {
+  return (lang ?? '').toLowerCase().split(/[-_]/).filter(Boolean)
+}
+
+/**
+ * Detect zh+Latn tracks: Mandarin Chinese with Latin script (pinyin).
+ * These are ruby-eligible (per-character overlay) in addition to line-eligible.
+ */
+export function isZhLatinTrack(lang: string | undefined): boolean {
+  const s = langSubtags(lang)
+  return s[0] === 'zh' && s.includes('latn')
+}
+
 /** Classify pronunciation tracks whose `lang` carries any of `subtags`. */
 function classifyTracks(
   tracks: IStructuredLyric[],
@@ -104,7 +118,9 @@ export function resolveTransliteration(
   override?: TransliterationOverride,
 ): ResolvedTransliteration {
   const allTracks = pickPronunciationTracks(pronunciationLyrics)
-  const overlayTracks = classifyTracks(allTracks, RUBY_SCRIPT_SUBTAGS)
+  const overlayTracks = classifyTracks(allTracks, RUBY_SCRIPT_SUBTAGS).concat(
+    allTracks.filter((t) => isZhLatinTrack(t.lang)),
+  )
   const lineTracks = classifyTracks(allTracks, LINE_SCRIPT_SUBTAGS)
 
   const resolvedRubySystem = resolveAxis(
@@ -133,6 +149,7 @@ export function listTransliterationOptions(
 ): { rubySystems: string[]; lineSystems: string[] } {
   const allTracks = pickPronunciationTracks(pronunciationLyrics)
   const rubySystems = classifyTracks(allTracks, RUBY_SCRIPT_SUBTAGS)
+    .concat(allTracks.filter((t) => isZhLatinTrack(t.lang)))
     .map((t) => t.lang)
     .filter((l): l is string => !!l)
   const lineSystems = classifyTracks(allTracks, LINE_SCRIPT_SUBTAGS)

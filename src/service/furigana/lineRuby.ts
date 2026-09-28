@@ -1,6 +1,7 @@
 import type { RubyLineModel } from '@/types/furigana'
 import type { ReadingGroup } from './grouping'
 import { resolveSegmentLayout } from './layout'
+import { resolveSpreadSegmentLayout } from './spreadLayout'
 
 // Line-char coordinates below are JS string (code-unit) indices with an
 // INCLUSIVE end, matching alignLine (align.ts:124 emits
@@ -27,6 +28,8 @@ export interface LineRenderSpan {
   cells?: LineRubyCell[]
   tracking?: number
   shift?: number
+  // Ruby span of a spread (Latin-script) model: its unit widens to fit.
+  spread?: boolean
 }
 
 // react-lrc's clrc parser captures the single space after "]" from the
@@ -75,7 +78,9 @@ function buildCells(
 // `cells`; jukujikun (nonSplittable) and kana-less runs carry none. Collision
 // resolution comes from resolveSegmentLayout, shared with the word-level path,
 // which drops overlapping segments (keep first) BEFORE layout so one that never
-// renders can't move the readings of those that do. Segments are clamped to the
+// renders can't move the readings of those that do. A spread model resolves
+// with resolveSpreadSegmentLayout instead (same keep-first rule, readings left
+// at natural width) and flags its ruby spans. Segments are clamped to the
 // line and gaps fill with bare spans, so spans.map(s => s.text).join('') ===
 // text for non-empty input. Pure — never mutates `model`.
 export function buildLineRenderSpans(
@@ -85,10 +90,13 @@ export function buildLineRenderSpans(
   if (text === '') return []
   if (!model || model.segments.length === 0) return [{ text }]
 
-  const { segments, groups: segGroups } = resolveSegmentLayout(
-    model.segments,
-    text,
-  )
+  const spread = model.spread === true
+  const { segments, groups: segGroups } = spread
+    ? resolveSpreadSegmentLayout(model.segments, text)
+    : resolveSegmentLayout(model.segments, text)
+  // Only spread spans gain the key, so default-path spans keep their shape.
+  const flag = (span: LineRenderSpan): LineRenderSpan =>
+    spread ? { ...span, spread: true } : span
   const spans: LineRenderSpan[] = []
   let cursor = 0
 
@@ -116,18 +124,22 @@ export function buildLineRenderSpans(
       !perKanji ||
       perKanji.length === 0
     ) {
-      spans.push({
-        text: slice,
-        kana,
-        tracking: groups[0]?.tracking,
-        shift: groups[0]?.shift,
-      })
+      spans.push(
+        flag({
+          text: slice,
+          kana,
+          tracking: groups[0]?.tracking,
+          shift: groups[0]?.shift,
+        }),
+      )
     } else {
-      spans.push({
-        text: slice,
-        kana,
-        cells: buildCells(text, start, end, groups),
-      })
+      spans.push(
+        flag({
+          text: slice,
+          kana,
+          cells: buildCells(text, start, end, groups),
+        }),
+      )
     }
     cursor = end
   }

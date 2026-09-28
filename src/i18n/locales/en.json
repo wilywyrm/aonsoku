@@ -376,7 +376,7 @@
     "lyricsOptions": {
       "title": "Transliteration",
       "ruby": "Ruby",
-      "romaji": "Romaji",
+      "romanization": "Romanization",
       "default": "Default",
       "off": "Off",
       "overridden": "Custom for this track"
@@ -712,7 +712,7 @@
           "label": "Show ruby annotations",
           "info": "Automatically show ruby text when the server provides it for the file."
         },
-        "romaji": {
+        "romanization": {
           "label": "Show romanization",
           "info": "Automatically show separate romanized lines under the main line when the server provides one for the file."
         }
