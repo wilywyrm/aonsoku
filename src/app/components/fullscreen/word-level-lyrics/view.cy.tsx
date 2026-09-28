@@ -31,6 +31,7 @@ describe('WordLevelLyricsView Component', () => {
           data={data}
           activeLineIdx={-1}
           activeCueByKey={{}}
+          lastVisitedCueByKey={{}}
           onWordClick={cy.stub()}
           resolvedLang="en"
         />,
@@ -52,6 +53,7 @@ describe('WordLevelLyricsView Component', () => {
           data={data}
           activeLineIdx={1}
           activeCueByKey={{}}
+          lastVisitedCueByKey={{}}
           onWordClick={cy.stub()}
           resolvedLang="en"
         />,
@@ -69,6 +71,7 @@ describe('WordLevelLyricsView Component', () => {
           data={data}
           activeLineIdx={0}
           activeCueByKey={{ '0:pos0': 2 }}
+          lastVisitedCueByKey={{ '0:pos0': 2 }}
           onWordClick={cy.stub()}
           resolvedLang="en"
         />,
@@ -87,6 +90,7 @@ describe('WordLevelLyricsView Component', () => {
           data={data}
           activeLineIdx={0}
           activeCueByKey={{ '0:pos0': 2 }}
+          lastVisitedCueByKey={{ '0:pos0': 2 }}
           onWordClick={cy.stub()}
           resolvedLang="en"
         />,
@@ -113,6 +117,7 @@ describe('WordLevelLyricsView Component', () => {
           data={data}
           activeLineIdx={0}
           activeCueByKey={{ '0:pos0': 0 }}
+          lastVisitedCueByKey={{ '0:pos0': 0 }}
           onWordClick={cy.stub()}
           resolvedLang="en"
         />,
@@ -131,6 +136,7 @@ describe('WordLevelLyricsView Component', () => {
           data={data}
           activeLineIdx={0}
           activeCueByKey={{ '0:pos0': 0 }}
+          lastVisitedCueByKey={{ '0:pos0': 0 }}
           onWordClick={cy.stub()}
           resolvedLang="ko"
         />,
@@ -152,6 +158,7 @@ describe('WordLevelLyricsView Component', () => {
           data={data}
           activeLineIdx={0}
           activeCueByKey={{ '0:pos0': 0 }}
+          lastVisitedCueByKey={{ '0:pos0': 0 }}
           onWordClick={cy.stub()}
           resolvedLang="ko"
         />,
@@ -174,6 +181,7 @@ describe('WordLevelLyricsView Component', () => {
           data={data}
           activeLineIdx={-1}
           activeCueByKey={{}}
+          lastVisitedCueByKey={{}}
           onWordClick={onWordClick}
           resolvedLang="en"
         />,
@@ -193,6 +201,7 @@ describe('WordLevelLyricsView Component', () => {
           data={data}
           activeLineIdx={-1}
           activeCueByKey={{}}
+          lastVisitedCueByKey={{}}
           onWordClick={onWordClick}
           resolvedLang="en"
         />,
@@ -217,6 +226,7 @@ describe('WordLevelLyricsView Component', () => {
           data={data}
           activeLineIdx={-1}
           activeCueByKey={{}}
+          lastVisitedCueByKey={{}}
           onWordClick={onWordClick}
           resolvedLang="en"
         />,
@@ -236,6 +246,7 @@ describe('WordLevelLyricsView Component', () => {
           data={data}
           activeLineIdx={-1}
           activeCueByKey={{}}
+          lastVisitedCueByKey={{}}
           onWordClick={cy.stub()}
           resolvedLang="en"
         />,
@@ -254,6 +265,7 @@ describe('WordLevelLyricsView Component', () => {
           data={data}
           activeLineIdx={-1}
           activeCueByKey={{}}
+          lastVisitedCueByKey={{}}
           onWordClick={cy.stub()}
           resolvedLang="ko"
         />,
@@ -274,6 +286,7 @@ describe('WordLevelLyricsView Component', () => {
           data={data}
           activeLineIdx={-1}
           activeCueByKey={{}}
+          lastVisitedCueByKey={{}}
           onWordClick={cy.stub()}
           resolvedLang="en"
         />,
@@ -300,6 +313,7 @@ describe('WordLevelLyricsView Component', () => {
           data={data}
           activeLineIdx={-1}
           activeCueByKey={{}}
+          lastVisitedCueByKey={{}}
           onWordClick={cy.stub()}
           resolvedLang="en"
         />,
@@ -319,6 +333,7 @@ describe('WordLevelLyricsView Component', () => {
           data={data}
           activeLineIdx={-1}
           activeCueByKey={{}}
+          lastVisitedCueByKey={{}}
           onWordClick={cy.stub()}
           resolvedLang="en"
         />,
@@ -335,6 +350,7 @@ describe('WordLevelLyricsView Component', () => {
           data={data}
           activeLineIdx={-1}
           activeCueByKey={{}}
+          lastVisitedCueByKey={{}}
           onWordClick={cy.stub()}
           resolvedLang="en"
         />,
@@ -360,6 +376,7 @@ describe('WordLevelLyricsView Component', () => {
           data={data}
           activeLineIdx={-1}
           activeCueByKey={{}}
+          lastVisitedCueByKey={{}}
           onWordClick={cy.stub()}
           resolvedLang="en"
         />,
@@ -379,6 +396,7 @@ describe('WordLevelLyricsView Component', () => {
           data={data}
           activeLineIdx={-1}
           activeCueByKey={{}}
+          lastVisitedCueByKey={{}}
           onWordClick={cy.stub()}
           resolvedLang="en"
         />,
@@ -404,6 +422,7 @@ describe('WordLevelLyricsView Component', () => {
           data={data}
           activeLineIdx={-1}
           activeCueByKey={{}}
+          lastVisitedCueByKey={{}}
           onWordClick={cy.stub()}
           resolvedLang="en"
         />,
@@ -421,6 +440,7 @@ describe('WordLevelLyricsView Component', () => {
           data={data}
           activeLineIdx={0}
           activeCueByKey={{ '0:lead': 0, '0:bg': 0 }}
+          lastVisitedCueByKey={{ '0:lead': 0, '0:bg': 0 }}
           onWordClick={cy.stub()}
           resolvedLang="en"
         />,
@@ -444,6 +464,7 @@ describe('WordLevelLyricsView Component', () => {
           data={data}
           activeLineIdx={-1}
           activeCueByKey={{}}
+          lastVisitedCueByKey={{}}
           onWordClick={cy.stub()}
           resolvedLang="en"
         />,
@@ -463,6 +484,7 @@ describe('WordLevelLyricsView Component', () => {
           data={data}
           activeLineIdx={1}
           activeCueByKey={{}}
+          lastVisitedCueByKey={{}}
           onWordClick={cy.stub()}
           resolvedLang="en"
         />,

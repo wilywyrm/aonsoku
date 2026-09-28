@@ -34,13 +34,8 @@
   "include": [
     "src",
     "cypress",
-    "electron/preload/**/*",
+    "electron/preload/types.ts",
     "vite.config.ts",
     "src/manual-chunks.ts"
-  ],
-  "references": [
-    {
-      "path": "./tsconfig.node.json"
-    }
   ]
 }

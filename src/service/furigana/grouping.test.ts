@@ -2,12 +2,13 @@ import { describe, expect, it } from 'vitest'
 import type { RenderUnit, RubyLineSegment } from '@/types/furigana'
 import {
   absorbOkurigana,
+  boundaryCollides,
   condenseAcrossGaps,
   groupReadings,
-  mergeCollidingSegments,
-  mergeCollidingUnits,
+  mergeSegmentPair,
+  mergeUnitPair,
   type ReadingGroup,
-  readingsCollide,
+  type ReadingItem,
   resolveUnitGroups,
   shiftAcrossGaps,
 } from './grouping'
@@ -34,37 +35,6 @@ function seg(over: Partial<RubyLineSegment>): RubyLineSegment {
     ...over,
   }
 }
-
-describe('readingsCollide', () => {
-  it('true when a wide reading overhangs into the next', () => {
-    // こころ (3 mora) over 1 kanji overhangs 0.25em into 構's reading かま.
-    expect(
-      readingsCollide(
-        { start: 0, end: 0, kana: 'こころ' },
-        { start: 1, end: 1, kana: 'かま' },
-      ),
-    ).toBe(true)
-  })
-
-  it('false when readings sit edge-to-edge (no overlap)', () => {
-    // Two 2-mora readings each exactly one kanji wide: they touch, not overlap.
-    expect(
-      readingsCollide(
-        { start: 0, end: 0, kana: 'とう' },
-        { start: 1, end: 1, kana: 'かい' },
-      ),
-    ).toBe(false)
-  })
-
-  it('false when a narrow reading leaves a clear gap', () => {
-    expect(
-      readingsCollide(
-        { start: 0, end: 0, kana: 'な' },
-        { start: 1, end: 1, kana: 'まえ' },
-      ),
-    ).toBe(false)
-  })
-})
 
 describe('groupReadings', () => {
   it('merges colliding per-kanji readings into one group-ruby span', () => {
@@ -124,9 +94,9 @@ describe('groupReadings', () => {
   })
 
   it('merges when condensing to the floor cannot clear the overlap (飄々)', () => {
-    // 飄 + 々 (both ひょう, 3 mora over 1 kanji, reaching groupReadings fused from
-    // separate cues via mergeCollidingUnits) overlap 0.5em — ~33% each to fit,
-    // far past the floor — so they fall back to one centred group-ruby span.
+    // 飄 + 々 (both ひょう, 3 mora over 1 kanji, already fused by the shift-first
+    // loop in layout.ts) overlap 0.5em — ~33% each to fit, far past the floor —
+    // so they fall back to one centred group-ruby span.
     const groups = groupReadings(
       [
         { charStart: 0, charEnd: 0, kana: 'ひょう' },
@@ -138,303 +108,64 @@ describe('groupReadings', () => {
   })
 })
 
-describe('mergeCollidingUnits', () => {
-  it('merges 心 + 構え (split across cues by ても) into one multi-cue unit', () => {
-    const units = mergeCollidingUnits([
-      unit({
-        charStart: 0,
-        charEnd: 0,
-        kanjiText: '心',
-        kana: 'こころ',
-        coveringCueIdx: [0],
-        cueCharCounts: [1],
-        perKanji: [{ charStart: 0, charEnd: 0, kana: 'こころ' }],
-      }),
-      unit({
-        charStart: 1,
-        charEnd: 2,
-        kanjiText: '構え',
-        kana: 'かま',
-        coveringCueIdx: [1],
-        cueCharCounts: [2],
-        perKanji: [{ charStart: 1, charEnd: 1, kana: 'かま' }],
-      }),
-      unit({ charStart: 3, charEnd: 3, kanjiText: 'て', coveringCueIdx: [2] }),
-      unit({ charStart: 4, charEnd: 4, kanjiText: 'も', coveringCueIdx: [3] }),
-    ])
-
-    expect(units).toHaveLength(3)
-    expect(units[0]).toMatchObject({
+describe('mergeUnitPair', () => {
+  it('sums a shared boundary cue char count', () => {
+    const a = unit({
       charStart: 0,
-      charEnd: 2,
-      kanjiText: '心構え',
-      kana: 'こころかま',
+      charEnd: 1,
+      kanjiText: '今日',
+      kana: 'きょう',
       coveringCueIdx: [0, 1],
-      cueCharCounts: [1, 2],
-      perKanji: [
-        { charStart: 0, charEnd: 0, kana: 'こころ' },
-        { charStart: 1, charEnd: 1, kana: 'かま' },
-      ],
+      cueCharCounts: [1, 1],
     })
-    expect(units[1].kanjiText).toBe('て')
-    expect(units[2].kanjiText).toBe('も')
-  })
-
-  it('does not merge non-colliding adjacent kanji units', () => {
-    const units = mergeCollidingUnits([
-      unit({
-        charStart: 0,
-        charEnd: 0,
-        kanjiText: '名',
-        kana: 'な',
-        coveringCueIdx: [0],
-        perKanji: [{ charStart: 0, charEnd: 0, kana: 'な' }],
-      }),
-      unit({
-        charStart: 1,
-        charEnd: 1,
-        kanjiText: '前',
-        kana: 'まえ',
-        coveringCueIdx: [1],
-        perKanji: [{ charStart: 1, charEnd: 1, kana: 'まえ' }],
-      }),
-    ])
-    expect(units).toHaveLength(2)
-  })
-
-  it('does not merge across a bare (reading-less) unit', () => {
-    const units = mergeCollidingUnits([
-      unit({
-        charStart: 0,
-        charEnd: 0,
-        kanjiText: '心',
-        kana: 'こころ',
-        coveringCueIdx: [0],
-        perKanji: [{ charStart: 0, charEnd: 0, kana: 'こころ' }],
-      }),
-      unit({ charStart: 1, charEnd: 1, kanjiText: 'の', coveringCueIdx: [1] }),
-      unit({
-        charStart: 2,
-        charEnd: 2,
-        kanjiText: '構',
-        kana: 'かま',
-        coveringCueIdx: [2],
-        perKanji: [{ charStart: 2, charEnd: 2, kana: 'かま' }],
-      }),
-    ])
-    expect(units).toHaveLength(3)
-  })
-
-  it('does not merge non-contiguous kanji units', () => {
-    const units = mergeCollidingUnits([
-      unit({
-        charStart: 0,
-        charEnd: 0,
-        kanjiText: '心',
-        kana: 'こころ',
-        coveringCueIdx: [0],
-        perKanji: [{ charStart: 0, charEnd: 0, kana: 'こころ' }],
-      }),
-      unit({
-        charStart: 2,
-        charEnd: 2,
-        kanjiText: '技',
-        kana: 'わざ',
-        coveringCueIdx: [1],
-        perKanji: [{ charStart: 2, charEnd: 2, kana: 'わざ' }],
-      }),
-    ])
-    expect(units).toHaveLength(2)
-  })
-
-  it('merges when a GROUPED multi-kanji reading overhangs the next unit (少々 + 出来)', () => {
-    const units = mergeCollidingUnits([
-      unit({
-        charStart: 0,
-        charEnd: 1,
-        kanjiText: '少々',
-        kana: 'しょうしょう',
-        coveringCueIdx: [0],
-        cueCharCounts: [2],
-        perKanji: [
-          { charStart: 0, charEnd: 0, kana: 'しょう' },
-          { charStart: 1, charEnd: 1, kana: 'しょう' },
-        ],
-      }),
-      unit({
-        charStart: 2,
-        charEnd: 3,
-        kanjiText: '出来',
-        kana: 'でき',
-        coveringCueIdx: [1],
-        cueCharCounts: [2],
-        perKanji: [
-          { charStart: 2, charEnd: 2, kana: 'で' },
-          { charStart: 3, charEnd: 3, kana: 'き' },
-        ],
-      }),
-    ])
-    expect(units).toHaveLength(1)
-    expect(units[0]).toMatchObject({
+    const b = unit({
+      charStart: 2,
+      charEnd: 3,
+      kanjiText: '天気',
+      kana: 'てんき',
+      coveringCueIdx: [1, 2],
+      cueCharCounts: [1, 1],
+    })
+    expect(mergeUnitPair(a, b)).toEqual({
       charStart: 0,
       charEnd: 3,
-      kanjiText: '少々出来',
-      kana: 'しょうしょうでき',
-      coveringCueIdx: [0, 1],
-      cueCharCounts: [2, 2],
+      kanjiText: '今日天気',
+      kana: 'きょうてんき',
+      nonSplittable: false,
+      coveringCueIdx: [0, 1, 2],
+      cueCharCounts: [1, 2, 1],
       perKanji: [
-        { charStart: 0, charEnd: 0, kana: 'しょう' },
-        { charStart: 1, charEnd: 1, kana: 'しょう' },
-        { charStart: 2, charEnd: 2, kana: 'で' },
-        { charStart: 3, charEnd: 3, kana: 'き' },
+        { charStart: 0, charEnd: 1, kana: 'きょう' },
+        { charStart: 2, charEnd: 3, kana: 'てんき' },
       ],
     })
   })
 })
 
-describe('mergeCollidingSegments', () => {
-  it('fuses two adjacent separate segments whose readings collide', () => {
-    const segments = mergeCollidingSegments([
-      seg({
-        charStart: 0,
-        charEnd: 0,
-        kana: 'こころ',
-        perKanji: [{ charStart: 0, charEnd: 0, kana: 'こころ' }],
-      }),
-      seg({
-        charStart: 1,
-        charEnd: 1,
-        kana: 'がま',
-        perKanji: [{ charStart: 1, charEnd: 1, kana: 'がま' }],
-      }),
-    ])
-    expect(segments).toEqual([
-      {
-        charStart: 0,
-        charEnd: 1,
-        kana: 'こころがま',
-        nonSplittable: false,
-        perKanji: [
-          { charStart: 0, charEnd: 0, kana: 'こころ' },
-          { charStart: 1, charEnd: 1, kana: 'がま' },
-        ],
-      },
-    ])
-  })
-
-  it('keeps non-colliding adjacent segments separate', () => {
-    const segments = mergeCollidingSegments([
-      seg({
-        charStart: 0,
-        charEnd: 0,
-        kana: 'な',
-        perKanji: [{ charStart: 0, charEnd: 0, kana: 'な' }],
-      }),
-      seg({
-        charStart: 1,
-        charEnd: 1,
-        kana: 'まえ',
-        perKanji: [{ charStart: 1, charEnd: 1, kana: 'まえ' }],
-      }),
-    ])
-    expect(segments).toHaveLength(2)
-  })
-
-  it('does not merge across a bare (reading-less) segment', () => {
-    const segments = mergeCollidingSegments([
-      seg({
-        charStart: 0,
-        charEnd: 0,
-        kana: 'こころ',
-        perKanji: [{ charStart: 0, charEnd: 0, kana: 'こころ' }],
-      }),
-      seg({ charStart: 1, charEnd: 1 }),
-      seg({
-        charStart: 2,
-        charEnd: 2,
-        kana: 'がま',
-        perKanji: [{ charStart: 2, charEnd: 2, kana: 'がま' }],
-      }),
-    ])
-    expect(segments).toHaveLength(3)
-  })
-
-  it('does not merge non-contiguous segments', () => {
-    const segments = mergeCollidingSegments([
-      seg({
-        charStart: 0,
-        charEnd: 0,
-        kana: 'こころ',
-        perKanji: [{ charStart: 0, charEnd: 0, kana: 'こころ' }],
-      }),
-      seg({
-        charStart: 2,
-        charEnd: 2,
-        kana: 'わざ',
-        perKanji: [{ charStart: 2, charEnd: 2, kana: 'わざ' }],
-      }),
-    ])
-    expect(segments).toHaveLength(2)
-  })
-
-  it('is transitive (a widened segment absorbs the next)', () => {
-    const segments = mergeCollidingSegments([
-      seg({
-        charStart: 0,
-        charEnd: 0,
-        kana: 'こころ',
-        perKanji: [{ charStart: 0, charEnd: 0, kana: 'こころ' }],
-      }),
-      seg({
-        charStart: 1,
-        charEnd: 1,
-        kana: 'すがた',
-        perKanji: [{ charStart: 1, charEnd: 1, kana: 'すがた' }],
-      }),
-      seg({
-        charStart: 2,
-        charEnd: 2,
-        kana: 'ちから',
-        perKanji: [{ charStart: 2, charEnd: 2, kana: 'ちから' }],
-      }),
-    ])
-    expect(segments).toEqual([
-      {
-        charStart: 0,
-        charEnd: 2,
-        kana: 'こころすがたちから',
-        nonSplittable: false,
-        perKanji: [
-          { charStart: 0, charEnd: 0, kana: 'こころ' },
-          { charStart: 1, charEnd: 1, kana: 'すがた' },
-          { charStart: 2, charEnd: 2, kana: 'ちから' },
-        ],
-      },
-    ])
-  })
-
+describe('mergeSegmentPair', () => {
   it('synthesizes a whole-span reading when merging a jukujikun', () => {
-    const segments = mergeCollidingSegments([
-      seg({ charStart: 0, charEnd: 0, kana: 'あいう', nonSplittable: true }),
-      seg({
-        charStart: 1,
-        charEnd: 1,
-        kana: 'かい',
-        perKanji: [{ charStart: 1, charEnd: 1, kana: 'かい' }],
-      }),
-    ])
-    expect(segments).toEqual([
-      {
-        charStart: 0,
-        charEnd: 1,
-        kana: 'あいうかい',
-        nonSplittable: false,
-        perKanji: [
-          { charStart: 0, charEnd: 0, kana: 'あいう' },
-          { charStart: 1, charEnd: 1, kana: 'かい' },
-        ],
-      },
-    ])
+    const a = seg({
+      charStart: 0,
+      charEnd: 0,
+      kana: 'あいう',
+      nonSplittable: true,
+    })
+    const b = seg({
+      charStart: 1,
+      charEnd: 1,
+      kana: 'かい',
+      perKanji: [{ charStart: 1, charEnd: 1, kana: 'かい' }],
+    })
+    expect(mergeSegmentPair(a, b)).toEqual({
+      charStart: 0,
+      charEnd: 1,
+      kana: 'あいうかい',
+      nonSplittable: false,
+      perKanji: [
+        { charStart: 0, charEnd: 0, kana: 'あいう' },
+        { charStart: 1, charEnd: 1, kana: 'かい' },
+      ],
+    })
   })
 })
 
@@ -592,12 +323,22 @@ describe('condenseAcrossGaps', () => {
     expect(right.groups[0].tracking).toBeUndefined()
   })
 
-  it('does not touch contiguous readings (merge owns those)', () => {
+  it('condenses contiguous readings to the floor when they cannot clear (飄々霞)', () => {
+    // With no gap the two overhangs (0.5em + 0.25em) overlap 0.75em, beyond what
+    // the floor can shed: both bottom out and the residual is left to the caller.
     const left = item([{ start: 0, end: 1, kana: 'ひょうひょう' }])
     const right = item([{ start: 2, end: 2, kana: 'かすみ' }])
     condenseAcrossGaps([left, right], '飄々霞')
-    expect(left.groups[0].tracking).toBeUndefined()
-    expect(right.groups[0].tracking).toBeUndefined()
+    expect(left.groups[0].tracking).toBe(-0.15)
+    expect(right.groups[0].tracking).toBe(-0.15)
+  })
+
+  it('fully clears a contiguous overlap within the floor', () => {
+    const left = item([{ start: 0, end: 1, kana: 'かきくけこ' }])
+    const right = item([{ start: 2, end: 3, kana: 'さしすせ' }])
+    condenseAcrossGaps([left, right], '漢字漢字')
+    expect(left.groups[0].tracking).toBe(-0.1429)
+    expect(right.groups[0].tracking).toBe(-0.1429)
   })
 })
 
@@ -672,5 +413,155 @@ describe('shiftAcrossGaps', () => {
     )
     expect(hyou.shift).toBeUndefined()
     expect(kasumi.shift).toBeUndefined()
+  })
+
+  it('shifts only the free side when the other is blocked (妄想戦上のルーティン)', () => {
+    // じょう overhangs せん by 0.25em, but せん sits flush against そう and もう
+    // back to the line start, so じょう alone takes the whole overlap, moving
+    // right over the reading-less の.
+    const mou: ReadingGroup = { start: 0, end: 0, kana: 'もう' }
+    const sou: ReadingGroup = { start: 0, end: 0, kana: 'そう' }
+    const sen: ReadingGroup = { start: 0, end: 0, kana: 'せん' }
+    const jou: ReadingGroup = { start: 0, end: 0, kana: 'じょう' }
+    shiftAcrossGaps(
+      [
+        { groups: [mou], baseOffset: 0 },
+        { groups: [sou], baseOffset: 1 },
+        { groups: [sen], baseOffset: 2 },
+        { groups: [jou], baseOffset: 3 },
+      ],
+      '妄想戦上のルーティン',
+    )
+    expect(mou.shift).toBeUndefined()
+    expect(sou.shift).toBeUndefined()
+    expect(sen.shift).toBeUndefined()
+    expect(jou.shift).toBeCloseTo(0.25, 4)
+  })
+
+  it('shifts left when the right side is blocked by the line end (のの戦上)', () => {
+    // Mirror case: じょう already overhangs the line end, so せん takes the whole
+    // overlap, moving left over the reading-less の.
+    const sen: ReadingGroup = { start: 0, end: 0, kana: 'せん' }
+    const jou: ReadingGroup = { start: 0, end: 0, kana: 'じょう' }
+    shiftAcrossGaps(
+      [
+        { groups: [sen], baseOffset: 2 },
+        { groups: [jou], baseOffset: 3 },
+      ],
+      'のの戦上',
+    )
+    expect(sen.shift).toBeCloseTo(-0.25, 4)
+    expect(jou.shift).toBeUndefined()
+  })
+
+  it('leaves readings centred when neither side has room (妄想戦上)', () => {
+    // せん is blocked back to the line start, じょう by the line end: nothing
+    // moves, and the overlap is left for condensation.
+    const mou: ReadingGroup = { start: 0, end: 0, kana: 'もう' }
+    const sou: ReadingGroup = { start: 0, end: 0, kana: 'そう' }
+    const sen: ReadingGroup = { start: 0, end: 0, kana: 'せん' }
+    const jou: ReadingGroup = { start: 0, end: 0, kana: 'じょう' }
+    shiftAcrossGaps(
+      [
+        { groups: [mou], baseOffset: 0 },
+        { groups: [sou], baseOffset: 1 },
+        { groups: [sen], baseOffset: 2 },
+        { groups: [jou], baseOffset: 3 },
+      ],
+      '妄想戦上',
+    )
+    for (const g of [mou, sou, sen, jou]) expect(g.shift).toBeUndefined()
+  })
+})
+
+describe('boundaryCollides', () => {
+  it('false when readings sit edge-to-edge (東海)', () => {
+    expect(
+      boundaryCollides(
+        { groups: [{ start: 0, end: 0, kana: 'とう' }], baseOffset: 0 },
+        { groups: [{ start: 0, end: 0, kana: 'かい' }], baseOffset: 1 },
+        '東海',
+      ),
+    ).toBe(false)
+  })
+
+  it('true when a wide reading overhangs the next (心構)', () => {
+    expect(
+      boundaryCollides(
+        { groups: [{ start: 0, end: 0, kana: 'こころ' }], baseOffset: 0 },
+        { groups: [{ start: 0, end: 0, kana: 'かま' }], baseOffset: 1 },
+        '心構',
+      ),
+    ).toBe(true)
+  })
+
+  it('measures readings at their current shift (妄想戦上の)', () => {
+    // Centred, じょう overhangs せん by 0.25em; shifted right by that much the
+    // pair only touches.
+    const jou: ReadingGroup = { start: 0, end: 0, kana: 'じょう' }
+    const left: ReadingItem = {
+      groups: [{ start: 0, end: 0, kana: 'せん' }],
+      baseOffset: 2,
+    }
+    const right: ReadingItem = { groups: [jou], baseOffset: 3 }
+    expect(boundaryCollides(left, right, '妄想戦上の')).toBe(true)
+    jou.shift = 0.25
+    expect(boundaryCollides(left, right, '妄想戦上の')).toBe(false)
+  })
+
+  it('measures readings at their current tracking (漢字漢字)', () => {
+    // At natural width かきくけこ overhangs さしすせ by 0.25em; condensed to the
+    // -0.1429 rt-em condenseAcrossGaps assigns this pair, they no longer overlap.
+    const kaki: ReadingGroup = { start: 0, end: 1, kana: 'かきくけこ' }
+    const sashi: ReadingGroup = { start: 2, end: 3, kana: 'さしすせ' }
+    const left: ReadingItem = { groups: [kaki], baseOffset: 0 }
+    const right: ReadingItem = { groups: [sashi], baseOffset: 0 }
+    expect(boundaryCollides(left, right, '漢字漢字')).toBe(true)
+    kaki.tracking = -0.1429
+    sashi.tracking = -0.1429
+    expect(boundaryCollides(left, right, '漢字漢字')).toBe(false)
+  })
+
+  it('tolerates the tracking rounding residual (一二三四五)', () => {
+    // Condensation clears this contiguous pair exactly, but both trackings are
+    // rounded to -0.1111, leaving a 2.5e-5em overlap that is noise, not a
+    // collision.
+    expect(
+      boundaryCollides(
+        {
+          groups: [
+            { start: 0, end: 2, kana: 'あいうえおか', tracking: -0.1111 },
+          ],
+          baseOffset: 0,
+        },
+        {
+          groups: [{ start: 0, end: 1, kana: 'きくけこさ', tracking: -0.1111 }],
+          baseOffset: 3,
+        },
+        '一二三四五',
+      ),
+    ).toBe(false)
+  })
+
+  it('reports the geometric overlap even across a space (飄々 霞)', () => {
+    // The readings overlap ~0.42em across the narrow space. Never merging across
+    // a space is up to the caller; this only measures.
+    expect(
+      boundaryCollides(
+        { groups: [{ start: 0, end: 1, kana: 'ひょうひょう' }], baseOffset: 0 },
+        { groups: [{ start: 0, end: 0, kana: 'かすみ' }], baseOffset: 3 },
+        '飄々 霞',
+      ),
+    ).toBe(true)
+  })
+
+  it('false when either side has no groups', () => {
+    const kokoro: ReadingItem = {
+      groups: [{ start: 0, end: 0, kana: 'こころ' }],
+      baseOffset: 0,
+    }
+    const bare: ReadingItem = { groups: [], baseOffset: 1 }
+    expect(boundaryCollides(kokoro, bare, '心構')).toBe(false)
+    expect(boundaryCollides(bare, kokoro, '心構')).toBe(false)
   })
 })

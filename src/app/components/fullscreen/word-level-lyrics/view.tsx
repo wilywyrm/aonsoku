@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import { Fragment, useMemo, useState } from 'react'
 import { isSafari } from 'react-device-detect'
-import type { RenderUnit } from '@/types/furigana'
+import type { RubyUnitLayout } from '@/service/furigana/layout'
 import {
   buildMainCueGaps,
   byteSliceFallback,
@@ -56,12 +56,13 @@ export interface WordLevelLyricsViewProps {
    */
   registerDotRef?: (key: string, el: HTMLSpanElement | null) => void
   /**
-   * Per-cueLine reconciled furigana render units, keyed by
-   * `${lineIdx}|${cueLine.key}`. Present only for Japanese cueLines whose
-   * analysis has resolved; that cueLine then renders per-unit (ruby + two-layer
-   * wipe). Absent → the legacy per-cue path renders unchanged.
+   * Per-cueLine furigana render units plus their resolved reading groups,
+   * computed once by the container, keyed by `${lineIdx}|${cueLine.key}`.
+   * Present only for Japanese cueLines whose analysis has resolved; that
+   * cueLine then renders per-unit (ruby + two-layer wipe). Absent → the legacy
+   * per-cue path renders unchanged.
    */
-  rubyUnitsByLineCue?: ReadonlyMap<string, RenderUnit[]>
+  rubyLayoutsByLineCue?: ReadonlyMap<string, RubyUnitLayout>
   /**
    * Resolved line-system (romaji) id. When defined, each cue row renders a
    * parallel `.romaji-cue` line beneath it. Undefined → no romaji.
@@ -93,7 +94,7 @@ export function WordLevelLyricsView({
   breakContainerRefs,
   registerWordRef,
   registerDotRef,
-  rubyUnitsByLineCue,
+  rubyLayoutsByLineCue,
   resolvedLineSystem,
   romajiByLine,
   romajiRowsByLineCue,
@@ -200,7 +201,7 @@ export function WordLevelLyricsView({
                       activeCueByKey[cueLine.key] ?? -1
                     const lastVisitedCueIdxForThisCueLine =
                       lastVisitedCueByKey[cueLine.key] ?? -1
-                    const rubyUnits = rubyUnitsByLineCue?.get(
+                    const rubyLayout = rubyLayoutsByLineCue?.get(
                       `${i}|${cueLine.key}`,
                     )
                     const romajiValue = resolvedLineSystem
@@ -219,9 +220,10 @@ export function WordLevelLyricsView({
                         data-agent-role={cueLine.agentRole ?? 'unknown'}
                         data-display-order={cueLine.displayOrder}
                       >
-                        {rubyUnits ? (
+                        {rubyLayout ? (
                           <RubyCueContent
-                            units={rubyUnits}
+                            units={rubyLayout.units}
+                            groups={rubyLayout.groups}
                             lineIdx={i}
                             cueLine={cueLine}
                             isLineActive={activeIndicesSet.has(i)}

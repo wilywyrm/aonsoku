@@ -1,10 +1,27 @@
 import { ISong } from '@/types/responses/song'
-import HomeHeader from './header'
+import { HomeHeader } from './header'
+
+function mockRandomSongs(songs: ISong[]) {
+  cy.intercept('/rest/getRandomSongs**', {
+    body: {
+      'subsonic-response': {
+        status: 'ok',
+        version: '1.16.1',
+        randomSongs: { song: songs },
+      },
+    },
+  }).as('getRandomSongs')
+}
 
 describe('HomeHeader Component', () => {
   it('should not show component if songs list is empty', () => {
-    cy.mount(<HomeHeader songs={[]} />)
+    mockRandomSongs([])
 
+    cy.mount(<HomeHeader />)
+    cy.wait('@getRandomSongs')
+
+    // Wait for the loading skeleton to go away, not just for the carousel to be absent.
+    cy.get('[data-cy-root]').should('be.empty')
     cy.getByTestId('header-carousel').should('not.exist')
   })
 
@@ -12,7 +29,10 @@ describe('HomeHeader Component', () => {
     cy.mockCoverArt()
 
     cy.fixture('songs/random').then((songs: ISong[]) => {
-      cy.mount(<HomeHeader songs={songs} />)
+      mockRandomSongs(songs)
+
+      cy.mount(<HomeHeader />)
+      cy.wait('@getRandomSongs')
 
       songs.forEach((song, index) => {
         cy.getByTestId(`carousel-header-song-${index}`).as('activeCarousel')
