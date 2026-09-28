@@ -77,7 +77,10 @@ function renderFuriCells(unit: RenderUnit, groups: ReadingGroup[]): ReactNode {
 
 export interface RubyCueContentProps {
   units: RenderUnit[]
-  /** Parallel to units; resolved upstream by resolveUnitLayout. Read-only. */
+  /**
+   * Parallel to units; resolved upstream by resolveUnitLayout or
+   * resolveSpreadUnitLayout. Read-only.
+   */
   groups: ReadingGroup[][]
   lineIdx: number
   cueLine: NormalizedCueLine
@@ -193,7 +196,13 @@ export function RubyCueContent({
             tabIndex={isWhitespaceOnly ? -1 : 0}
           >
             {unit.kana ? (
-              <span className="ruby-unit">
+              <span className={clsx('ruby-unit', unit.spread && 'ruby-spread')}>
+                {/* Must stay first: index.css widens the unit to fit it. */}
+                {unit.spread && (
+                  <span className="ruby-spread-sizer" aria-hidden="true">
+                    {groups[unitIdx]?.map((g) => g.kana).join(' ')}
+                  </span>
+                )}
                 <span className="ruby-base">{unit.kanjiText}</span>
                 <span className="ruby-furi" aria-hidden="true">
                   {renderFuriCells(unit, groups[unitIdx] ?? [])}

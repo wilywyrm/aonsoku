@@ -7,6 +7,7 @@ import {
   resolveUnitLayout,
 } from '@/service/furigana/layout'
 import { reconcile } from '@/service/furigana/reconcile'
+import { resolveSpreadUnitLayout } from '@/service/furigana/spreadLayout'
 import {
   computeWipeLayout,
   unitWipePct,
@@ -156,12 +157,13 @@ export function WordLevelLyricsContainer({
       for (const cueLine of line.cueLines) {
         const key = `${i}|${cueLine.key}`
         // Layout is resolved exactly once here (shift-first collision
-        // resolution, including any leftover merges), so the wipe layout and
-        // the render share the same final units AND the same reading groups.
-        const layout = resolveUnitLayout(
-          reconcile(model, cueLine.cues, cueLine.value),
-          cueLine.value,
-        )
+        // resolution, including any leftover merges; spread models widen
+        // their units instead), so the wipe layout and the render share the
+        // same final units AND the same reading groups.
+        const units = reconcile(model, cueLine.cues, cueLine.value)
+        const layout = model.spread
+          ? resolveSpreadUnitLayout(units)
+          : resolveUnitLayout(units, cueLine.value)
         rubyLayouts.set(key, layout)
         // Precompute the shared-front char layout once per cueLine, not per frame.
         wipeLayouts.set(
