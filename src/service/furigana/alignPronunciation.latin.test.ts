@@ -62,7 +62,7 @@ describe('alignPronunciation (Latin & JA regression)', () => {
       const main = makeTrack([
         {
           value: '今日 ',
-          cues: [{ start: 0, value: '今日 ', byteStart: 0, byteEnd: 8 }],
+          cues: [{ start: 0, value: '今日 ', byteStart: 0, byteEnd: 6 }],
         },
       ])
       const pron = makeTrack([
@@ -85,13 +85,13 @@ describe('alignPronunciation (Latin & JA regression)', () => {
       const main = makeTrack([
         {
           value: '珈琲 ',
-          cues: [{ start: 0, value: '珈琲 ', byteStart: 0, byteEnd: 8 }],
+          cues: [{ start: 0, value: '珈琲 ', byteStart: 0, byteEnd: 6 }],
         },
       ])
       const pron = makeTrack([
         {
           value: 'コーヒー',
-          cues: [{ start: 0, value: 'コーヒー', byteStart: 0, byteEnd: 12 }],
+          cues: [{ start: 0, value: 'コーヒー', byteStart: 0, byteEnd: 11 }],
         },
       ])
 
@@ -133,7 +133,7 @@ describe('alignPronunciation (Latin & JA regression)', () => {
       const main = makeTrack([
         {
           value: '你 ',
-          cues: [{ start: 0, value: '你 ', byteStart: 0, byteEnd: 4 }],
+          cues: [{ start: 0, value: '你 ', byteStart: 0, byteEnd: 3 }],
         },
       ])
       const pron = makeTrack([
@@ -156,7 +156,7 @@ describe('alignPronunciation (Latin & JA regression)', () => {
       const main = makeTrack([
         {
           value: '壮，',
-          cues: [{ start: 0, value: '壮，', byteStart: 0, byteEnd: 4 }],
+          cues: [{ start: 0, value: '壮，', byteStart: 0, byteEnd: 5 }],
         },
       ])
       const pron = makeTrack([
@@ -185,7 +185,7 @@ describe('alignPronunciation (Latin & JA regression)', () => {
       const pron = makeTrack([
         {
           value: 'nǐ hǎo',
-          cues: [{ start: 0, value: 'nǐ hǎo', byteStart: 0, byteEnd: 6 }],
+          cues: [{ start: 0, value: 'nǐ hǎo', byteStart: 0, byteEnd: 7 }],
         },
       ])
 
@@ -195,6 +195,52 @@ describe('alignPronunciation (Latin & JA regression)', () => {
       expect(result[0].segments[0].kana).toBe('nǐ hǎo')
       expect(result[0].segments[0].charStart).toBe(0)
       expect(result[0].segments[0].charEnd).toBe(1)
+      expect(result[0].segments[0].nonSplittable).toBe(true)
+    })
+
+    it('你, (comma + space) + nǐ (Latin pinyin) → space and comma excluded from core', () => {
+      const main = makeTrack([
+        {
+          value: '你, ',
+          cues: [{ start: 0, value: '你, ', byteStart: 0, byteEnd: 4 }],
+        },
+      ])
+      const pron = makeTrack([
+        {
+          value: 'nǐ',
+          cues: [{ start: 0, value: 'nǐ', byteStart: 0, byteEnd: 2 }],
+        },
+      ])
+
+      const result = alignPronunciation(main, pron)
+
+      expect(result[0].segments).toHaveLength(1)
+      expect(result[0].segments[0].kana).toBe('nǐ')
+      expect(result[0].segments[0].charStart).toBe(0)
+      expect(result[0].segments[0].charEnd).toBe(0)
+      expect(result[0].segments[0].nonSplittable).toBe(true)
+    })
+
+    it('你， (fullwidth comma + space) + nǐ (Latin pinyin) → space and comma excluded from core', () => {
+      const main = makeTrack([
+        {
+          value: '你， ',
+          cues: [{ start: 0, value: '你， ', byteStart: 0, byteEnd: 5 }],
+        },
+      ])
+      const pron = makeTrack([
+        {
+          value: 'nǐ',
+          cues: [{ start: 0, value: 'nǐ', byteStart: 0, byteEnd: 2 }],
+        },
+      ])
+
+      const result = alignPronunciation(main, pron)
+
+      expect(result[0].segments).toHaveLength(1)
+      expect(result[0].segments[0].kana).toBe('nǐ')
+      expect(result[0].segments[0].charStart).toBe(0)
+      expect(result[0].segments[0].charEnd).toBe(0)
       expect(result[0].segments[0].nonSplittable).toBe(true)
     })
   })

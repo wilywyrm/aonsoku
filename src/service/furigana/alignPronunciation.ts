@@ -130,12 +130,25 @@ function stripAffixes(base: string, reading: string): StrippedReading | null {
   // Reading identical to the base → pure passthrough, no ruby.
   if (base === reading) return null
 
+  let baseStart = 0
+  let baseEnd = base.length - 1
+
+  // For Latin (pinyin) readings with no kana, peel edge whitespace from the base
+  // BEFORE the punctuation peel, so the ruby core excludes trailing/leading spaces.
+  // Kana readings (hiragana or katakana) take the existing code path unchanged.
+  if (!hasKanaChar(reading)) {
+    while (baseStart <= baseEnd && /\s/.test(base[baseStart]!)) {
+      baseStart++
+    }
+    while (baseEnd >= baseStart && /\s/.test(base[baseEnd]!)) {
+      baseEnd--
+    }
+  }
+
   // Peel wrapping punctuation (brackets/quotes such as 「」『』（）"") off the base
   // ONLY: it carries no reading, so the ruby must centre over the kanji inside,
   // never the punctuation. Reading indices stay put since nothing matched, which
   // is why base and reading positions are tracked separately from here on.
-  let baseStart = 0
-  let baseEnd = base.length - 1
   while (
     baseStart <= baseEnd &&
     isRubyExcludedPunctuation(base.codePointAt(baseStart)!)
@@ -147,18 +160,6 @@ function stripAffixes(base: string, reading: string): StrippedReading | null {
     isRubyExcludedPunctuation(base.codePointAt(baseEnd)!)
   ) {
     baseEnd--
-  }
-
-  // For Latin (pinyin) readings with no kana, peel edge whitespace from the base
-  // AFTER the punctuation peel, so the ruby core excludes trailing/leading spaces.
-  // Kana readings (hiragana or katakana) take the existing code path unchanged.
-  if (!hasKanaChar(reading)) {
-    while (baseStart <= baseEnd && /\s/.test(base[baseStart]!)) {
-      baseStart++
-    }
-    while (baseEnd >= baseStart && /\s/.test(base[baseEnd]!)) {
-      baseEnd--
-    }
   }
 
   // Content bounds excluding wrapping punctuation: nonSplittable below is measured
