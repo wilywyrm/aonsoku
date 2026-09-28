@@ -42,9 +42,9 @@ export const SPACE_ADVANCE_EM = 0.33
 export const JIDORI_MAX_SHIFT = 0.5
 
 // One reading over a contiguous kanji span. start/end are inclusive char indices
-// in whatever coordinate space the caller uses (unit-local for grouping within a
-// unit, line-char for merging across units); collidesAtFloor only compares
-// relative positions, so any consistent origin works. 1 em == 1 base char.
+// in whatever coordinate space the caller uses (unit-local for within-unit reading
+// resolution via resolveReadingGroups/collidesAtFloor); collidesAtFloor only
+// compares relative positions, so any consistent origin works. 1 em == 1 base char.
 export interface ReadingSpan {
   start: number
   end: number
@@ -456,9 +456,10 @@ export function boundaryCollides(
 }
 
 // A char-range-plus-reading shape that both RenderUnit and RubyLineSegment
-// satisfy, used to synthesize per-kanji spans when merging or folding units/
-// segments together. The shift-first loop in layout.ts uses synthPerKanji to
-// unify the two types' geometry.
+// satisfy, used by synthPerKanji when mergeUnitPair, mergeSegmentPair, and
+// absorbOkurigana fold or merge units/segments together. The shift-first loop
+// in layout.ts calls these merge primitives, which internally use synthPerKanji
+// to unify the two types' geometry.
 interface ReadingBearing {
   charStart: number
   charEnd: number
