@@ -340,6 +340,17 @@ describe('condenseAcrossGaps', () => {
     expect(left.groups[0].tracking).toBe(-0.1429)
     expect(right.groups[0].tracking).toBe(-0.1429)
   })
+
+  it('measures overhang against a Latin base at its narrow width (衝100)', () => {
+    // しょう overhangs 衝 by 0.25em into ひゃく, which exactly fills 100 at
+    // 0.5em per digit, so both condense to the floor. At 1em per digit ひゃく
+    // would sit 0.75em inside 100 and nothing would condense.
+    const left = item([{ start: 0, end: 0, kana: 'しょう' }])
+    const right = item([{ start: 1, end: 3, kana: 'ひゃく' }])
+    condenseAcrossGaps([left, right], '衝100')
+    expect(left.groups[0].tracking).toBe(-0.15)
+    expect(right.groups[0].tracking).toBe(-0.15)
+  })
 })
 
 describe('resolveUnitGroups', () => {
@@ -553,6 +564,21 @@ describe('boundaryCollides', () => {
         '飄々 霞',
       ),
     ).toBe(true)
+  })
+
+  it('measures a Latin base at LATIN_ADVANCE_EM per char (像100)', () => {
+    // At 0.5em per digit ひゃく exactly spans 100 and meets ぞう edge to edge,
+    // so ぞう pushed 0.25em right overlaps it. At 1em per digit the same push
+    // would still look like a 0.5em gap.
+    const zou: ReadingGroup = { start: 0, end: 0, kana: 'ぞう' }
+    const left: ReadingItem = { groups: [zou], baseOffset: 0 }
+    const right: ReadingItem = {
+      groups: [{ start: 0, end: 2, kana: 'ひゃく' }],
+      baseOffset: 1,
+    }
+    expect(boundaryCollides(left, right, '像100')).toBe(false)
+    zou.shift = 0.25
+    expect(boundaryCollides(left, right, '像100')).toBe(true)
   })
 
   it('false when either side has no groups', () => {

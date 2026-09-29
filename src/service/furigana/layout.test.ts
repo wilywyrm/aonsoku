@@ -297,6 +297,52 @@ describe('resolveUnitLayout shift-first loop', () => {
     for (const g of result.groups.flat()) expect(g.tracking).toBeUndefined()
   })
 
+  it('word pipeline: 衝撃映像100連発！ — ひゃく over 100 moves with the push', () => {
+    // しょう can't move left past the line start, so jidori pushes げき, えい and
+    // ぞう right. With 100 measured at LATIN_ADVANCE_EM per digit, ひゃく is
+    // packed against ぞう and moves too, instead of ぞう being pushed into room
+    // that only existed while each digit counted as 1em.
+    const words = [
+      ['衝', 87670, 87971, 'しょう'],
+      ['撃', 87971, 88302, 'げき'],
+      ['映', 88302, 88671, 'えい'],
+      ['像', 88671, 89014, 'ぞう'],
+      ['100', 89014, 89226, 'ひゃく'],
+      ['連', 89226, 89639, 'れん'],
+      ['発！', 89639, 89956, 'ぱつ'],
+    ] as const
+    const text = words.map(([value]) => value).join('')
+    const main = makeTrack(
+      words.map(([value, start, end]) => ({ value, start, end })),
+    )
+    const pron = makeTrack(
+      words.map(([, start, end, value]) => ({ value, start, end })),
+    )
+
+    const [model] = alignPronunciation(main, pron)
+    const units = reconcile(model, main.lines[0].cueLines[0].cues, text)
+    const result = resolveUnitLayout(units, text)
+
+    expect(result.units.map((u) => u.kanjiText)).toEqual([
+      '衝',
+      '撃',
+      '映',
+      '像',
+      '100',
+      '連',
+      '発！',
+    ])
+    const shifts = result.groups.map((g) => g[0]?.shift ?? 0)
+    expect(shifts[0]).toBe(0)
+    for (const s of shifts.slice(1)) expect(s).toBeCloseTo(0.25, 4)
+    for (const g of result.groups.flat()) expect(g.tracking).toBeUndefined()
+    const at = (i: number) => ({
+      groups: result.groups[i],
+      baseOffset: result.units[i].charStart,
+    })
+    expect(boundaryCollides(at(3), at(4), text)).toBe(false)
+  })
+
   it('word: 妄想戦上 merges leftovers leftmost-first (E2)', () => {
     // The line ends at 上, so じょう has no room to shift into.
     const units = routine.units.slice(0, 4)
