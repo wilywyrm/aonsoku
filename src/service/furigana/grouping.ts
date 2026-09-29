@@ -39,6 +39,14 @@ const BOUNDARY_EPS = 1e-3
 // only leaves a hair of extra room. Base kanji never move.
 export const SPACE_ADVANCE_EM = 0.2
 
+// Approximate advance (base-em) of one Latin letter, digit or punctuation mark
+// in base text (100 under ひゃく, English words in a Japanese line). A low
+// average: bundled Poppins SemiBold averages 0.57-0.6em (digits 0.594,
+// lowercase 0.582, printable ASCII 0.592), so 0.5 sits near its 25th
+// percentile. Low is the safe side, as for SPACE_ADVANCE_EM: overestimating
+// invents room that jidori pushes readings into.
+export const LATIN_ADVANCE_EM = 0.5
+
 // Aesthetic cap (base-em) on how far jidori may shift a reading off the centre of
 // its own kanji before it looks detached. Tuned by eye like the other constants.
 export const JIDORI_MAX_SHIFT = 0.5
@@ -219,25 +227,30 @@ function currentDrop(g: ReadingGroup): number {
 
 // How far a group's reading extends past its base span edge on EACH side
 // (positive = overhang), at its current (possibly already-condensed) width.
-function groupOverhang(g: ReadingGroup): number {
-  return (
-    (g.kana.length * RT_EM - currentDrop(g)) / 2 - (g.end - g.start + 1) / 2
-  )
+// `baseWidth` is the span's advance (advanceEm), so Latin or spaces under a
+// reading count at their narrow widths, as they do for jidori.
+function groupOverhang(g: ReadingGroup, baseWidth: number): number {
+  return (g.kana.length * RT_EM - currentDrop(g) - baseWidth) / 2
 }
 
 function shiftOf(g: ReadingGroup): number {
   return g.shift ?? 0
 }
 
-// Approximate advance (base-em) of one character when measuring a phrase gap:
-// narrow ASCII whitespace is SPACE_ADVANCE_EM; everything else — CJK, kana, the
-// ideographic space U+3000, and (deliberately) Latin — is 1em. Over-counting
-// Latin only ever UNDER-condenses (safe); real inter-phrase gaps are whitespace.
+// Printable Basic Latin, Latin-1 Supplement and Latin Extended-A/B: letters,
+// digits and punctuation drawn as proportional glyphs, not full-width.
+const LATIN_CHAR = /[\u0021-\u007e\u00a1-\u024f]/
+
+// Approximate advance (base-em) of one base character: narrow ASCII whitespace
+// is SPACE_ADVANCE_EM, Latin is LATIN_ADVANCE_EM, and everything else (CJK,
+// kana, full-width forms, the ideographic space U+3000) is 1em.
 function charAdvanceEm(ch: string): number {
-  return /\s/.test(ch) && ch !== '\u3000' ? SPACE_ADVANCE_EM : 1
+  if (/\s/.test(ch) && ch !== '\u3000') return SPACE_ADVANCE_EM
+  return LATIN_CHAR.test(ch) ? LATIN_ADVANCE_EM : 1
 }
 
-function gapAdvanceEm(text: string, from: number, to: number): number {
+// Summed advance (base-em) of text[from, to).
+function advanceEm(text: string, from: number, to: number): number {
   let w = 0
   for (let i = from; i < to; i++) w += charAdvanceEm(text[i])
   return w
@@ -291,13 +304,15 @@ export function condenseAcrossGaps(items: ReadingItem[], text: string): void {
     const lg = left.groups[left.groups.length - 1]
     const rg = right.groups[0]
     if (!lg || !rg) continue
+    const absLeftStart = left.baseOffset + lg.start
     const absLeftEnd = left.baseOffset + lg.end
     const absRightStart = right.baseOffset + rg.start
+    const absRightEnd = right.baseOffset + rg.end
     if (absRightStart <= absLeftEnd) continue
     const overlap =
-      groupOverhang(lg) +
-      groupOverhang(rg) -
-      gapAdvanceEm(text, absLeftEnd + 1, absRightStart) +
+      groupOverhang(lg, advanceEm(text, absLeftStart, absLeftEnd + 1)) +
+      groupOverhang(rg, advanceEm(text, absRightStart, absRightEnd + 1)) -
+      advanceEm(text, absLeftEnd + 1, absRightStart) +
       shiftOf(lg) -
       shiftOf(rg)
     if (overlap <= EPS) continue
@@ -320,8 +335,9 @@ export function condenseAcrossGaps(items: ReadingItem[], text: string): void {
 }
 
 // Cumulative advance (base-em) of text[0, i): a reading over base chars
-// [start, end] spans [prefix[start], prefix[end + 1]]. Narrow whitespace counts
-// as SPACE_ADVANCE_EM — this is what makes jidori aware of the real gap widths.
+// [start, end] spans [prefix[start], prefix[end + 1]]. Narrow whitespace and
+// Latin count at their narrow widths (charAdvanceEm), which is what makes jidori
+// aware of the real gap and base widths.
 function advancePrefix(text: string): number[] {
   const prefix = new Array<number>(text.length + 1)
   prefix[0] = 0
