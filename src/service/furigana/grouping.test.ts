@@ -306,7 +306,7 @@ describe('condenseAcrossGaps', () => {
 
   it('condenses both readings overhanging a narrow ASCII space (飄々 ␣ 霞)', () => {
     // 飄々 renders as one group-ruby ひょうひょう (overhangs 0.5em); 霞's かすみ
-    // overhangs 0.25em; across the ~0.33em ASCII space they overlap ~0.42em, so
+    // overhangs 0.25em; across the ~0.2em ASCII space they overlap ~0.55em, so
     // both track down to the floor (residual accepted, never merged).
     const left = item([{ start: 3, end: 4, kana: 'ひょうひょう' }])
     const right = item([{ start: 6, end: 6, kana: 'かすみ' }])
@@ -376,9 +376,9 @@ describe('resolveUnitGroups', () => {
 
 describe('shiftAcrossGaps', () => {
   it('symmetrically shifts a wide reading, cascading its blocker, to clear a gap', () => {
-    // 飄々→ひょうひょう (overhangs 0.5em) overlaps 霞→かすみ across the ~0.33em ASCII
-    // space by 0.42em. Symmetric jidori moves each 0.21em apart; かすみ's right is
-    // blocked by 掛→か edge-to-edge, so か rides right 0.21em into かる's empty space.
+    // 飄々→ひょうひょう (overhangs 0.5em) overlaps 霞→かすみ across the ~0.2em ASCII
+    // space by 0.55em. Symmetric jidori moves each 0.275em apart; かすみ's right is
+    // blocked by 掛→か edge-to-edge, so か rides right 0.275em into かる's empty space.
     const hyou: ReadingGroup = { start: 0, end: 1, kana: 'ひょうひょう' }
     const kasumi: ReadingGroup = { start: 0, end: 0, kana: 'かすみ' }
     const ka: ReadingGroup = { start: 0, end: 0, kana: 'か' }
@@ -394,9 +394,9 @@ describe('shiftAcrossGaps', () => {
       ],
       'ひらり飄々 霞掛かる鼓動',
     )
-    expect(hyou.shift).toBeCloseTo(-0.21, 4)
-    expect(kasumi.shift).toBeCloseTo(0.21, 4)
-    expect(ka.shift).toBeCloseTo(0.21, 4)
+    expect(hyou.shift).toBeCloseTo(-0.275, 4)
+    expect(kasumi.shift).toBeCloseTo(0.275, 4)
+    expect(ka.shift).toBeCloseTo(0.275, 4)
     expect(ko.shift).toBeUndefined()
     expect(dou.shift).toBeUndefined()
   })
@@ -544,7 +544,7 @@ describe('boundaryCollides', () => {
   })
 
   it('reports the geometric overlap even across a space (飄々 霞)', () => {
-    // The readings overlap ~0.42em across the narrow space. Never merging across
+    // The readings overlap ~0.55em across the narrow space. Never merging across
     // a space is up to the caller; this only measures.
     expect(
       boundaryCollides(

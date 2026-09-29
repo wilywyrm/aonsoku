@@ -30,12 +30,14 @@ const EPS = 1e-9
 // and is ≈0.03px at a 32px font.
 const BOUNDARY_EPS = 1e-3
 
-// Approximate horizontal advance (base-em) of a NARROW space — used only to
-// measure the real gap between two space-separated compound phrases (full-width
-// chars are 1em). Hardcoded because it is font-dependent and only tunes how
-// aggressively cross-gap readings condense: being off yields a hair more/less
-// residual overlap, never layout breakage (base kanji never move).
-export const SPACE_ADVANCE_EM = 0.33
+// Approximate horizontal advance (base-em) of a NARROW space, used to measure
+// the real gap between two space-separated phrases (full-width chars are 1em)
+// for jidori and condensing. Font-dependent, so hardcoded just under the
+// bundled Poppins space (0.212em bold to 0.267em regular; 0.238em at the
+// lyrics' semibold): readings are resolved to exactly touching (READING_GAP_EM
+// = 0), so overestimating the gap shows up as overlap, while underestimating
+// only leaves a hair of extra room. Base kanji never move.
+export const SPACE_ADVANCE_EM = 0.2
 
 // Aesthetic cap (base-em) on how far jidori may shift a reading off the centre of
 // its own kanji before it looks detached. Tuned by eye like the other constants.
