@@ -12,6 +12,7 @@ import type {
   NormalizedBreak,
   NormalizedStructuredLyric,
 } from '@/utils/wordTiming'
+import { LyricsEntry } from '../lyrics-entry'
 import { RomajiCueContent } from './romaji-cue-content'
 import { RubyCueContent } from './ruby-cue-content'
 import { secondaryAgentHueRotation } from './secondaryAgentHue'
@@ -156,7 +157,7 @@ export function WordLevelLyricsView({
       className={clsx(
         'w-full h-full text-center font-semibold text-2xl 2xl:text-3xl px-2 overflow-y-auto',
         !isSafari && 'scroll-smooth',
-        'lrc-box maskImage-big-player-lyrics',
+        'lrc-box lyrics-view maskImage-big-player-lyrics',
       )}
     >
       <div aria-hidden="true" style={{ height: '50%' }} />
@@ -181,17 +182,14 @@ export function WordLevelLyricsView({
               />
             )}
             {!isHidden && (
-              <div
+              <LyricsEntry
                 ref={(el) => {
                   if (lineRefs?.current) lineRefs.current[i] = el
                 }}
                 data-testid={`word-line-${i}`}
                 data-active={activeIndicesSet.has(i) ? 'true' : 'false'}
-                className={clsx(
-                  'drop-shadow-lg my-5 duration-500 w-fit m-auto max-w-[80%] text-balance',
-                  'transition-[transform] motion-reduce:transition-none',
-                  activeIndicesSet.has(i) && !isBreakActive && 'scale-125',
-                )}
+                focused={activeIndicesSet.has(i) && !isBreakActive}
+                className="drop-shadow-lg w-fit m-auto max-w-[80%] text-balance"
               >
                 {line.cueLines.length === 0 ? (
                   <p lang={resolvedLang}>{line.value}</p>
@@ -384,7 +382,7 @@ export function WordLevelLyricsView({
                     )
                   })
                 )}
-              </div>
+              </LyricsEntry>
             )}
           </Fragment>
         )
@@ -412,15 +410,12 @@ function InstrumentalBreak({
 }) {
   const durationPerDot = (brk.end - brk.start) / brk.dotCount
   return (
-    <div
+    <LyricsEntry
       ref={containerRef}
       data-testid={`instrumental-break-${brk.key}`}
       data-active={isActive ? 'true' : 'false'}
-      className={clsx(
-        'drop-shadow-lg my-5 duration-500 w-fit m-auto',
-        'transition-[transform] motion-reduce:transition-none',
-        isActive && 'scale-125',
-      )}
+      focused={isActive}
+      className="drop-shadow-lg w-fit m-auto"
     >
       <p className="flex flex-wrap items-center justify-center text-2xl 2xl:text-3xl font-semibold leading-none">
         {Array.from({ length: brk.dotCount }, (_, idx) => {
@@ -462,6 +457,6 @@ function InstrumentalBreak({
           )
         })}
       </p>
-    </div>
+    </LyricsEntry>
   )
 }
