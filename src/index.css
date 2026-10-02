@@ -389,7 +389,7 @@ svg#bars .eq-bar--4 {
  * wipes in lockstep with the kanji beneath it. background-clip:text stays ON in
  * every state (solid currentColor when not active, the --fill split when
  * active) so the active↔past switch never re-rasterises the glyph box (which
- * otherwise snaps when the line's scale-125 transition ends).
+ * otherwise snaps when the line's focus-scale transition ends).
  */
 /*
  * Reserve the furigana's height ABOVE the base IN FLOW: padding-top grows the
@@ -577,11 +577,76 @@ svg#bars .eq-bar--4 {
  * furigana height (see .ruby-unit padding-top), so this only sets a minimum for
  * kanji-less rows and keeps every row's baseline stable during progressive
  * furigana injection (no reflow). Scoped to the word-sync scroll container's
- * data-testid — NOT `.lrc-box`, which line-level lyrics (lyrics.tsx) also use
- * and must keep their tighter spacing.
+ * data-testid — NOT `.lrc-box`, which line-level lyrics (lyrics.tsx) also use;
+ * those set the same leading on their lyric <p> directly (leading-normal).
  */
 [data-testid="word-sync-lyrics-box"] p {
   line-height: 1.5em;
+}
+
+/*
+ * ─── Lyric entries: spacing and focus scale ───────────────────────────────
+ * An entry (LyricsEntry) is one lyric line plus its transliteration row,
+ * spaced and focus-scaled as a unit, so the scale can never eat the gap
+ * between a line and its own transliteration. Gaps are em-based so they follow
+ * the lyrics font size (user font-size overrides included), with rem floors as
+ * the guaranteed minimum. They are registered as <length> so each em resolves
+ * once, on the .lyrics-view container, and inherits as px: the smaller
+ * transliteration text gets the same gap as the lyric, not one scaled to its
+ * own font size.
+ */
+@property --lyrics-line-gap {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+
+@property --lyrics-translit-gap {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+
+.lyrics-view {
+  --lyrics-line-gap: max(0.75em, 0.75rem);
+  --lyrics-translit-gap: max(0.15em, 0.25rem);
+  --lyrics-focus-scale: 1.25;
+  --lyrics-focus-overflow: calc((var(--lyrics-focus-scale) - 1) / 2);
+}
+
+/*
+ * The focused entry is scaled with a transform, which never moves its
+ * neighbours: it overflows its own box by (scale - 1) / 2 of its height on
+ * each side (--lyrics-focus-overflow). That overflow is reserved in layout
+ * instead, from the entry's untransformed height (--lyrics-entry-height, kept
+ * current by LyricsEntry's ResizeObserver), so the visible gap stays
+ * --lyrics-line-gap however many rows the line wraps to. Margins only
+ * transition once the first height has landed ([data-measured]), so a
+ * reservation never eases in on mount.
+ */
+.lyrics-entry {
+  margin-block: var(--lyrics-line-gap);
+  transition: transform 500ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.lyrics-entry[data-measured] {
+  transition-property: transform, margin-top, margin-bottom;
+}
+
+.lyrics-entry.is-focused {
+  transform: scale(var(--lyrics-focus-scale));
+  margin-block: calc(
+    var(--lyrics-line-gap) +
+    var(--lyrics-entry-height, 0px) *
+    var(--lyrics-focus-overflow)
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lyrics-entry,
+  .lyrics-entry[data-measured] {
+    transition: none;
+  }
 }
 
 /*
@@ -593,8 +658,11 @@ svg#bars .eq-bar--4 {
 .romaji-line {
   font-size: 0.75em;
   opacity: 0.65;
-  margin-top: 0.15em;
+  margin-top: var(--lyrics-translit-gap);
   letter-spacing: 0.02em;
+  /* Unitless so wrapped rows lead off this row's own font, not the fixed
+   * 2rem/2.25rem inherited from the container's text-2xl/2xl:text-3xl. */
+  line-height: 1.3;
 }
 .romaji-cue {
   display: block;

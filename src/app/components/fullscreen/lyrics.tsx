@@ -31,6 +31,7 @@ import { ILyric } from '@/types/responses/song'
 import { getServerExtensions } from '@/utils/servers'
 import { findPronunciationByLang } from '@/utils/wordTiming'
 import { LineRubyContent } from './line-ruby-content'
+import { LyricsEntry } from './lyrics-entry'
 import { WordLevelLyricsContainer } from './word-level-lyrics'
 
 // disambiguates chinese language code to the user's locale if set
@@ -196,7 +197,7 @@ function SyncedLyrics({
   }
 
   return (
-    <div className="w-full h-full text-center font-semibold text-2xl 2xl:text-3xl px-2 lrc-box maskImage-big-player-lyrics">
+    <div className="w-full h-full text-center font-semibold text-2xl 2xl:text-3xl px-2 lrc-box lyrics-view maskImage-big-player-lyrics">
       <Lrc
         // react-lrc measures each line's offsetTop once at mount and its
         // ResizeObserver only watches the root box, so ruby/romaji height changes
@@ -214,19 +215,21 @@ function SyncedLyrics({
             ? romajiTrack?.line[index]?.value
             : undefined
           return (
-            <LineRubyContent
-              text={normalizeLrcContent(line.content)}
-              model={model}
-              lang={resolvedLang}
-              onClick={() => skipToTime(line.startMillisecond)}
-              className={clsx(
-                'text-shadow-lg my-5 cursor-pointer hover:opacity-100 duration-500',
-                'transition-[opacity,transform] motion-reduce:transition-none',
-                active ? 'opacity-100 scale-125' : 'opacity-50',
-              )}
-              resolvedLineSystem={resolvedLineSystem}
-              romajiLine={romajiLine}
-            />
+            <LyricsEntry focused={active}>
+              <LineRubyContent
+                text={normalizeLrcContent(line.content)}
+                model={model}
+                lang={resolvedLang}
+                onClick={() => skipToTime(line.startMillisecond)}
+                className={clsx(
+                  'text-shadow-lg leading-normal cursor-pointer hover:opacity-100 duration-500',
+                  'transition-opacity motion-reduce:transition-none',
+                  active ? 'opacity-100' : 'opacity-50',
+                )}
+                resolvedLineSystem={resolvedLineSystem}
+                romajiLine={romajiLine}
+              />
+            </LyricsEntry>
           )
         }}
       />
