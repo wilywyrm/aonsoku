@@ -535,7 +535,7 @@ describe('WordLevelLyricsView Component', () => {
   })
 
   // 24
-  it('cluster: scale-125 applies to every line in activeLineIndices', () => {
+  it('cluster: focus scale applies to every line in activeLineIndices', () => {
     loadAndNormalize('v2-multi-agent-overlapping-indices.json', (data) => {
       cy.mount(
         <WordLevelLyricsView
@@ -548,9 +548,9 @@ describe('WordLevelLyricsView Component', () => {
           resolvedLang="en"
         />,
       )
-      cy.get('[data-testid="word-line-0"]').should('have.class', 'scale-125')
-      cy.get('[data-testid="word-line-1"]').should('have.class', 'scale-125')
-      cy.get('[data-testid="word-line-2"]').should('have.class', 'scale-125')
+      cy.get('[data-testid="word-line-0"]').should('have.class', 'is-focused')
+      cy.get('[data-testid="word-line-1"]').should('have.class', 'is-focused')
+      cy.get('[data-testid="word-line-2"]').should('have.class', 'is-focused')
     })
   })
 
