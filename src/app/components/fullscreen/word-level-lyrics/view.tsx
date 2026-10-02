@@ -342,7 +342,7 @@ export function WordLevelLyricsView({
                         )}
                         {resolvedLineSystem &&
                           (romajiRow && romajiRow.length > 0 ? (
-                            <div
+                            <span
                               className="romaji-row"
                               lang={resolvedLineSystem}
                               data-testid={`romaji-row-${i}-${cueLine.key}`}
@@ -363,7 +363,7 @@ export function WordLevelLyricsView({
                                 hoveredCue={hoveredCue}
                                 onHoverCue={setHoveredCue}
                               />
-                            </div>
+                            </span>
                           ) : (
                             romajiValue && (
                               <span
